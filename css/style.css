@@ -922,3 +922,16 @@ tbody tr:hover {
     }
 
 }
+/* =========================================================
+   CHART CONTAINERS
+========================================================= */
+
+.chart-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+}
+
+.chart-body {
+    padding: 20px;
+}
