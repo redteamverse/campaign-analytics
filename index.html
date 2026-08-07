@@ -1,1 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <title>Campaign Analytics</title>
+
+    <meta
+        name="description"
+        content="Campaign performance and engagement analytics dashboard."
+    >
+
+    <!-- Google Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <!-- Application CSS -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <div class="app">
+
+        <!-- ==========================================
+             SIDEBAR
+        =========================================== -->
+        <aside class="sidebar">
+
+            <div class="sidebar-brand">
+
+                <div class="brand-mark">
+                    CA
+                </div>
+
+                <div class="brand-text">
+                    <div class="brand-name">
+                        Campaign Analytics
+                    </div>
+
+                    <div class="brand-subtitle">
+                        Engagement Intelligence
+                    </div>
+                </div>
+
+            </div>
+
+
+            <nav class="sidebar-nav">
+
+                <div class="nav-section-label">
+                    ANALYTICS
+                </div>
+
+                <button class="nav-item active" data-view="overview">
+                    <span class="nav-icon">◉</span>
+                    <span>Overview</span>
+                </button>
+
+                <button class="nav-item" data-view="campaigns">
+                    <span class="nav-icon">▦</span>
+                    <span>Campaigns</span>
+                </button>
+
+                <button class="nav-item" data-view="engagement">
+                    <span class="nav-icon">↗</span>
+                    <span>Engagement</span>
+                </button>
+
+                <button class="nav-item" data-view="delivery">
+                    <span class="nav-icon">✓</span>
+                    <span>Delivery & QA</span>
+                </button>
+
+                <button class="nav-item" data-view="followups">
+                    <span class="nav-icon">↻</span>
+                    <span>Follow-ups</span>
+                </button>
+
+                <button class="nav-item" data-view="recipients">
+                    <span class="nav-icon">◎</span>
+                    <span>Recipients</span>
+                </button>
+
+            </nav>
+
+
+            <div class="sidebar-footer">
+
+                <div class="data-status">
+                    <span class="status-dot"></span>
+
+                    <div>
+                        <div class="status-title">
+                            Data source
+                        </div>
+
+                        <div class="status-value">
+                            Demo dataset
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </aside>
+
+
+        <!-- ==========================================
+             MAIN CONTENT
+        =========================================== -->
+        <main class="main">
+
+            <!-- TOP HEADER -->
+            <header class="topbar">
+
+                <div class="topbar-left">
+
+                    <button
+                        class="mobile-menu-button"
+                        id="mobileMenuButton"
+                        aria-label="Open navigation"
+                    >
+                        ☰
+                    </button>
+
+                    <div>
+                        <div class="page-eyebrow">
+                            CAMPAIGN ANALYTICS
+                        </div>
+
+                        <h1 id="pageTitle">
+                            Overview
+                        </h1>
+                    </div>
+
+                </div>
+
+
+                <div class="topbar-right">
+
+                    <div class="last-updated">
+                        <span class="status-dot"></span>
+                        Demo data
+                    </div>
+
+                    <button class="refresh-button" id="refreshButton">
+                        ↻
+                        <span>Refresh</span>
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <!-- ======================================
+                 GLOBAL FILTER BAR
+            ======================================= -->
+            <section class="filter-bar">
+
+                <div class="filter-heading">
+
+                    <div class="filter-title">
+                        Filters
+                    </div>
+
+                    <button
+                        class="clear-filters"
+                        id="clearFilters"
+                    >
+                        Clear all
+                    </button>
+
+                </div>
+
+
+                <div class="filters">
+
+                    <div class="filter-group">
+
+                        <label for="campaignFilter">
+                            Campaign
+                        </label>
+
+                        <select id="campaignFilter">
+                            <option value="">All campaigns</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="filter-group">
+
+                        <label for="sequenceFilter">
+                            Sequence
+                        </label>
+
+                        <select id="sequenceFilter">
+                            <option value="">All sequences</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="filter-group">
+
+                        <label for="versionFilter">
+                            Email Version
+                        </label>
+
+                        <select id="versionFilter">
+                            <option value="">All versions</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="filter-group">
+
+                        <label for="segmentFilter">
+                            Target Segment
+                        </label>
+
+                        <select id="segmentFilter">
+                            <option value="">All segments</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="filter-group">
+
+                        <label for="companyFilter">
+                            Company
+                        </label>
+
+                        <select id="companyFilter">
+                            <option value="">All companies</option>
+                        </select>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- ======================================
+                 VIEW CONTAINER
+            ======================================= -->
+            <div class="content">
+
+                <!-- ==================================
+                     OVERVIEW VIEW
+                =================================== -->
+                <section
+                    class="view active"
+                    id="overviewView"
+                >
+
+                    <div class="section-header">
+
+                        <div>
+                            <h2>
+                                Campaign Overview
+                            </h2>
+
+                            <p>
+                                Monitor delivery, engagement and response performance.
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    <!-- KPI CARDS -->
+
+                    <div class="kpi-grid">
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Recipients
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiRecipients"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Unique recipients
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Messages
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiMessages"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Total message records
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Sent
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiSent"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Successfully sent
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Verified
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiVerified"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Post-delivery checks passed
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card accent-card">
+
+                            <div class="kpi-label">
+                                Open Rate
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiOpenRate"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Opens / verified
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Click Rate
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiClickRate"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Clicks / verified
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Reply Rate
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiReplyRate"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Replies / verified
+                            </div>
+
+                        </article>
+
+
+                        <article class="kpi-card">
+
+                            <div class="kpi-label">
+                                Unsubscribe Rate
+                            </div>
+
+                            <div
+                                class="kpi-value"
+                                id="kpiUnsubscribeRate"
+                            >
+                                —
+                            </div>
+
+                            <div class="kpi-description">
+                                Unsubscribed / verified
+                            </div>
+
+                        </article>
+
+                    </div>
+
+
+                    <!-- CHART ROW -->
+
+                    <div class="dashboard-grid two-columns">
+
+                        <article class="panel chart-panel">
+
+                            <div class="panel-header">
+
+                                <div>
+                                    <h3>
+                                        Engagement Funnel
+                                    </h3>
+
+                                    <p>
+                                        Message progression
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div
+                                class="chart-container"
+                                id="funnelChart"
+                            >
+
+                                <div class="empty-chart">
+                                    Chart will appear here
+                                </div>
+
+                            </div>
+
+                        </article>
+
+
+                        <article class="panel chart-panel">
+
+                            <div class="panel-header">
+
+                                <div>
+                                    <h3>
+                                        Sending Trend
+                                    </h3>
+
+                                    <p>
+                                        Messages sent over time
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div
+                                class="chart-container"
+                                id="sendingTrendChart"
+                            >
+
+                                <div class="empty-chart">
+                                    Chart will appear here
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    </div>
+
+
+                    <!-- PERFORMANCE ROW -->
+
+                    <div class="dashboard-grid two-columns">
+
+                        <article class="panel">
+
+                            <div class="panel-header">
+
+                                <div>
+                                    <h3>
+                                        Campaign Performance
+                                    </h3>
+
+                                    <p>
+                                        Compare campaigns
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div
+                                class="chart-container small"
+                                id="campaignChart"
+                            >
+
+                                <div class="empty-chart">
+                                    Chart will appear here
+                                </div>
+
+                            </div>
+
+                        </article>
+
+
+                        <article class="panel">
+
+                            <div class="panel-header">
+
+                                <div>
+                                    <h3>
+                                        Sequence Performance
+                                    </h3>
+
+                                    <p>
+                                        Engagement by sequence
+                                    </p>
+                                </div>
+
+                            </div>
+
+                            <div
+                                class="chart-container small"
+                                id="sequenceChart"
+                            >
+
+                                <div class="empty-chart">
+                                    Chart will appear here
+                                </div>
+
+                            </div>
+
+                        </article>
+
+                    </div>
+
+
+                    <!-- QUICK TABLE -->
+
+                    <article class="panel table-panel">
+
+                        <div class="panel-header">
+
+                            <div>
+                                <h3>
+                                    Campaign Summary
+                                </h3>
+
+                                <p>
+                                    High-level performance by campaign
+                                </p>
+                            </div>
+
+                            <button class="text-button">
+                                View all
+                            </button>
+
+                        </div>
+
+
+                        <div class="table-wrapper">
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+                                        <th>Campaign</th>
+                                        <th>Recipients</th>
+                                        <th>Sent</th>
+                                        <th>Opened</th>
+                                        <th>Clicked</th>
+                                        <th>Replied</th>
+                                        <th>Open Rate</th>
+                                        <th>Reply Rate</th>
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="campaignSummaryTable">
+
+                                    <tr>
+                                        <td colspan="8">
+                                            <div class="table-empty">
+                                                Data will appear here
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </article>
+
+                </section>
+
+
+                <!-- ==================================
+                     OTHER VIEWS
+                =================================== -->
+
+                <section
+                    class="view"
+                    id="campaignsView"
+                >
+                    <div class="placeholder-view">
+                        <span>Campaigns</span>
+                        <h2>Campaign performance</h2>
+                        <p>
+                            This section will be built next.
+                        </p>
+                    </div>
+                </section>
+
+
+                <section
+                    class="view"
+                    id="engagementView"
+                >
+                    <div class="placeholder-view">
+                        <span>Engagement</span>
+                        <h2>Engagement analysis</h2>
+                        <p>
+                            This section will be built next.
+                        </p>
+                    </div>
+                </section>
+
+
+                <section
+                    class="view"
+                    id="deliveryView"
+                >
+                    <div class="placeholder-view">
+                        <span>Delivery & QA</span>
+                        <h2>Delivery health</h2>
+                        <p>
+                            This section will be built next.
+                        </p>
+                    </div>
+                </section>
+
+
+                <section
+                    class="view"
+                    id="followupsView"
+                >
+                    <div class="placeholder-view">
+                        <span>Follow-ups</span>
+                        <h2>Follow-up management</h2>
+                        <p>
+                            This section will be built next.
+                        </p>
+                    </div>
+                </section>
+
+
+                <section
+                    class="view"
+                    id="recipientsView"
+                >
+                    <div class="placeholder-view">
+                        <span>Recipients</span>
+                        <h2>Recipient explorer</h2>
+                        <p>
+                            This section will be built next.
+                        </p>
+                    </div>
+                </section>
+
+            </div>
+
+        </main>
+
+    </div>
+
+
+    <!-- ==========================================
+         MOBILE OVERLAY
+    =========================================== -->
+
+    <div
+        class="sidebar-overlay"
+        id="sidebarOverlay"
+    ></div>
+
+
+    <!-- ==========================================
+         JAVASCRIPT
+    =========================================== -->
+
+    <script src="js/app.js"></script>
+
+</body>
+</html>
