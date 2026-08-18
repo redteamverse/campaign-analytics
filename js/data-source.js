@@ -5,7 +5,7 @@
  */
 
 const DATA_SOURCE_CONFIG = {
-    // Replace with your Apps Script Web App URL:
+    // Your Apps Script Web App URL:
     webAppUrl: "https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec"
 };
 
@@ -14,7 +14,7 @@ const DATA_SOURCE_CONFIG = {
  * @returns {Promise<Array>}
  */
 async function loadGoogleSheetData() {
-    if (!DATA_SOURCE_CONFIG.webAppUrl || DATA_SOURCE_CONFIG.webAppUrl.includes(https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec")) {
+    if (!DATA_SOURCE_CONFIG.webAppUrl || DATA_SOURCE_CONFIG.webAppUrl.includes("YOUR_WEB_APP_URL_HERE")) {
         throw new Error("Please configure webAppUrl in data-source.js");
     }
 
