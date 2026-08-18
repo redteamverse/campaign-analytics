@@ -1,46 +1,81 @@
 /**
- * =========================================================
- * DATA SOURCE (Apps Script Integration)
- * =========================================================
+ * ============================================================
+ * RELATIONAL ENTERPRISE DASHBOARD - DATA SOURCE MODULE
+ * ============================================================
+ * Handles fetching, caching, and routing data from the Google Sheets
+ * Web App API across all core relational entities.
  */
 
-const DATA_SOURCE_CONFIG = {
-    // Your Apps Script Web App URL:
-    webAppUrl: "https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec"
-};
+const DataSource = (function () {
+  // Replace with your published Google Apps Script Web App URL
+  const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
 
-/**
- * Fetch raw sheet records from Google Apps Script Web App
- * @returns {Promise<Array>}
- */
-async function loadGoogleSheetData() {
-    if (!DATA_SOURCE_CONFIG.webAppUrl || DATA_SOURCE_CONFIG.webAppUrl.includes("YOUR_WEB_APP_URL_HERE")) {
-        throw new Error("Please configure webAppUrl in data-source.js");
+  // Master local data store
+  let dataStore = {
+    users: [],
+    campaigns: [],
+    journeys: [],
+    emailEvents: [],
+    tracking: [],
+    followUp: [],
+    analysis: [],
+    reports: [],
+    lastUpdated: null
+  };
+
+  /**
+   * Fetches relational data from Google Apps Script Web App
+   */
+  async function loadData(forceRefresh = false) {
+    if (dataStore.lastUpdated && !forceRefresh) {
+      return dataStore;
     }
 
-    // Requests data using get_dashboard_data action
-    const url = `${DATA_SOURCE_CONFIG.webAppUrl}?action=get_dashboard_data`;
-    const response = await fetch(url);
+    try {
+      const response = await fetch(`${API_URL}?action=get_dashboard_data`);
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
 
-    if (!response.ok) {
-        throw new Error(`HTTP Error (${response.status}): Failed to fetch dashboard data.`);
+      const payload = await response.json();
+
+      if (payload.error) {
+        throw new Error(`API Error: ${payload.error}`);
+      }
+
+      // Map API sheets to relational store keys
+      dataStore.users = payload['Users'] || [];
+      dataStore.campaigns = payload['Campaigns'] || [];
+      dataStore.journeys = payload['Journeys'] || [];
+      dataStore.emailEvents = payload['Email Events'] || [];
+      dataStore.tracking = payload['Tracking'] || [];
+      dataStore.followUp = payload['Follow-Up'] || [];
+      dataStore.analysis = payload['Analysis'] || [];
+      dataStore.reports = payload['Reports'] || [];
+      dataStore.lastUpdated = new Date();
+
+      console.log('Data successfully loaded into relational store:', dataStore);
+      return dataStore;
+
+    } catch (error) {
+      console.error('Failed to load data from Google Sheets API:', error);
+      throw error;
     }
+  }
 
-    const data = await response.json();
-
-    if (data.error) {
-        throw new Error(`Apps Script Error: ${data.error}`);
-    }
-
-    return data;
-}
-
-/**
- * Main data loader entry point for app.js
- */
-async function loadData() {
-    console.log("Loading live records from Google Sheet...");
-    const rawData = await loadGoogleSheetData();
-    console.log(`Loaded ${rawData.length} records.`);
-    return rawData;
-}
+  /**
+   * Data accessors for individual modules
+   */
+  return {
+    loadData: loadData,
+    getUsers: () => dataStore.users,
+    getCampaigns: () => dataStore.campaigns,
+    getJourneys: () => dataStore.journeys,
+    getEmailEvents: () => dataStore.emailEvents,
+    getTracking: () => dataStore.tracking,
+    getFollowUp: () => dataStore.followUp,
+    getAnalysis: () => dataStore.analysis,
+    getReports: () => dataStore.reports,
+    getStore: () => dataStore
+  };
+})();
