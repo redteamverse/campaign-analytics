@@ -8,7 +8,7 @@
 
 const DataSource = (function () {
   // Replace with your published Google Apps Script Web App URL
-  const API_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+  const API_URL = 'https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec';
 
   // Master local data store
   let dataStore = {
