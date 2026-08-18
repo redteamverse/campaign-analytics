@@ -1,99 +1,46 @@
 /**
  * =========================================================
- * DATA SOURCE
- * =========================================================
- *
- * Responsible for retrieving raw data.
- *
- * V1:
- *     Local CSV file
- *
- * Future:
- *     Google Sheet
- *
- * Important:
- * The rest of the application should not care where
- * the data comes from.
+ * DATA SOURCE (Apps Script Integration)
  * =========================================================
  */
 
 const DATA_SOURCE_CONFIG = {
-    type: "csv",
-
-    csvPath: "data/campaign_analytics_dummy_data.csv"
+    // Replace with your Apps Script Web App URL:
+    webAppUrl: "YOUR_COPIED_WEB_APP_URL_HERE"
 };
 
-
 /**
- * Load CSV data.
- *
+ * Fetch raw sheet records from Google Apps Script Web App
  * @returns {Promise<Array>}
  */
-async function loadCSVData() {
-
-    if (typeof Papa === "undefined") {
-        throw new Error(
-            "Papa Parse was not loaded. Check the CDN script in index.html."
-        );
+async function loadGoogleSheetData() {
+    if (!DATA_SOURCE_CONFIG.webAppUrl || DATA_SOURCE_CONFIG.webAppUrl.includes(https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec")) {
+        throw new Error("Please configure webAppUrl in data-source.js");
     }
 
-    const response = await fetch(DATA_SOURCE_CONFIG.csvPath);
+    // Requests data using get_dashboard_data action
+    const url = `${DATA_SOURCE_CONFIG.webAppUrl}?action=get_dashboard_data`;
+    const response = await fetch(url);
 
     if (!response.ok) {
-        throw new Error(
-            `Unable to load CSV: ${response.status} ${response.statusText}`
-        );
+        throw new Error(`HTTP Error (${response.status}): Failed to fetch dashboard data.`);
     }
 
-    const csvText = await response.text();
+    const data = await response.json();
 
-    return new Promise((resolve, reject) => {
+    if (data.error) {
+        throw new Error(`Apps Script Error: ${data.error}`);
+    }
 
-        Papa.parse(csvText, {
-
-            header: true,
-
-            skipEmptyLines: true,
-
-            dynamicTyping: false,
-
-            complete: function(results) {
-
-                if (results.errors && results.errors.length > 0) {
-
-                    console.warn(
-                        "CSV parsing warnings:",
-                        results.errors
-                    );
-                }
-
-                resolve(results.data);
-            },
-
-            error: function(error) {
-                reject(error);
-            }
-        });
-
-    });
+    return data;
 }
 
-
 /**
- * Main data loader.
- *
- * This function becomes our single entry point
- * for loading analytics data.
+ * Main data loader entry point for app.js
  */
 async function loadData() {
-
-    console.log("Loading analytics data...");
-
-    const rawData = await loadCSVData();
-
-    console.log(
-        `Loaded ${rawData.length} records.`
-    );
-
+    console.log("Loading live records from Google Sheet...");
+    const rawData = await loadGoogleSheetData();
+    console.log(`Loaded ${rawData.length} records.`);
     return rawData;
 }
