@@ -43,24 +43,26 @@
   /**
    * Renders high-level KPI cards on topbar/overview
    */
-  function renderKPIs(kpis) {
-    const elRecipients = document.getElementById('kpiRecipients');
-    const elMessages = document.getElementById('kpiMessages');
-    const elSent = document.getElementById('kpiSent');
-    const elOpenRate = document.getElementById('kpiOpenRate');
-    const elClickRate = document.getElementById('kpiClickRate');
-    const elReplyRate = document.getElementById('kpiReplyRate');
-    const elUnsubRate = document.getElementById('kpiUnsubscribeRate');
+   /**
+ * Renders high-level KPI cards on topbar/overview safely
+ */
+function renderKPIs(kpis = {}) {
+  const elRecipients = document.getElementById('kpiRecipients');
+  const elMessages = document.getElementById('kpiMessages');
+  const elSent = document.getElementById('kpiSent');
+  const elOpenRate = document.getElementById('kpiOpenRate');
+  const elClickRate = document.getElementById('kpiClickRate');
+  const elReplyRate = document.getElementById('kpiReplyRate');
+  const elUnsubRate = document.getElementById('kpiUnsubscribeRate');
 
-    if (elRecipients) elRecipients.innerText = kpis.totalContacts.toLocaleString();
-    if (elMessages) elMessages.innerText = kpis.totalEvents.toLocaleString();
-    if (elSent) elSent.innerText = kpis.totalSent.toLocaleString();
-    if (elOpenRate) elOpenRate.innerText = kpis.openRate;
-    if (elClickRate) elClickRate.innerText = kpis.clickRate;
-    if (elReplyRate) elReplyRate.innerText = kpis.replyRate;
-    if (elUnsubRate) elUnsubRate.innerText = kpis.unsubscribeRate;
-  }
-
+  if (elRecipients) elRecipients.innerText = (kpis.totalContacts ?? 0).toLocaleString();
+  if (elMessages) elMessages.innerText = (kpis.totalEvents ?? 0).toLocaleString();
+  if (elSent) elSent.innerText = (kpis.totalSent ?? 0).toLocaleString();
+  if (elOpenRate) elOpenRate.innerText = kpis.openRate || '0.0%';
+  if (elClickRate) elClickRate.innerText = kpis.clickRate || '0.0%';
+  if (elReplyRate) elReplyRate.innerText = kpis.replyRate || '0.0%';
+  if (elUnsubRate) elUnsubRate.innerText = kpis.unsubscribeRate || '0.0%';
+}
   /**
    * Populates filter dropdowns with unique options
    */
