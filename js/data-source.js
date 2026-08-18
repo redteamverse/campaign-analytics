@@ -6,7 +6,7 @@
 
 const DATA_SOURCE_CONFIG = {
     // Replace with your Apps Script Web App URL:
-    webAppUrl: "YOUR_COPIED_WEB_APP_URL_HERE"
+    webAppUrl: "https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec"
 };
 
 /**
