@@ -11,7 +11,6 @@
         content="Campaign performance and engagement analytics dashboard."
     >
 
-    <!-- Google Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -19,7 +18,6 @@
         rel="stylesheet"
     >
 
-    <!-- Application CSS -->
     <link rel="stylesheet" href="css/style.css">
 </head>
 
@@ -27,9 +25,6 @@
 
     <div class="app">
 
-        <!-- ==========================================
-             SIDEBAR
-        =========================================== -->
         <aside class="sidebar">
 
             <div class="sidebar-brand">
@@ -53,105 +48,116 @@
 
             <nav class="sidebar-nav">
 
-                <div class="nav-section-label">
-                    ANALYTICS
-                </div>
+                <a
+                    href="#overview"
+                    class="nav-item active"
+                    data-view="overviewView"
+                >
 
-                <button class="nav-item active" data-view="overview">
-                    <span class="nav-icon">◉</span>
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="3" width="7" height="7" rx="1" />
+                        <rect x="14" y="14" width="7" height="7" rx="1" />
+                        <rect x="3" y="14" width="7" height="7" rx="1" />
+                    </svg>
+
                     <span>Overview</span>
-                </button>
 
-                <button class="nav-item" data-view="campaigns">
-                    <span class="nav-icon">▦</span>
+                </a>
+
+
+                <a
+                    href="#campaigns"
+                    class="nav-item"
+                    data-view="campaignsView"
+                >
+
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                    </svg>
+
                     <span>Campaigns</span>
-                </button>
 
-                <button class="nav-item" data-view="engagement">
-                    <span class="nav-icon">↗</span>
-                    <span>Engagement</span>
-                </button>
+                </a>
 
-                <button class="nav-item" data-view="delivery">
-                    <span class="nav-icon">✓</span>
-                    <span>Delivery & QA</span>
-                </button>
 
-                <button class="nav-item" data-view="followups">
-                    <span class="nav-icon">↻</span>
-                    <span>Follow-ups</span>
-                </button>
+                <a
+                    href="#sequences"
+                    class="nav-item"
+                    data-view="sequencesView"
+                >
 
-                <button class="nav-item" data-view="recipients">
-                    <span class="nav-icon">◎</span>
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+
+                    <span>Sequences</span>
+
+                </a>
+
+
+                <a
+                    href="#recipients"
+                    class="nav-item"
+                    data-view="recipientsView"
+                >
+
+                    <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+
                     <span>Recipients</span>
-                </button>
+
+                </a>
 
             </nav>
-
-
-            <div class="sidebar-footer">
-
-                <div class="data-status">
-                    <span class="status-dot"></span>
-
-                    <div>
-                        <div class="status-title">
-                            Data source
-                        </div>
-
-                        <div class="status-value">
-                            Demo dataset
-                        </div>
-                    </div>
-                </div>
-
-            </div>
 
         </aside>
 
 
-        <!-- ==========================================
-             MAIN CONTENT
-        =========================================== -->
         <main class="main">
 
-            <!-- TOP HEADER -->
             <header class="topbar">
 
                 <div class="topbar-left">
 
                     <button
+                        type="button"
                         class="mobile-menu-button"
                         id="mobileMenuButton"
-                        aria-label="Open navigation"
+                        aria-label="Open navigation menu"
                     >
                         ☰
                     </button>
 
                     <div>
-                        <div class="page-eyebrow">
-                            CAMPAIGN ANALYTICS
-                        </div>
-
-                        <h1 id="pageTitle">
-                            Overview
+                        <h1 class="page-title">
+                            Analytics Dashboard
                         </h1>
+
+                        <p class="page-subtitle">
+                            Real-time tracking and conversion performance
+                        </p>
                     </div>
 
                 </div>
 
 
-                <div class="topbar-right">
+                <div class="topbar-actions">
 
-                    <div class="last-updated">
-                        <span class="status-dot"></span>
-                        Demo data
-                    </div>
+                    <span class="last-updated" id="lastUpdatedLabel">
+                        Updated just now
+                    </span>
 
-                    <button class="refresh-button" id="refreshButton">
-                        ↻
-                        <span>Refresh</span>
+                    <button
+                        type="button"
+                        class="refresh-button"
+                        id="refreshButton"
+                    >
+                        Refresh
                     </button>
 
                 </div>
@@ -159,454 +165,156 @@
             </header>
 
 
-            <!-- ======================================
-                 GLOBAL FILTER BAR
-            ======================================= -->
-            <section class="filter-bar">
-
-                <div class="filter-heading">
-
-                    <div class="filter-title">
-                        Filters
-                    </div>
-
-                    <button
-                        class="clear-filters"
-                        id="clearFilters"
-                    >
-                        Clear all
-                    </button>
-
-                </div>
-
-
-                <div class="filters">
-
-                    <div class="filter-group">
-
-                        <label for="campaignFilter">
-                            Campaign
-                        </label>
-
-                        <select id="campaignFilter">
-                            <option value="">All campaigns</option>
-                        </select>
-
-                    </div>
-
-
-                    <div class="filter-group">
-
-                        <label for="sequenceFilter">
-                            Sequence
-                        </label>
-
-                        <select id="sequenceFilter">
-                            <option value="">All sequences</option>
-                        </select>
-
-                    </div>
-
-
-                    <div class="filter-group">
-
-                        <label for="versionFilter">
-                            Email Version
-                        </label>
-
-                        <select id="versionFilter">
-                            <option value="">All versions</option>
-                        </select>
-
-                    </div>
-
-
-                    <div class="filter-group">
-
-                        <label for="segmentFilter">
-                            Target Segment
-                        </label>
-
-                        <select id="segmentFilter">
-                            <option value="">All segments</option>
-                        </select>
-
-                    </div>
-
-
-                    <div class="filter-group">
-
-                        <label for="companyFilter">
-                            Company
-                        </label>
-
-                        <select id="companyFilter">
-                            <option value="">All companies</option>
-                        </select>
-
-                    </div>
-
-                </div>
-
-            </section>
-
-
-            <!-- ======================================
-                 VIEW CONTAINER
-            ======================================= -->
             <div class="content">
 
-                <!-- ==================================
-                     OVERVIEW VIEW
-                =================================== -->
                 <section
                     class="view active"
                     id="overviewView"
                 >
 
-                    <div class="section-header">
+                    <div class="filter-bar">
 
-                        <div>
-                            <h2>
-                                Campaign Overview
-                            </h2>
+                        <div class="filters">
 
-                            <p>
-                                Monitor delivery, engagement and response performance.
-                            </p>
+                            <div class="filter-group">
+                                <label for="campaignFilter">
+                                    Campaign
+                                </label>
+
+                                <select id="campaignFilter">
+                                    <option value="ALL">All Campaigns</option>
+                                </select>
+                            </div>
+
+
+                            <div class="filter-group">
+                                <label for="sequenceFilter">
+                                    Sequence
+                                </label>
+
+                                <select id="sequenceFilter">
+                                    <option value="ALL">All Sequences</option>
+                                </select>
+                            </div>
+
+
+                            <div class="filter-group">
+                                <label for="versionFilter">
+                                    Version
+                                </label>
+
+                                <select id="versionFilter">
+                                    <option value="ALL">All Versions</option>
+                                </select>
+                            </div>
+
+
+                            <div class="filter-group">
+                                <label for="segmentFilter">
+                                    Segment
+                                </label>
+
+                                <select id="segmentFilter">
+                                    <option value="ALL">All Segments</option>
+                                </select>
+                            </div>
+
+                        </div>
+
+
+                        <div class="filter-actions">
+
+                            <button
+                                type="button"
+                                class="reset-button"
+                                id="resetFiltersButton"
+                            >
+                                Reset Filters
+                            </button>
+
                         </div>
 
                     </div>
 
 
-                    <!-- KPI CARDS -->
-
                     <div class="kpi-grid">
 
-                        <article class="kpi-card">
+                        <div class="kpi-card">
+                            <span class="kpi-label">Recipients</span>
+                            <span class="kpi-value" id="kpiRecipients">0</span>
+                        </div>
 
-                            <div class="kpi-label">
-                                Recipients
-                            </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Messages</span>
+                            <span class="kpi-value" id="kpiMessages">0</span>
+                        </div>
 
-                            <div
-                                class="kpi-value"
-                                id="kpiRecipients"
-                            >
-                                —
-                            </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Sent</span>
+                            <span class="kpi-value" id="kpiSent">0</span>
+                        </div>
 
-                            <div class="kpi-description">
-                                Unique recipients
-                            </div>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Verified</span>
+                            <span class="kpi-value" id="kpiVerified">0</span>
+                        </div>
 
-                        </article>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Open Rate</span>
+                            <span class="kpi-value" id="kpiOpenRate">0.0%</span>
+                        </div>
 
+                        <div class="kpi-card">
+                            <span class="kpi-label">Click Rate</span>
+                            <span class="kpi-value" id="kpiClickRate">0.0%</span>
+                        </div>
 
-                        <article class="kpi-card">
+                        <div class="kpi-card">
+                            <span class="kpi-label">Reply Rate</span>
+                            <span class="kpi-value" id="kpiReplyRate">0.0%</span>
+                        </div>
 
-                            <div class="kpi-label">
-                                Messages
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiMessages"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Total message records
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card">
-
-                            <div class="kpi-label">
-                                Sent
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiSent"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Successfully sent
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card">
-
-                            <div class="kpi-label">
-                                Verified
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiVerified"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Post-delivery checks passed
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card accent-card">
-
-                            <div class="kpi-label">
-                                Open Rate
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiOpenRate"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Opens / verified
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card">
-
-                            <div class="kpi-label">
-                                Click Rate
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiClickRate"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Clicks / verified
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card">
-
-                            <div class="kpi-label">
-                                Reply Rate
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiReplyRate"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Replies / verified
-                            </div>
-
-                        </article>
-
-
-                        <article class="kpi-card">
-
-                            <div class="kpi-label">
-                                Unsubscribe Rate
-                            </div>
-
-                            <div
-                                class="kpi-value"
-                                id="kpiUnsubscribeRate"
-                            >
-                                —
-                            </div>
-
-                            <div class="kpi-description">
-                                Unsubscribed / verified
-                            </div>
-
-                        </article>
+                        <div class="kpi-card">
+                            <span class="kpi-label">Unsubscribe Rate</span>
+                            <span class="kpi-value" id="kpiUnsubscribeRate">0.0%</span>
+                        </div>
 
                     </div>
 
 
-                    <!-- CHART ROW -->
+                    <div class="charts-grid two-columns">
 
-                    <div class="dashboard-grid two-columns">
-
-                        <article class="panel chart-panel">
-
-                            <div class="panel-header">
-
-                                <div>
-                                    <h3>
-                                        Engagement Funnel
-                                    </h3>
-
-                                    <p>
-                                        Message progression
-                                    </p>
-                                </div>
-
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Engagement Funnel</h3>
                             </div>
 
-                            <div
-                                class="chart-container"
-                                id="funnelChart"
-                            >
-
-                            <div class="chart-body">
                             <div class="chart-container">
                                 <canvas id="engagementFunnelChart"></canvas>
                             </div>
                         </div>
 
+
+                        <div class="chart-card">
+                            <div class="chart-header">
+                                <h3>Sending Trend</h3>
                             </div>
 
-                        </article>
-
-
-                        <article class="panel chart-panel">
-
-                            <div class="panel-header">
-
-                                <div>
-                                    <h3>
-                                        Sending Trend
-                                    </h3>
-                                    <div class="chart-body">
-    <div class="chart-container">
-        <canvas id="sendingTrendChart"></canvas>
-    </div>
-</div>
-                                    <p>
-                                        Messages sent over time
-                                    </p>
-                                </div>
-
+                            <div class="chart-container">
+                                <canvas id="sendingTrendChart"></canvas>
                             </div>
-
-                            <div
-                                class="chart-container"
-                                id="sendingTrendChart"
-                            >
-
-                                <div class="empty-chart">
-                                    Chart will appear here
-                                </div>
-
-                            </div>
-
-                        </article>
-
-                    </div>
-
-
-                    <!-- PERFORMANCE ROW -->
-
-                    <div class="dashboard-grid two-columns">
-
-                        <article class="panel">
-
-                            <div class="panel-header">
-
-                                <div>
-                                    <h3>
-                                        Campaign Performance
-                                    </h3>
-
-                                    <p>
-                                        Compare campaigns
-                                    </p>
-                                </div>
-
-                            </div>
-
-                            <div
-                                class="chart-container small"
-                                id="campaignChart"
-                            >
-
-                                <div class="empty-chart">
-                                    Chart will appear here
-                                </div>
-
-                            </div>
-
-                        </article>
-
-
-                        <article class="panel">
-
-                            <div class="panel-header">
-
-                                <div>
-                                    <h3>
-                                        Sequence Performance
-                                    </h3>
-
-                                    <p>
-                                        Engagement by sequence
-                                    </p>
-                                </div>
-
-                            </div>
-
-                            <div
-                                class="chart-container small"
-                                id="sequenceChart"
-                            >
-
-                                <div class="empty-chart">
-                                    Chart will appear here
-                                </div>
-
-                            </div>
-
-                        </article>
-
-                    </div>
-
-
-                    <!-- QUICK TABLE -->
-
-                    <article class="panel table-panel">
-
-                        <div class="panel-header">
-
-                            <div>
-                                <h3>
-                                    Campaign Summary
-                                </h3>
-
-                                <p>
-                                    High-level performance by campaign
-                                </p>
-                            </div>
-
-                            <button class="text-button">
-                                View all
-                            </button>
-
                         </div>
 
+                    </div>
 
-                        <div class="table-wrapper">
+
+                    <div class="table-card" style="margin-top: 24px;">
+
+                        <div class="table-header">
+                            <h3>Campaign Performance Summary</h3>
+                        </div>
+
+                        <div class="table-container">
 
                             <table>
 
@@ -614,13 +322,11 @@
 
                                     <tr>
                                         <th>Campaign</th>
-                                        <th>Recipients</th>
                                         <th>Sent</th>
+                                        <th>Verified</th>
                                         <th>Opened</th>
                                         <th>Clicked</th>
                                         <th>Replied</th>
-                                        <th>Open Rate</th>
-                                        <th>Reply Rate</th>
                                     </tr>
 
                                 </thead>
@@ -628,10 +334,8 @@
                                 <tbody id="campaignSummaryTable">
 
                                     <tr>
-                                        <td colspan="8">
-                                            <div class="table-empty">
-                                                Data will appear here
-                                            </div>
+                                        <td colspan="6" style="text-align: center; padding: 20px;">
+                                            Data will appear here
                                         </td>
                                     </tr>
 
@@ -641,14 +345,10 @@
 
                         </div>
 
-                    </article>
+                    </div>
 
                 </section>
 
-
-                <!-- ==================================
-                     OTHER VIEWS
-                =================================== -->
 
                 <section
                     class="view"
@@ -656,7 +356,7 @@
                 >
                     <div class="placeholder-view">
                         <span>Campaigns</span>
-                        <h2>Campaign performance</h2>
+                        <h2>Campaign Deep Dive</h2>
                         <p>
                             This section will be built next.
                         </p>
@@ -666,39 +366,11 @@
 
                 <section
                     class="view"
-                    id="engagementView"
+                    id="sequencesView"
                 >
                     <div class="placeholder-view">
-                        <span>Engagement</span>
-                        <h2>Engagement analysis</h2>
-                        <p>
-                            This section will be built next.
-                        </p>
-                    </div>
-                </section>
-
-
-                <section
-                    class="view"
-                    id="deliveryView"
-                >
-                    <div class="placeholder-view">
-                        <span>Delivery & QA</span>
-                        <h2>Delivery health</h2>
-                        <p>
-                            This section will be built next.
-                        </p>
-                    </div>
-                </section>
-
-
-                <section
-                    class="view"
-                    id="followupsView"
-                >
-                    <div class="placeholder-view">
-                        <span>Follow-ups</span>
-                        <h2>Follow-up management</h2>
+                        <span>Sequences</span>
+                        <h2>Sequence Performance</h2>
                         <p>
                             This section will be built next.
                         </p>
@@ -726,31 +398,23 @@
     </div>
 
 
-    <!-- ==========================================
-         MOBILE OVERLAY
-    =========================================== -->
-
     <div
         class="sidebar-overlay"
         id="sidebarOverlay"
     ></div>
 
 
-    <!-- ==========================================
-         JAVASCRIPT
-    =========================================== -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
 
-    <!-- CSV parser -->
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.5.3/papaparse.min.js"></script>
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
-<!-- Application -->
-<script src="js/data-source.js"></script>
-<script src="js/data.js"></script>
-<script src="js/metrics.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/tables.js"></script>
-<script src="js/app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+
+    <script src="js/data-source.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/metrics.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/tables.js"></script>
+
+    <script src="js/app.js"></script>
 
 </body>
 </html>
