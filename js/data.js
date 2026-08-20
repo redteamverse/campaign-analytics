@@ -2,8 +2,6 @@
  * ============================================================
  * RELATIONAL ENTERPRISE DASHBOARD - DATA NORMALIZATION & RELATIONS
  * ============================================================
- * Normalizes raw string data from Google Sheets API and provides
- * relational lookup functions across all core entities.
  */
 
 const DataEngine = (function () {
@@ -56,7 +54,7 @@ const DataEngine = (function () {
       email: cleanStr(row['Email Address'] || row['Email']).toLowerCase(),
       company: cleanStr(row['Company']),
       leadStatus: cleanStr(row['Lead Status']),
-      unsubscribed: parseBool(row['Unsubscribed']),
+      unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?']),
       createdAt: parseDate(row['Created At']),
       updatedAt: parseDate(row['Updated At'])
     }));
@@ -92,20 +90,42 @@ const DataEngine = (function () {
       messageId: cleanStr(row['Message ID']),
       mailStatus: cleanStr(row['Mail Sent Status'] || row['Mail Status']),
       sentTimestamp: parseDate(row['Sent Timestamp']),
-      outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type'])
-    }));
-
-    // 5. Normalize Tracking
-    normalizedData.tracking = (rawDataStore.tracking || []).map(row => ({
-      emailEventId: cleanStr(row['Email Event ID']),
-      messageId: cleanStr(row['Message ID']),
+      outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type']),
+      // Inline Tracking Fallbacks
       isOpened: parseBool(row['Is Opened?'] || row['Opened']),
       firstOpenTime: parseDate(row['First Open Time']),
       linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
       isReplied: parseBool(row['Is Replied?'] || row['Replied']),
       replyTimestamp: parseDate(row['Reply Timestamp']),
-      unsubscribed: parseBool(row['Unsubscribed'])
+      unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
     }));
+
+    // 5. Normalize Tracking Tab (or synthesize from Email Events if empty)
+    const rawTracking = rawDataStore.tracking || [];
+    if (rawTracking.length > 0) {
+      normalizedData.tracking = rawTracking.map(row => ({
+        emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
+        messageId: cleanStr(row['Message ID']),
+        isOpened: parseBool(row['Is Opened?'] || row['Opened']),
+        firstOpenTime: parseDate(row['First Open Time']),
+        linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
+        isReplied: parseBool(row['Is Replied?'] || row['Replied']),
+        replyTimestamp: parseDate(row['Reply Timestamp']),
+        unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
+      }));
+    } else {
+      // Fallback: Map engagement state directly from emailEvents tab
+      normalizedData.tracking = normalizedData.emailEvents.map(evt => ({
+        emailEventId: evt.emailEventId,
+        messageId: evt.messageId,
+        isOpened: evt.isOpened,
+        firstOpenTime: evt.firstOpenTime,
+        linkClicked: evt.linkClicked,
+        isReplied: evt.isReplied,
+        replyTimestamp: evt.replyTimestamp,
+        unsubscribed: evt.unsubscribed
+      }));
+    }
 
     // 6. Normalize Follow-Up
     normalizedData.followUp = (rawDataStore.followUp || []).map(row => ({
@@ -147,7 +167,7 @@ const DataEngine = (function () {
   }
 
   /* ============================================================
-     RELATIONAL LOOKUP HELPERS (PHASE 5 READY)
+     RELATIONAL LOOKUP HELPERS
      ============================================================ */
 
   function getUserByContactId(contactId) {
@@ -167,7 +187,8 @@ const DataEngine = (function () {
   }
 
   function getTrackingForEvent(emailEventId) {
-    return normalizedData.tracking.find(t => t.emailEventId === emailEventId);
+    return normalizedData.tracking.find(t => t.emailEventId === emailEventId) || 
+           normalizedData.emailEvents.find(e => e.emailEventId === emailEventId);
   }
 
   function getFollowUpsForEvent(emailEventId) {
