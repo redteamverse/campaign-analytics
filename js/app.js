@@ -1,209 +1,157 @@
 /**
  * ============================================================
- * RELATIONAL ENTERPRISE DASHBOARD - DATA NORMALIZATION & RELATIONS
+ * RELATIONAL ENTERPRISE DASHBOARD - UI & APP CONTROLLER
  * ============================================================
  */
 
-const DataEngine = (function () {
-  let normalizedData = {
-    users: [],
-    campaigns: [],
-    journeys: [],
-    emailEvents: [],
-    tracking: [],
-    followUp: [],
-    analysis: [],
-    reports: []
+document.addEventListener('DOMContentLoaded', async () => {
+  await initDashboard();
+});
+
+async function initDashboard() {
+  try {
+    const rawStore = await DataSource.loadData(true);
+    DataEngine.init(rawStore);
+
+    populateFilterDropdowns();
+    attachEventListeners();
+    renderDashboard();
+  } catch (err) {
+    console.error('Failed to initialize dashboard:', err);
+  }
+}
+
+function populateFilterDropdowns() {
+  const data = DataEngine.getNormalized();
+  const selects = document.querySelectorAll('select');
+
+  // Populate Campaign Select (Dropdown 0)
+  if (selects[0]) {
+    selects[0].innerHTML = '<option value="all">All Campaigns</option>';
+    const campaignMap = new Map();
+    
+    data.campaigns.forEach(c => {
+      if (c.campaignId) campaignMap.set(c.campaignId, c.campaignName || c.campaignId);
+    });
+    data.emailEvents.forEach(e => {
+      if (e.campaignId) {
+        campaignMap.set(e.campaignId, e.campaignName || e.campaignId);
+      }
+    });
+
+    campaignMap.forEach((name, id) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name;
+      selects[0].appendChild(opt);
+    });
+  }
+
+  // Populate Sequence Select (Dropdown 1)
+  if (selects[1]) {
+    selects[1].innerHTML = '<option value="all">All Sequences</option>';
+    const sequences = [...new Set([
+      ...data.journeys.map(j => j.sequence),
+      ...data.emailEvents.map(e => e.sequence)
+    ].filter(Boolean))];
+    sequences.forEach(seq => {
+      const opt = document.createElement('option');
+      opt.value = seq;
+      opt.textContent = `Sequence ${seq}`;
+      selects[1].appendChild(opt);
+    });
+  }
+
+  // Populate Version Select (Dropdown 2)
+  if (selects[2]) {
+    selects[2].innerHTML = '<option value="all">All Versions</option>';
+    const versions = [...new Set([
+      ...data.journeys.map(j => j.emailVersion),
+      ...data.emailEvents.map(e => e.emailVersion)
+    ].filter(Boolean))];
+    versions.forEach(ver => {
+      const opt = document.createElement('option');
+      opt.value = ver;
+      opt.textContent = ver;
+      selects[2].appendChild(opt);
+    });
+  }
+
+  // Populate Segment Select (Dropdown 3)
+  if (selects[3]) {
+    selects[3].innerHTML = '<option value="all">All Segments</option>';
+    const segments = [...new Set([
+      ...data.journeys.map(j => j.targetSegment),
+      ...data.emailEvents.map(e => e.targetSegment)
+    ].filter(Boolean))];
+    segments.forEach(seg => {
+      const opt = document.createElement('option');
+      opt.value = seg;
+      opt.textContent = seg;
+      selects[3].appendChild(opt);
+    });
+  }
+}
+
+function getActiveFilters() {
+  const selects = document.querySelectorAll('select');
+  return {
+    campaignId: selects[0] ? selects[0].value : 'all',
+    sequence: selects[1] ? selects[1].value : 'all',
+    version: selects[2] ? selects[2].value : 'all',
+    segment: selects[3] ? selects[3].value : 'all'
   };
+}
 
-  function getVal(row, possibleKeys) {
-    if (!row || typeof row !== 'object') return '';
-    const keys = Object.keys(row);
-    if (!Array.isArray(possibleKeys)) possibleKeys = [possibleKeys];
+function renderDashboard() {
+  const filters = getActiveFilters();
+  const metrics = AnalyticsEngine.calculateMetrics(filters);
 
-    for (let targetKey of possibleKeys) {
-      const cleanTarget = String(targetKey).toLowerCase().replace(/[^a-z0-9]/g, '');
-      for (let actualKey of keys) {
-        const cleanActual = String(actualKey).toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (cleanActual === cleanTarget && row[actualKey] !== undefined && row[actualKey] !== null) {
-          return String(row[actualKey]).trim();
-        }
+  updateMetricUI('Recipients', metrics.recipients);
+  updateMetricUI('Messages', metrics.messages);
+  updateMetricUI('Sent', metrics.sent);
+  updateMetricUI('Verified', metrics.verified);
+  updateMetricUI('Open Rate', `${metrics.openRate}%`);
+  updateMetricUI('Click Rate', `${metrics.clickRate}%`);
+  updateMetricUI('Reply Rate', `${metrics.replyRate}%`);
+  updateMetricUI('Unsubscribe Rate', `${metrics.unsubscribeRate}%`);
+}
+
+function updateMetricUI(label, val) {
+  const allElements = Array.from(document.querySelectorAll('div, p, span, h3, h4'));
+  const labelEl = allElements.find(el => {
+    const text = el.childNodes.length > 0 ? el.childNodes[0].textContent : el.textContent;
+    return text.trim().toLowerCase() === label.toLowerCase();
+  });
+
+  if (labelEl) {
+    const container = labelEl.closest('div');
+    if (container) {
+      const targetVal = container.querySelector('h2, h3, .text-2xl, strong, span') || labelEl.nextElementSibling;
+      if (targetVal && targetVal !== labelEl) {
+        targetVal.textContent = val;
       }
     }
-    return '';
   }
+}
 
-  function parseBool(val) {
-    if (typeof val === 'boolean') return val;
-    const clean = String(val || '').trim().toLowerCase();
-    return clean === 'y' || clean === 'yes' || clean === 'true' || clean === '1' || clean === 'opened' || clean === 'clicked';
-  }
+function attachEventListeners() {
+  const selects = document.querySelectorAll('select');
+  selects.forEach(select => {
+    select.addEventListener('change', renderDashboard);
+  });
 
-  function parseDate(val) {
-    if (!val) return null;
-    const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
-  }
-
-  function parseNum(val) {
-    const n = parseFloat(String(val || '').replace(/[^0-9.-]+/g, ''));
-    return isNaN(n) ? 0 : n;
-  }
-
-  function init(rawDataStore) {
-    // 1. Normalize Users
-    normalizedData.users = (rawDataStore.users || [])
-      .map(row => ({
-        userId: getVal(row, ['User ID', 'UserId', 'Contact ID', 'ContactId', 'ID']),
-        contactId: getVal(row, ['Contact ID', 'ContactId', 'User ID', 'UserId', 'ID']),
-        firstName: getVal(row, ['First Name', 'FirstName', 'Name']),
-        email: getVal(row, ['Email Address', 'Email', 'EmailAddress']).toLowerCase(),
-        company: getVal(row, ['Company', 'Organization']),
-        leadStatus: getVal(row, ['Lead Status', 'Status']),
-        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?'])),
-        createdAt: parseDate(getVal(row, ['Created At', 'CreatedAt'])),
-        updatedAt: parseDate(getVal(row, ['Updated At', 'UpdatedAt']))
-      }))
-      .filter(u => u.userId || u.contactId || u.email || u.firstName);
-
-    // 2. Normalize Campaigns
-    normalizedData.campaigns = (rawDataStore.campaigns || [])
-      .map(row => ({
-        campaignId: getVal(row, ['Campaign ID', 'CampaignId', 'ID']),
-        campaignName: getVal(row, ['Campaign Name', 'CampaignName', 'Name']),
-        status: getVal(row, ['Campaign Status', 'Status']),
-        totalEmailEvents: parseNum(getVal(row, ['Total Email Events', 'TotalEvents'])),
-        totalContacts: parseNum(getVal(row, ['Total Contacts', 'TotalContacts'])),
-        createdAt: parseDate(getVal(row, ['Created At', 'CreatedAt'])),
-        updatedAt: parseDate(getVal(row, ['Updated At', 'UpdatedAt']))
-      }))
-      .filter(c => c.campaignId || c.campaignName);
-
-    // 3. Normalize Journeys
-    normalizedData.journeys = (rawDataStore.journeys || [])
-      .map(row => ({
-        journeyId: getVal(row, ['Journey ID', 'JourneyId']),
-        contactId: getVal(row, ['Contact ID', 'ContactId']),
-        campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
-        campaignName: getVal(row, ['Campaign Name', 'CampaignName']),
-        sequence: parseNum(getVal(row, ['Sequence', 'Seq'])),
-        targetSegment: getVal(row, ['Target Segment', 'Segment']),
-        emailVersion: getVal(row, ['Email Version', 'Version']),
-        outreachType: getVal(row, ['OUTREACH_TYPE', 'Outreach Type', 'Type'])
-      }))
-      .filter(j => j.journeyId || j.contactId || j.campaignId);
-
-    // 4. Normalize Email Events
-    normalizedData.emailEvents = (rawDataStore.emailEvents || [])
-      .map(row => ({
-        emailEventId: getVal(row, ['Email Event ID', 'EmailEventId', 'Message ID', 'MessageId', 'ID']),
-        journeyId: getVal(row, ['Journey ID', 'JourneyId']),
-        contactId: getVal(row, ['Contact ID', 'ContactId']),
-        campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
-        campaignName: getVal(row, ['Campaign Name', 'CampaignName']),
-        emailAddress: getVal(row, ['Email Address', 'Email']),
-        messageId: getVal(row, ['Message ID', 'MessageId']),
-        mailStatus: getVal(row, ['Mail Sent Status', 'Mail Status', 'MailStatus', 'Status', 'Sent Status']),
-        sentTimestamp: parseDate(getVal(row, ['Sent Timestamp', 'SentTimestamp', 'Timestamp'])),
-        outreachType: getVal(row, ['OUTREACH_TYPE', 'Outreach Type', 'Type']),
-        sequence: parseNum(getVal(row, ['Sequence', 'Seq'])),
-        targetSegment: getVal(row, ['Target Segment', 'Segment']),
-        emailVersion: getVal(row, ['Email Version', 'Version']),
-        isOpened: parseBool(getVal(row, ['Is Opened?', 'Opened', 'Is Opened'])),
-        firstOpenTime: parseDate(getVal(row, ['First Open Time', 'FirstOpenTime'])),
-        linkClicked: parseBool(getVal(row, ['Link Clicked', 'Clicked', 'Is Clicked'])),
-        isReplied: parseBool(getVal(row, ['Is Replied?', 'Replied', 'Is Replied'])),
-        replyTimestamp: parseDate(getVal(row, ['Reply Timestamp', 'ReplyTimestamp'])),
-        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?']))
-      }))
-      .filter(e => e.emailEventId || e.journeyId || e.contactId || e.campaignId);
-
-    // 5. Normalize Tracking Tab
-    normalizedData.tracking = (rawDataStore.tracking || [])
-      .map(row => ({
-        emailEventId: getVal(row, ['Email Event ID', 'EmailEventId', 'Message ID', 'MessageId']),
-        messageId: getVal(row, ['Message ID', 'MessageId']),
-        isOpened: parseBool(getVal(row, ['Is Opened?', 'Opened', 'Is Opened'])),
-        firstOpenTime: parseDate(getVal(row, ['First Open Time', 'FirstOpenTime'])),
-        linkClicked: parseBool(getVal(row, ['Link Clicked', 'Clicked', 'Is Clicked'])),
-        isReplied: parseBool(getVal(row, ['Is Replied?', 'Replied', 'Is Replied'])),
-        replyTimestamp: parseDate(getVal(row, ['Reply Timestamp', 'ReplyTimestamp'])),
-        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?']))
-      }))
-      .filter(t => t.emailEventId || t.messageId);
-
-    // 6. Normalize Follow-Up
-    normalizedData.followUp = (rawDataStore.followUp || []).map(row => ({
-      followUpId: getVal(row, ['Follow-Up ID', 'FollowUpID']),
-      emailEventId: getVal(row, ['Email Event ID', 'EmailEventID']),
-      journeyId: getVal(row, ['Journey ID', 'JourneyID']),
-      contactId: getVal(row, ['Contact ID', 'ContactID']),
-      campaignId: getVal(row, ['Campaign ID', 'CampaignID']),
-      status: getVal(row, ['Follow-Up Status', 'Status']),
-      dueAt: parseDate(getVal(row, ['Follow-Up Due At', 'Due At'])),
-      sentAt: parseDate(getVal(row, ['Follow-Up Sent At', 'Sent At']))
-    }));
-
-    // 7. Normalize Analysis
-    normalizedData.analysis = (rawDataStore.analysis || []).map(row => ({
-      analysisId: getVal(row, ['Analysis ID']),
-      analysisDate: parseDate(getVal(row, ['Analysis Date'])),
-      periodStart: parseDate(getVal(row, ['Period Start'])),
-      periodEnd: parseDate(getVal(row, ['Period End'])),
-      campaignId: getVal(row, ['Campaign ID']),
-      campaignName: getVal(row, ['Campaign Name']),
-      openRate: parseNum(getVal(row, ['Open Rate'])),
-      clickRate: parseNum(getVal(row, ['Click Rate'])),
-      replyRate: parseNum(getVal(row, ['Reply Rate'])),
-      analysisType: getVal(row, ['Analysis Type'])
-    }));
-
-    // 8. Normalize Reports
-    normalizedData.reports = (rawDataStore.reports || []).map(row => ({
-      reportId: getVal(row, ['Report ID']),
-      reportName: getVal(row, ['Report Name']),
-      generatedAt: parseDate(getVal(row, ['Generated At'])),
-      reportType: getVal(row, ['Report Type']),
-      dataPayload: getVal(row, ['Data Payload'])
-    }));
-
-    console.log('Data Engine initialized successfully:', normalizedData);
-    return normalizedData;
-  }
-
-  function getUserByContactId(contactId) {
-    return normalizedData.users.find(u => u.contactId === contactId || u.userId === contactId);
-  }
-
-  function getCampaignById(campaignId) {
-    return normalizedData.campaigns.find(c => c.campaignId === campaignId);
-  }
-
-  function getJourneysForContact(contactId) {
-    return normalizedData.journeys.filter(j => j.contactId === contactId);
-  }
-
-  function getEventsForCampaign(campaignId) {
-    return normalizedData.emailEvents.filter(e => e.campaignId === campaignId);
-  }
-
-  function getTrackingForEvent(emailEventId) {
-    return normalizedData.tracking.find(t => t.emailEventId === emailEventId) || 
-           normalizedData.emailEvents.find(e => e.emailEventId === emailEventId);
-  }
-
-  function getFollowUpsForEvent(emailEventId) {
-    return normalizedData.followUp.filter(f => f.emailEventId === emailEventId);
-  }
-
-  return {
-    init: init,
-    getNormalized: () => normalizedData,
-    getUserByContactId: getUserByContactId,
-    getCampaignById: getCampaignById,
-    getJourneysForContact: getJourneysForContact,
-    getEventsForCampaign: getEventsForCampaign,
-    getTrackingForEvent: getTrackingForEvent,
-    getFollowUpsForEvent: getFollowUpsForEvent
-  };
-})();
+  const buttons = document.querySelectorAll('button');
+  buttons.forEach(btn => {
+    if (btn.textContent.toLowerCase().includes('reset')) {
+      btn.addEventListener('click', () => {
+        selects.forEach(s => s.value = 'all');
+        renderDashboard();
+      });
+    } else if (btn.textContent.toLowerCase().includes('refresh')) {
+      btn.addEventListener('click', async () => {
+        await initDashboard();
+      });
+    }
+  });
+}
