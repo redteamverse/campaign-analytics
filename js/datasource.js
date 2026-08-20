@@ -2,15 +2,11 @@
  * ============================================================
  * RELATIONAL ENTERPRISE DASHBOARD - DATA SOURCE MODULE
  * ============================================================
- * Handles fetching, caching, and routing data from the Google Sheets
- * Web App API across all core relational entities.
  */
 
 const DataSource = (function () {
-  // Replace with your published Google Apps Script Web App URL
   const API_URL = 'https://script.google.com/macros/s/AKfycbyNLtajflaKIeEmQwfOYZ7TmdtmyA5-zsS1pKhJeKIZ9YqeEhrSvdhLRjlQO1-TZah2tg/exec';
 
-  // Master local data store
   let dataStore = {
     users: [],
     campaigns: [],
@@ -23,16 +19,17 @@ const DataSource = (function () {
     lastUpdated: null
   };
 
-  /**
-   * Fetches relational data from Google Apps Script Web App
-   */
   async function loadData(forceRefresh = false) {
     if (dataStore.lastUpdated && !forceRefresh) {
       return dataStore;
     }
 
     try {
-      const response = await fetch(`${API_URL}?action=get_dashboard_data`);
+      const response = await fetch(`${API_URL}?action=get_dashboard_data`, {
+        method: 'GET',
+        redirect: 'follow'
+      });
+
       if (!response.ok) {
         throw new Error(`HTTP Error: ${response.status}`);
       }
@@ -43,7 +40,6 @@ const DataSource = (function () {
         throw new Error(`API Error: ${payload.error}`);
       }
 
-      // Map API sheets to relational store keys
       dataStore.users = payload['Users'] || [];
       dataStore.campaigns = payload['Campaigns'] || [];
       dataStore.journeys = payload['Journeys'] || [];
@@ -63,9 +59,6 @@ const DataSource = (function () {
     }
   }
 
-  /**
-   * Data accessors for individual modules
-   */
   return {
     loadData: loadData,
     getUsers: () => dataStore.users,
