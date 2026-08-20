@@ -16,14 +16,10 @@ const DataEngine = (function () {
     reports: []
   };
 
-  /* ============================================================
-     HELPERS & PARSERS
-     ============================================================ */
-
   function parseBool(val) {
     if (typeof val === 'boolean') return val;
     const clean = String(val || '').trim().toLowerCase();
-    return clean === 'y' || clean === 'yes' || clean === 'true' || clean === '1';
+    return clean === 'y' || clean === 'yes' || clean === 'true' || clean === '1' || clean === 'opened' || clean === 'clicked';
   }
 
   function parseDate(val) {
@@ -40,10 +36,6 @@ const DataEngine = (function () {
   function cleanStr(val) {
     return String(val || '').trim();
   }
-
-  /* ============================================================
-     NORMALIZATION PIPELINE
-     ============================================================ */
 
   function init(rawDataStore) {
     // 1. Normalize Users
@@ -82,16 +74,31 @@ const DataEngine = (function () {
     }));
 
     // 4. Normalize Email Events
-    normalizedData.emailEvents = (rawDataStore.emailEvents || []).map(row => ({
+    normalizedData.emailEvents = (rawDataStore.emailEvents || []).map(row => {
+      const rawStatus = cleanStr(row['Mail Sent Status'] || row['Mail Status'] || row['Mail Status'] || row['Status']);
+      return {
+        emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
+        journeyId: cleanStr(row['Journey ID']),
+        contactId: cleanStr(row['Contact ID']),
+        campaignId: cleanStr(row['Campaign ID']),
+        messageId: cleanStr(row['Message ID']),
+        mailStatus: rawStatus,
+        sentTimestamp: parseDate(row['Sent Timestamp']),
+        outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type']),
+        // Tracking field fallbacks directly on event
+        isOpened: parseBool(row['Is Opened?'] || row['Opened']),
+        firstOpenTime: parseDate(row['First Open Time']),
+        linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
+        isReplied: parseBool(row['Is Replied?'] || row['Replied']),
+        replyTimestamp: parseDate(row['Reply Timestamp']),
+        unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
+      };
+    });
+
+    // 5. Normalize Tracking Tab
+    normalizedData.tracking = (rawDataStore.tracking || []).map(row => ({
       emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
-      journeyId: cleanStr(row['Journey ID']),
-      contactId: cleanStr(row['Contact ID']),
-      campaignId: cleanStr(row['Campaign ID']),
       messageId: cleanStr(row['Message ID']),
-      mailStatus: cleanStr(row['Mail Sent Status'] || row['Mail Status']),
-      sentTimestamp: parseDate(row['Sent Timestamp']),
-      outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type']),
-      // Inline Tracking Fallbacks
       isOpened: parseBool(row['Is Opened?'] || row['Opened']),
       firstOpenTime: parseDate(row['First Open Time']),
       linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
@@ -99,33 +106,6 @@ const DataEngine = (function () {
       replyTimestamp: parseDate(row['Reply Timestamp']),
       unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
     }));
-
-    // 5. Normalize Tracking Tab (or synthesize from Email Events if empty)
-    const rawTracking = rawDataStore.tracking || [];
-    if (rawTracking.length > 0) {
-      normalizedData.tracking = rawTracking.map(row => ({
-        emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
-        messageId: cleanStr(row['Message ID']),
-        isOpened: parseBool(row['Is Opened?'] || row['Opened']),
-        firstOpenTime: parseDate(row['First Open Time']),
-        linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
-        isReplied: parseBool(row['Is Replied?'] || row['Replied']),
-        replyTimestamp: parseDate(row['Reply Timestamp']),
-        unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
-      }));
-    } else {
-      // Fallback: Map engagement state directly from emailEvents tab
-      normalizedData.tracking = normalizedData.emailEvents.map(evt => ({
-        emailEventId: evt.emailEventId,
-        messageId: evt.messageId,
-        isOpened: evt.isOpened,
-        firstOpenTime: evt.firstOpenTime,
-        linkClicked: evt.linkClicked,
-        isReplied: evt.isReplied,
-        replyTimestamp: evt.replyTimestamp,
-        unsubscribed: evt.unsubscribed
-      }));
-    }
 
     // 6. Normalize Follow-Up
     normalizedData.followUp = (rawDataStore.followUp || []).map(row => ({
@@ -162,13 +142,9 @@ const DataEngine = (function () {
       dataPayload: row['Data Payload'] || ''
     }));
 
-    console.log('Data Engine initialized with normalized models:', normalizedData);
+    console.log('Data Engine initialized:', normalizedData);
     return normalizedData;
   }
-
-  /* ============================================================
-     RELATIONAL LOOKUP HELPERS
-     ============================================================ */
 
   function getUserByContactId(contactId) {
     return normalizedData.users.find(u => u.contactId === contactId || u.userId === contactId);
