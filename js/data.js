@@ -16,6 +16,27 @@ const DataEngine = (function () {
     reports: []
   };
 
+  /**
+   * Safe reader that looks up a property in a row object 
+   * regardless of case, extra spaces, or underscores.
+   */
+  function getVal(row, possibleKeys) {
+    if (!row || typeof row !== 'object') return '';
+    const keys = Object.keys(row);
+    if (!Array.isArray(possibleKeys)) possibleKeys = [possibleKeys];
+
+    for (let targetKey of possibleKeys) {
+      const cleanTarget = String(targetKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+      for (let actualKey of keys) {
+        const cleanActual = String(actualKey).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (cleanActual === cleanTarget && row[actualKey] !== undefined && row[actualKey] !== null) {
+          return String(row[actualKey]).trim();
+        }
+      }
+    }
+    return '';
+  }
+
   function parseBool(val) {
     if (typeof val === 'boolean') return val;
     const clean = String(val || '').trim().toLowerCase();
@@ -33,116 +54,119 @@ const DataEngine = (function () {
     return isNaN(n) ? 0 : n;
   }
 
-  function cleanStr(val) {
-    return String(val || '').trim();
-  }
-
   function init(rawDataStore) {
     // 1. Normalize Users
-    normalizedData.users = (rawDataStore.users || []).map(row => ({
-      userId: cleanStr(row['User ID'] || row['Contact ID']),
-      contactId: cleanStr(row['Contact ID'] || row['User ID']),
-      firstName: cleanStr(row['First Name']),
-      email: cleanStr(row['Email Address'] || row['Email']).toLowerCase(),
-      company: cleanStr(row['Company']),
-      leadStatus: cleanStr(row['Lead Status']),
-      unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?']),
-      createdAt: parseDate(row['Created At']),
-      updatedAt: parseDate(row['Updated At'])
-    }));
+    normalizedData.users = (rawDataStore.users || [])
+      .map(row => ({
+        userId: getVal(row, ['User ID', 'UserId', 'Contact ID', 'ContactId', 'ID']),
+        contactId: getVal(row, ['Contact ID', 'ContactId', 'User ID', 'UserId', 'ID']),
+        firstName: getVal(row, ['First Name', 'FirstName', 'Name']),
+        email: getVal(row, ['Email Address', 'Email', 'EmailAddress']).toLowerCase(),
+        company: getVal(row, ['Company', 'Organization']),
+        leadStatus: getVal(row, ['Lead Status', 'Status']),
+        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?'])),
+        createdAt: parseDate(getVal(row, ['Created At', 'CreatedAt'])),
+        updatedAt: parseDate(getVal(row, ['Updated At', 'UpdatedAt']))
+      }))
+      // Filter out completely blank rows
+      .filter(u => u.userId || u.contactId || u.email || u.firstName);
 
     // 2. Normalize Campaigns
-    normalizedData.campaigns = (rawDataStore.campaigns || []).map(row => ({
-      campaignId: cleanStr(row['Campaign ID']),
-      campaignName: cleanStr(row['Campaign Name']),
-      status: cleanStr(row['Campaign Status'] || row['Status']),
-      totalEmailEvents: parseNum(row['Total Email Events']),
-      totalContacts: parseNum(row['Total Contacts']),
-      createdAt: parseDate(row['Created At']),
-      updatedAt: parseDate(row['Updated At'])
-    }));
+    normalizedData.campaigns = (rawDataStore.campaigns || [])
+      .map(row => ({
+        campaignId: getVal(row, ['Campaign ID', 'CampaignId', 'ID']),
+        campaignName: getVal(row, ['Campaign Name', 'CampaignName', 'Name']),
+        status: getVal(row, ['Campaign Status', 'Status']),
+        totalEmailEvents: parseNum(getVal(row, ['Total Email Events', 'TotalEvents'])),
+        totalContacts: parseNum(getVal(row, ['Total Contacts', 'TotalContacts'])),
+        createdAt: parseDate(getVal(row, ['Created At', 'CreatedAt'])),
+        updatedAt: parseDate(getVal(row, ['Updated At', 'UpdatedAt']))
+      }))
+      .filter(c => c.campaignId || c.campaignName);
 
     // 3. Normalize Journeys
-    normalizedData.journeys = (rawDataStore.journeys || []).map(row => ({
-      journeyId: cleanStr(row['Journey ID']),
-      contactId: cleanStr(row['Contact ID']),
-      campaignId: cleanStr(row['Campaign ID']),
-      sequence: parseNum(row['Sequence']),
-      targetSegment: cleanStr(row['Target Segment']),
-      emailVersion: cleanStr(row['Email Version']),
-      outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type'])
-    }));
+    normalizedData.journeys = (rawDataStore.journeys || [])
+      .map(row => ({
+        journeyId: getVal(row, ['Journey ID', 'JourneyId']),
+        contactId: getVal(row, ['Contact ID', 'ContactId']),
+        campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
+        sequence: parseNum(getVal(row, ['Sequence', 'Seq'])),
+        targetSegment: getVal(row, ['Target Segment', 'Segment']),
+        emailVersion: getVal(row, ['Email Version', 'Version']),
+        outreachType: getVal(row, ['OUTREACH_TYPE', 'Outreach Type', 'Type'])
+      }))
+      .filter(j => j.journeyId || j.contactId || j.campaignId);
 
     // 4. Normalize Email Events
-    normalizedData.emailEvents = (rawDataStore.emailEvents || []).map(row => {
-      const rawStatus = cleanStr(row['Mail Sent Status'] || row['Mail Status'] || row['Mail Status'] || row['Status']);
-      return {
-        emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
-        journeyId: cleanStr(row['Journey ID']),
-        contactId: cleanStr(row['Contact ID']),
-        campaignId: cleanStr(row['Campaign ID']),
-        messageId: cleanStr(row['Message ID']),
-        mailStatus: rawStatus,
-        sentTimestamp: parseDate(row['Sent Timestamp']),
-        outreachType: cleanStr(row['OUTREACH_TYPE'] || row['Outreach Type']),
-        // Tracking field fallbacks directly on event
-        isOpened: parseBool(row['Is Opened?'] || row['Opened']),
-        firstOpenTime: parseDate(row['First Open Time']),
-        linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
-        isReplied: parseBool(row['Is Replied?'] || row['Replied']),
-        replyTimestamp: parseDate(row['Reply Timestamp']),
-        unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
-      };
-    });
+    normalizedData.emailEvents = (rawDataStore.emailEvents || [])
+      .map(row => ({
+        emailEventId: getVal(row, ['Email Event ID', 'EmailEventId', 'Message ID', 'MessageId', 'ID']),
+        journeyId: getVal(row, ['Journey ID', 'JourneyId']),
+        contactId: getVal(row, ['Contact ID', 'ContactId']),
+        campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
+        messageId: getVal(row, ['Message ID', 'MessageId']),
+        mailStatus: getVal(row, ['Mail Sent Status', 'Mail Status', 'MailStatus', 'Status', 'Sent Status']),
+        sentTimestamp: parseDate(getVal(row, ['Sent Timestamp', 'SentTimestamp', 'Timestamp'])),
+        outreachType: getVal(row, ['OUTREACH_TYPE', 'Outreach Type', 'Type']),
+        isOpened: parseBool(getVal(row, ['Is Opened?', 'Opened', 'Is Opened'])),
+        firstOpenTime: parseDate(getVal(row, ['First Open Time', 'FirstOpenTime'])),
+        linkClicked: parseBool(getVal(row, ['Link Clicked', 'Clicked', 'Is Clicked'])),
+        isReplied: parseBool(getVal(row, ['Is Replied?', 'Replied', 'Is Replied'])),
+        replyTimestamp: parseDate(getVal(row, ['Reply Timestamp', 'ReplyTimestamp'])),
+        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?']))
+      }))
+      .filter(e => e.emailEventId || e.journeyId || e.contactId || e.campaignId);
 
     // 5. Normalize Tracking Tab
-    normalizedData.tracking = (rawDataStore.tracking || []).map(row => ({
-      emailEventId: cleanStr(row['Email Event ID'] || row['Message ID']),
-      messageId: cleanStr(row['Message ID']),
-      isOpened: parseBool(row['Is Opened?'] || row['Opened']),
-      firstOpenTime: parseDate(row['First Open Time']),
-      linkClicked: parseBool(row['Link Clicked'] || row['Clicked']),
-      isReplied: parseBool(row['Is Replied?'] || row['Replied']),
-      replyTimestamp: parseDate(row['Reply Timestamp']),
-      unsubscribed: parseBool(row['Unsubscribed'] || row['Unsubscribed?'])
-    }));
+    normalizedData.tracking = (rawDataStore.tracking || [])
+      .map(row => ({
+        emailEventId: getVal(row, ['Email Event ID', 'EmailEventId', 'Message ID', 'MessageId']),
+        messageId: getVal(row, ['Message ID', 'MessageId']),
+        isOpened: parseBool(getVal(row, ['Is Opened?', 'Opened', 'Is Opened'])),
+        firstOpenTime: parseDate(getVal(row, ['First Open Time', 'FirstOpenTime'])),
+        linkClicked: parseBool(getVal(row, ['Link Clicked', 'Clicked', 'Is Clicked'])),
+        isReplied: parseBool(getVal(row, ['Is Replied?', 'Replied', 'Is Replied'])),
+        replyTimestamp: parseDate(getVal(row, ['Reply Timestamp', 'ReplyTimestamp'])),
+        unsubscribed: parseBool(getVal(row, ['Unsubscribed', 'Unsubscribed?']))
+      }))
+      .filter(t => t.emailEventId || t.messageId);
 
     // 6. Normalize Follow-Up
     normalizedData.followUp = (rawDataStore.followUp || []).map(row => ({
-      followUpId: cleanStr(row['Follow-Up ID']),
-      emailEventId: cleanStr(row['Email Event ID']),
-      journeyId: cleanStr(row['Journey ID']),
-      contactId: cleanStr(row['Contact ID']),
-      campaignId: cleanStr(row['Campaign ID']),
-      status: cleanStr(row['Follow-Up Status'] || row['Status']),
-      dueAt: parseDate(row['Follow-Up Due At'] || row['Due At']),
-      sentAt: parseDate(row['Follow-Up Sent At'] || row['Sent At'])
+      followUpId: getVal(row, ['Follow-Up ID', 'FollowUpID']),
+      emailEventId: getVal(row, ['Email Event ID', 'EmailEventID']),
+      journeyId: getVal(row, ['Journey ID', 'JourneyID']),
+      contactId: getVal(row, ['Contact ID', 'ContactID']),
+      campaignId: getVal(row, ['Campaign ID', 'CampaignID']),
+      status: getVal(row, ['Follow-Up Status', 'Status']),
+      dueAt: parseDate(getVal(row, ['Follow-Up Due At', 'Due At'])),
+      sentAt: parseDate(getVal(row, ['Follow-Up Sent At', 'Sent At']))
     }));
 
     // 7. Normalize Analysis
     normalizedData.analysis = (rawDataStore.analysis || []).map(row => ({
-      analysisId: cleanStr(row['Analysis ID']),
-      analysisDate: parseDate(row['Analysis Date']),
-      periodStart: parseDate(row['Period Start']),
-      periodEnd: parseDate(row['Period End']),
-      campaignId: cleanStr(row['Campaign ID']),
-      campaignName: cleanStr(row['Campaign Name']),
-      openRate: parseNum(row['Open Rate']),
-      clickRate: parseNum(row['Click Rate']),
-      replyRate: parseNum(row['Reply Rate']),
-      analysisType: cleanStr(row['Analysis Type'])
+      analysisId: getVal(row, ['Analysis ID']),
+      analysisDate: parseDate(getVal(row, ['Analysis Date'])),
+      periodStart: parseDate(getVal(row, ['Period Start'])),
+      periodEnd: parseDate(getVal(row, ['Period End'])),
+      campaignId: getVal(row, ['Campaign ID']),
+      campaignName: getVal(row, ['Campaign Name']),
+      openRate: parseNum(getVal(row, ['Open Rate'])),
+      clickRate: parseNum(getVal(row, ['Click Rate'])),
+      replyRate: parseNum(getVal(row, ['Reply Rate'])),
+      analysisType: getVal(row, ['Analysis Type'])
     }));
 
     // 8. Normalize Reports
     normalizedData.reports = (rawDataStore.reports || []).map(row => ({
-      reportId: cleanStr(row['Report ID']),
-      reportName: cleanStr(row['Report Name']),
-      generatedAt: parseDate(row['Generated At']),
-      reportType: cleanStr(row['Report Type']),
-      dataPayload: row['Data Payload'] || ''
+      reportId: getVal(row, ['Report ID']),
+      reportName: getVal(row, ['Report Name']),
+      generatedAt: parseDate(getVal(row, ['Generated At'])),
+      reportType: getVal(row, ['Report Type']),
+      dataPayload: getVal(row, ['Data Payload'])
     }));
 
-    console.log('Data Engine initialized:', normalizedData);
+    console.log('Data Engine initialized with robust field matching:', normalizedData);
     return normalizedData;
   }
 
