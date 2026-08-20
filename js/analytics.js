@@ -39,15 +39,15 @@ const AnalyticsEngine = (function () {
     const data = DataEngine.getNormalized();
     const events = getFilteredEvents(filters);
 
-    // Fallback recipient count to unique contacts across email events if Users tab is empty
-    const uniqueContacts = new Set(events.map(e => e.contactId).filter(Boolean));
-    const totalRecipients = data.users.length > 0 ? data.users.length : uniqueContacts.size;
+    // Count unique recipients from Users tab or fall back to unique contact IDs in Email Events
+    const uniqueContactsInEvents = new Set(events.map(e => e.contactId).filter(Boolean));
+    const totalRecipients = data.users.length > 0 ? data.users.length : uniqueContactsInEvents.size;
 
     const totalMessages = events.length;
 
-    // Treat any non-empty status (or status not containing "fail"/"error") as sent
+    // Count sent as any event present in Email Events that isn't failed/bounced
     const totalSent = events.filter(e => {
-      if (!e.mailStatus) return true; // Default to sent if row exists in Email Events
+      if (!e.mailStatus) return true; // If row exists in Email Events, assume sent by default
       const s = e.mailStatus.toLowerCase();
       return !s.includes('fail') && !s.includes('error') && !s.includes('bounce');
     }).length;
