@@ -11,25 +11,31 @@ const AnalyticsEngine = (function () {
     let events = data.emailEvents || [];
 
     if (filters.campaignId && filters.campaignId !== 'all') {
-      events = events.filter(e => e.campaignId === filters.campaignId);
+      events = events.filter(e => e.campaignId === filters.campaignId || e.campaignName === filters.campaignId);
     }
 
     if (filters.sequence && filters.sequence !== 'all') {
-      const journeys = data.journeys.filter(j => String(j.sequence) === String(filters.sequence));
-      const journeyIds = new Set(journeys.map(j => j.journeyId));
-      events = events.filter(e => journeyIds.has(e.journeyId));
+      events = events.filter(e => {
+        if (e.sequence && String(e.sequence) === String(filters.sequence)) return true;
+        const j = data.journeys.find(j => j.journeyId === e.journeyId);
+        return j && String(j.sequence) === String(filters.sequence);
+      });
     }
 
     if (filters.version && filters.version !== 'all') {
-      const journeys = data.journeys.filter(j => j.emailVersion === filters.version);
-      const journeyIds = new Set(journeys.map(j => j.journeyId));
-      events = events.filter(e => journeyIds.has(e.journeyId));
+      events = events.filter(e => {
+        if (e.emailVersion && e.emailVersion === filters.version) return true;
+        const j = data.journeys.find(j => j.journeyId === e.journeyId);
+        return j && j.emailVersion === filters.version;
+      });
     }
 
     if (filters.segment && filters.segment !== 'all') {
-      const journeys = data.journeys.filter(j => j.targetSegment === filters.segment);
-      const journeyIds = new Set(journeys.map(j => j.journeyId));
-      events = events.filter(e => journeyIds.has(e.journeyId));
+      events = events.filter(e => {
+        if (e.targetSegment && e.targetSegment === filters.segment) return true;
+        const j = data.journeys.find(j => j.journeyId === e.journeyId);
+        return j && j.targetSegment === filters.segment;
+      });
     }
 
     return events;
@@ -39,15 +45,17 @@ const AnalyticsEngine = (function () {
     const data = DataEngine.getNormalized();
     const events = getFilteredEvents(filters);
 
-    // Count unique recipients from Users tab or fall back to unique contact IDs in Email Events
-    const uniqueContactsInEvents = new Set(events.map(e => e.contactId).filter(Boolean));
-    const totalRecipients = data.users.length > 0 ? data.users.length : uniqueContactsInEvents.size;
+    // Combine distinct users from Users tab, Journeys tab, and Email Events tab
+    const recipientSet = new Set();
+    data.users.forEach(u => { if (u.contactId || u.email) recipientSet.add(u.contactId || u.email); });
+    events.forEach(e => { if (e.contactId || e.emailAddress) recipientSet.add(e.contactId || e.emailAddress); });
+    data.journeys.forEach(j => { if (j.contactId || j.email) recipientSet.add(j.contactId || j.email); });
 
+    const totalRecipients = recipientSet.size;
     const totalMessages = events.length;
 
-    // Count sent as any event present in Email Events that isn't failed/bounced
     const totalSent = events.filter(e => {
-      if (!e.mailStatus) return true; // If row exists in Email Events, assume sent by default
+      if (!e.mailStatus) return true;
       const s = e.mailStatus.toLowerCase();
       return !s.includes('fail') && !s.includes('error') && !s.includes('bounce');
     }).length;
