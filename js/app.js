@@ -1,126 +1,150 @@
 /**
  * ============================================================
- * RELATIONAL ENTERPRISE DASHBOARD - MAIN APPLICATION CONTROLLER
+ * RELATIONAL ENTERPRISE DASHBOARD - UI & APP CONTROLLER
  * ============================================================
- * Orchestrates data loading, initialization, filtering, and UI rendering.
  */
 
-(function () {
-  let currentStore = null;
+document.addEventListener('DOMContentLoaded', async () => {
+  await initDashboard();
+});
 
-  /**
-   * Initializes the entire application pipeline
-   */
-  async function initApp() {
-    try {
-      console.log('Initializing Relational Analytics Dashboard...');
-      showLoadingState();
+async function initDashboard() {
+  try {
+    const rawStore = await DataSource.loadData();
+    DataEngine.init(rawStore);
 
-      // 1. Fetch raw relational data from Google Sheet Web App
-      const rawStore = await DataSource.loadData();
-
-      // 2. Normalize raw data models & register relational lookups
-      currentStore = DataEngine.init(rawStore);
-
-      // 3. Compute executive KPIs
-      const kpis = AnalyticsEngine.getExecutiveKPIs();
-      console.log('Executive KPIs calculated:', kpis);
-
-      // 4. Populate UI Elements
-      renderKPIs(kpis);
-      populateFilterDropdowns();
-      renderDashboardViews();
-
-      // 5. Update timestamp label
-      updateLastRefreshedLabel();
-
-    } catch (error) {
-      console.error('Application Initialization Failed:', error);
-      showErrorState(error.message);
-    }
+    populateFilterDropdowns();
+    attachEventListeners();
+    renderDashboard();
+  } catch (err) {
+    console.error('Failed to initialize dashboard:', err);
   }
-
-  /**
-   * Renders high-level KPI cards on topbar/overview
-   */
-   /**
- * Renders high-level KPI cards on topbar/overview safely
- */
-function renderKPIs(kpis = {}) {
-  const elRecipients = document.getElementById('kpiRecipients');
-  const elMessages = document.getElementById('kpiMessages');
-  const elSent = document.getElementById('kpiSent');
-  const elOpenRate = document.getElementById('kpiOpenRate');
-  const elClickRate = document.getElementById('kpiClickRate');
-  const elReplyRate = document.getElementById('kpiReplyRate');
-  const elUnsubRate = document.getElementById('kpiUnsubscribeRate');
-
-  if (elRecipients) elRecipients.innerText = (kpis.totalContacts ?? 0).toLocaleString();
-  if (elMessages) elMessages.innerText = (kpis.totalEvents ?? 0).toLocaleString();
-  if (elSent) elSent.innerText = (kpis.totalSent ?? 0).toLocaleString();
-  if (elOpenRate) elOpenRate.innerText = kpis.openRate || '0.0%';
-  if (elClickRate) elClickRate.innerText = kpis.clickRate || '0.0%';
-  if (elReplyRate) elReplyRate.innerText = kpis.replyRate || '0.0%';
-  if (elUnsubRate) elUnsubRate.innerText = kpis.unsubscribeRate || '0.0%';
 }
-  /**
-   * Populates filter dropdowns with unique options
-   */
-  function populateFilterDropdowns() {
-    const campaignSelect = document.getElementById('campaignFilter');
-    if (!campaignSelect) return;
 
-    const campaigns = DataEngine.getNormalized().campaigns;
-    campaignSelect.innerHTML = '<option value="ALL">All Campaigns</option>';
+function populateFilterDropdowns() {
+  const data = DataEngine.getNormalized();
 
-    campaigns.forEach(c => {
+  // Populate Campaign Select
+  const campaignSelect = document.getElementById('campaignSelect') || document.querySelectorAll('select')[0];
+  if (campaignSelect) {
+    campaignSelect.innerHTML = '<option value="all">All Campaigns</option>';
+    
+    // Collect campaigns from both Campaigns tab and Email Events tab
+    const campaignMap = new Map();
+    data.campaigns.forEach(c => {
+      if (c.campaignId) campaignMap.set(c.campaignId, c.campaignName || c.campaignId);
+    });
+    data.emailEvents.forEach(e => {
+      if (e.campaignId && !campaignMap.has(e.campaignId)) {
+        campaignMap.set(e.campaignId, e.campaignId);
+      }
+    });
+
+    campaignMap.forEach((name, id) => {
       const opt = document.createElement('option');
-      opt.value = c.campaignId;
-      opt.textContent = c.campaignName || c.campaignId;
+      opt.value = id;
+      opt.textContent = name;
       campaignSelect.appendChild(opt);
     });
   }
 
-  /**
-   * Renders charts, tables, and view panels
-   */
-  function renderDashboardViews() {
-    // If renderSummaryTable is available in tables.js, call it
-    if (typeof renderSummaryTable === 'function') {
-      renderSummaryTable(DataEngine.getNormalized().campaigns);
-    }
+  // Populate Sequences Select
+  const sequenceSelect = document.querySelectorAll('select')[1];
+  if (sequenceSelect) {
+    sequenceSelect.innerHTML = '<option value="all">All Sequences</option>';
+    const sequences = [...new Set(data.journeys.map(j => j.sequence).filter(Boolean))];
+    sequences.forEach(seq => {
+      const opt = document.createElement('option');
+      opt.value = seq;
+      opt.textContent = `Sequence ${seq}`;
+      sequenceSelect.appendChild(opt);
+    });
   }
 
-  function updateLastRefreshedLabel() {
-    const lbl = document.getElementById('lastUpdatedLabel');
-    if (lbl) {
-      const now = new Date();
-      lbl.innerText = `Updated ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    }
+  // Populate Versions Select
+  const versionSelect = document.querySelectorAll('select')[2];
+  if (versionSelect) {
+    versionSelect.innerHTML = '<option value="all">All Versions</option>';
+    const versions = [...new Set(data.journeys.map(j => j.emailVersion).filter(Boolean))];
+    versions.forEach(ver => {
+      const opt = document.createElement('option');
+      opt.value = ver;
+      opt.textContent = ver;
+      versionSelect.appendChild(opt);
+    });
   }
 
-  function showLoadingState() {
-    console.log('Loading state active...');
+  // Populate Segments Select
+  const segmentSelect = document.querySelectorAll('select')[3];
+  if (segmentSelect) {
+    segmentSelect.innerHTML = '<option value="all">All Segments</option>';
+    const segments = [...new Set(data.journeys.map(j => j.targetSegment).filter(Boolean))];
+    segments.forEach(seg => {
+      const opt = document.createElement('option');
+      opt.value = seg;
+      opt.textContent = seg;
+      segmentSelect.appendChild(opt);
+    });
   }
+}
 
-  function showErrorState(msg) {
-    const summaryTable = document.getElementById('campaignSummaryTable');
-    if (summaryTable) {
-      summaryTable.innerHTML = `<tr><td colspan="12" style="color:red; text-align:center; padding: 20px;">Failed to load live data: ${msg}</td></tr>`;
+function getActiveFilters() {
+  const selects = document.querySelectorAll('select');
+  return {
+    campaignId: selects[0] ? selects[0].value : 'all',
+    sequence: selects[1] ? selects[1].value : 'all',
+    version: selects[2] ? selects[2].value : 'all',
+    segment: selects[3] ? selects[3].value : 'all'
+  };
+}
+
+function renderDashboard() {
+  const filters = getActiveFilters();
+  const metrics = AnalyticsEngine.calculateMetrics(filters);
+
+  // Helper to update text inside KPI cards safely
+  const updateCardValue = (selectorIndex, value) => {
+    const cards = document.querySelectorAll('.card, [class*="card"], div');
+    // Direct target updating based on metric structure
+  };
+
+  // Target KPI Cards directly
+  const metricElements = document.querySelectorAll('h2, h3, .metric-value, span');
+  
+  // Update KPI Cards by searching for labels or order
+  updateMetricUI('Recipients', metrics.recipients);
+  updateMetricUI('Messages', metrics.messages);
+  updateMetricUI('Sent', metrics.sent);
+  updateMetricUI('Verified', metrics.verified);
+  updateMetricUI('Open Rate', `${metrics.openRate}%`);
+  updateMetricUI('Click Rate', `${metrics.clickRate}%`);
+  updateMetricUI('Reply Rate', `${metrics.replyRate}%`);
+  updateMetricUI('Unsubscribe Rate', `${metrics.unsubscribeRate}%`);
+}
+
+function updateMetricUI(label, val) {
+  const elements = Array.from(document.querySelectorAll('div, p, span, h3'));
+  const targetLabel = elements.find(el => el.textContent.trim().toLowerCase() === label.toLowerCase());
+  
+  if (targetLabel && targetLabel.parentElement) {
+    const valueEl = targetLabel.parentElement.querySelector('h2, h3, .text-2xl, strong, span.value') || targetLabel.nextElementSibling;
+    if (valueEl) {
+      valueEl.textContent = val;
     }
   }
+}
 
-  // Bind Event Listener for DOM Ready
-  document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-
-    // Bind Refresh Button
-    const btnRefresh = document.getElementById('refreshButton');
-    if (btnRefresh) {
-      btnRefresh.addEventListener('click', () => {
-        DataSource.loadData(true).then(() => initApp());
-      });
-    }
+function attachEventListeners() {
+  const selects = document.querySelectorAll('select');
+  selects.forEach(select => {
+    select.addEventListener('change', renderDashboard);
   });
 
-})();
+  const resetButton = document.querySelector('button');
+  if (resetButton) {
+    resetButton.addEventListener('click', () => {
+      selects.forEach(s => s.value = 'all');
+      renderDashboard();
+    });
+  }
+}
