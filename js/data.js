@@ -16,10 +16,6 @@ const DataEngine = (function () {
     reports: []
   };
 
-  /**
-   * Safe reader that looks up a property in a row object 
-   * regardless of case, extra spaces, or underscores.
-   */
   function getVal(row, possibleKeys) {
     if (!row || typeof row !== 'object') return '';
     const keys = Object.keys(row);
@@ -68,7 +64,6 @@ const DataEngine = (function () {
         createdAt: parseDate(getVal(row, ['Created At', 'CreatedAt'])),
         updatedAt: parseDate(getVal(row, ['Updated At', 'UpdatedAt']))
       }))
-      // Filter out completely blank rows
       .filter(u => u.userId || u.contactId || u.email || u.firstName);
 
     // 2. Normalize Campaigns
@@ -90,6 +85,7 @@ const DataEngine = (function () {
         journeyId: getVal(row, ['Journey ID', 'JourneyId']),
         contactId: getVal(row, ['Contact ID', 'ContactId']),
         campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
+        campaignName: getVal(row, ['Campaign Name', 'CampaignName']),
         sequence: parseNum(getVal(row, ['Sequence', 'Seq'])),
         targetSegment: getVal(row, ['Target Segment', 'Segment']),
         emailVersion: getVal(row, ['Email Version', 'Version']),
@@ -104,10 +100,15 @@ const DataEngine = (function () {
         journeyId: getVal(row, ['Journey ID', 'JourneyId']),
         contactId: getVal(row, ['Contact ID', 'ContactId']),
         campaignId: getVal(row, ['Campaign ID', 'CampaignId']),
+        campaignName: getVal(row, ['Campaign Name', 'CampaignName']),
+        emailAddress: getVal(row, ['Email Address', 'Email']),
         messageId: getVal(row, ['Message ID', 'MessageId']),
         mailStatus: getVal(row, ['Mail Sent Status', 'Mail Status', 'MailStatus', 'Status', 'Sent Status']),
         sentTimestamp: parseDate(getVal(row, ['Sent Timestamp', 'SentTimestamp', 'Timestamp'])),
         outreachType: getVal(row, ['OUTREACH_TYPE', 'Outreach Type', 'Type']),
+        sequence: parseNum(getVal(row, ['Sequence', 'Seq'])),
+        targetSegment: getVal(row, ['Target Segment', 'Segment']),
+        emailVersion: getVal(row, ['Email Version', 'Version']),
         isOpened: parseBool(getVal(row, ['Is Opened?', 'Opened', 'Is Opened'])),
         firstOpenTime: parseDate(getVal(row, ['First Open Time', 'FirstOpenTime'])),
         linkClicked: parseBool(getVal(row, ['Link Clicked', 'Clicked', 'Is Clicked'])),
@@ -166,7 +167,7 @@ const DataEngine = (function () {
       dataPayload: getVal(row, ['Data Payload'])
     }));
 
-    console.log('Data Engine initialized with robust field matching:', normalizedData);
+    console.log('Data Engine initialized successfully:', normalizedData);
     return normalizedData;
   }
 
