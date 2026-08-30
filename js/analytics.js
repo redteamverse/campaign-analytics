@@ -1,101 +1,177 @@
 /**
  * ============================================================
- * RELATIONAL ENTERPRISE DASHBOARD - ANALYTICS ENGINE
+ * CAMPAIGN ANALYTICS - FILTERS & AGGREGATIONS
  * ============================================================
  */
-
 const AnalyticsEngine = (function () {
+  const isAll = value => !value || String(value).toLowerCase() === 'all';
 
-  function getFilteredEvents(filters = {}) {
-    const data = DataEngine.getNormalized();
-    let events = data.emailEvents || [];
-
-    if (filters.campaignId && filters.campaignId !== 'all') {
-      events = events.filter(e => e.campaignId === filters.campaignId || e.campaignName === filters.campaignId);
-    }
-
-    if (filters.sequence && filters.sequence !== 'all') {
-      events = events.filter(e => {
-        if (e.sequence && String(e.sequence) === String(filters.sequence)) return true;
-        const j = data.journeys.find(j => j.journeyId === e.journeyId);
-        return j && String(j.sequence) === String(filters.sequence);
-      });
-    }
-
-    if (filters.version && filters.version !== 'all') {
-      events = events.filter(e => {
-        if (e.emailVersion && e.emailVersion === filters.version) return true;
-        const j = data.journeys.find(j => j.journeyId === e.journeyId);
-        return j && j.emailVersion === filters.version;
-      });
-    }
-
-    if (filters.segment && filters.segment !== 'all') {
-      events = events.filter(e => {
-        if (e.targetSegment && e.targetSegment === filters.segment) return true;
-        const j = data.journeys.find(j => j.journeyId === e.journeyId);
-        return j && j.targetSegment === filters.segment;
-      });
-    }
-
-    return events;
-  }
-
-  function calculateMetrics(filters = {}) {
-    const data = DataEngine.getNormalized();
-    const events = getFilteredEvents(filters);
-
-    // Combine distinct users from Users tab, Journeys tab, and Email Events tab
-    const recipientSet = new Set();
-    data.users.forEach(u => { if (u.contactId || u.email) recipientSet.add(u.contactId || u.email); });
-    events.forEach(e => { if (e.contactId || e.emailAddress) recipientSet.add(e.contactId || e.emailAddress); });
-    data.journeys.forEach(j => { if (j.contactId || j.email) recipientSet.add(j.contactId || j.email); });
-
-    const totalRecipients = recipientSet.size;
-    const totalMessages = events.length;
-
-    const totalSent = events.filter(e => {
-      if (!e.mailStatus) return true;
-      const s = e.mailStatus.toLowerCase();
-      return !s.includes('fail') && !s.includes('error') && !s.includes('bounce');
-    }).length;
-
-    const openedCount = events.filter(e => {
-      const t = DataEngine.getTrackingForEvent(e.emailEventId);
-      return e.isOpened || (t && t.isOpened);
-    }).length;
-
-    const clickedCount = events.filter(e => {
-      const t = DataEngine.getTrackingForEvent(e.emailEventId);
-      return e.linkClicked || (t && t.linkClicked);
-    }).length;
-
-    const repliedCount = events.filter(e => {
-      const t = DataEngine.getTrackingForEvent(e.emailEventId);
-      return e.isReplied || (t && t.isReplied);
-    }).length;
-
-    const unsubscribedCount = events.filter(e => {
-      const t = DataEngine.getTrackingForEvent(e.emailEventId);
-      return e.unsubscribed || (t && t.unsubscribed);
-    }).length;
-
-    const baseCount = totalSent > 0 ? totalSent : (totalMessages > 0 ? totalMessages : 1);
-
+  function normalizeFilters(filters = {}) {
     return {
-      recipients: totalRecipients,
-      messages: totalMessages,
-      sent: totalSent,
-      verified: totalSent,
-      openRate: baseCount > 0 ? ((openedCount / baseCount) * 100).toFixed(1) : '0.0',
-      clickRate: baseCount > 0 ? ((clickedCount / baseCount) * 100).toFixed(1) : '0.0',
-      replyRate: baseCount > 0 ? ((repliedCount / baseCount) * 100).toFixed(1) : '0.0',
-      unsubscribeRate: baseCount > 0 ? ((unsubscribedCount / baseCount) * 100).toFixed(1) : '0.0'
+      campaignId: filters.campaignId || 'all',
+      sequence: filters.sequence || 'all',
+      version: filters.version || 'all',
+      segment: filters.segment || 'all'
     };
   }
 
+  function getFilteredEvents(filters = {}) {
+    const f = normalizeFilters(filters);
+    const data = DataEngine.getNormalized();
+
+    return (data.emailEvents || []).filter(e => {
+      if (!isAll(f.campaignId) && e.campaignId !== f.campaignId) return false;
+      if (!isAll(f.sequence) && String(e.sequence) !== String(f.sequence)) return false;
+      if (!isAll(f.version) && e.emailVersion !== f.version) return false;
+      if (!isAll(f.segment) && e.targetSegment !== f.segment) return false;
+      return true;
+    });
+  }
+
+  function hasEventLevelFilters(filters = {}) {
+    const f = normalizeFilters(filters);
+    return !isAll(f.sequence) || !isAll(f.version) || !isAll(f.segment);
+  }
+
+  function getFilteredMembers(filters = {}, filteredEvents = null) {
+    const f = normalizeFilters(filters);
+    const data = DataEngine.getNormalized();
+    let members = (data.campaignMembers || []).filter(m => m.membershipStatus === 'ACTIVE');
+
+    if (!isAll(f.campaignId)) {
+      members = members.filter(m => m.campaignId === f.campaignId);
+    }
+
+    // Campaign Members do not contain sequence/version/segment. When one of
+    // those filters is active, recipients must be derived from matching events.
+    if (hasEventLevelFilters(f)) {
+      const events = filteredEvents || getFilteredEvents(f);
+      return MetricsEngine.uniqueRecipientsFromEvents(events);
+    }
+
+    if (!members.length) {
+      const events = filteredEvents || getFilteredEvents(f);
+      return MetricsEngine.uniqueRecipientsFromEvents(events);
+    }
+
+    const seen = new Map();
+    members.forEach(m => {
+      const key = m.contactId || m.emailAddress || m.campaignMemberId;
+      if (key && !seen.has(key)) seen.set(key, m);
+    });
+    return Array.from(seen.values());
+  }
+
+  function getFilteredFollowUps(filters = {}) {
+    const f = normalizeFilters(filters);
+    const data = DataEngine.getNormalized();
+    const matchingEventIds = new Set(getFilteredEvents(f).map(e => e.emailEventId).filter(Boolean));
+
+    return (data.followUp || []).filter(row => {
+      if (!isAll(f.campaignId) && row.campaignId !== f.campaignId) return false;
+      if (hasEventLevelFilters(f) && row.emailEventId && !matchingEventIds.has(row.emailEventId)) return false;
+      return true;
+    });
+  }
+
+  function getOverview(filters = {}) {
+    const events = getFilteredEvents(filters);
+    const recipients = getFilteredMembers(filters, events);
+    const followUps = getFilteredFollowUps(filters);
+    return {
+      events,
+      recipients,
+      followUps,
+      metrics: MetricsEngine.calculate(events, recipients),
+      followUpMetrics: MetricsEngine.followUpMetrics(followUps)
+    };
+  }
+
+  function groupByCampaign(filters = {}) {
+    const data = DataEngine.getNormalized();
+    const baseFilters = normalizeFilters(filters);
+    const ids = new Map();
+
+    data.campaigns.forEach(c => {
+      if (c.campaignId) ids.set(c.campaignId, c.campaignName || c.campaignId);
+    });
+    data.emailEvents.forEach(e => {
+      if (e.campaignId && !ids.has(e.campaignId)) ids.set(e.campaignId, e.campaignName || e.campaignId);
+    });
+
+    const rows = [];
+    ids.forEach((name, id) => {
+      if (!isAll(baseFilters.campaignId) && id !== baseFilters.campaignId) return;
+      const f = { ...baseFilters, campaignId: id };
+      const overview = getOverview(f);
+      if (!overview.events.length && !overview.recipients.length) return;
+      rows.push({ campaignId: id, campaignName: name, ...overview.metrics });
+    });
+
+    return rows.sort((a, b) => b.sent - a.sent || a.campaignName.localeCompare(b.campaignName));
+  }
+
+  function groupBySequence(filters = {}) {
+    const events = getFilteredEvents(filters);
+    const groups = new Map();
+    events.forEach(e => {
+      const key = e.sequence || '(No Sequence)';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(e);
+    });
+
+    return Array.from(groups.entries()).map(([sequence, rows]) => ({
+      sequence,
+      ...MetricsEngine.calculate(rows, MetricsEngine.uniqueRecipientsFromEvents(rows))
+    })).sort((a, b) => b.sent - a.sent || a.sequence.localeCompare(b.sequence));
+  }
+
+  function getRecipientRows(filters = {}) {
+    const data = DataEngine.getNormalized();
+    const events = getFilteredEvents(filters);
+    const f = normalizeFilters(filters);
+    let members = (data.campaignMembers || []).filter(m => m.membershipStatus === 'ACTIVE');
+    if (!isAll(f.campaignId)) members = members.filter(m => m.campaignId === f.campaignId);
+
+    if (!members.length) {
+      return MetricsEngine.uniqueRecipientsFromEvents(events).map(e => ({
+        emailAddress: e.emailAddress,
+        campaignName: e.campaignName,
+        membershipStatus: 'ACTIVE',
+        preDeliveryCheckStatus: e.preDeliveryCheckStatus,
+        leadStatus: e.leadStatus,
+        sent: events.filter(x => (x.contactId && x.contactId === e.contactId) || (x.emailAddress && x.emailAddress === e.emailAddress)).filter(MetricsEngine.isSent).length,
+        opened: events.some(x => ((x.contactId && x.contactId === e.contactId) || x.emailAddress === e.emailAddress) && DataEngine.getEngagement(x).opened),
+        replied: events.some(x => ((x.contactId && x.contactId === e.contactId) || x.emailAddress === e.emailAddress) && DataEngine.getEngagement(x).replied)
+      }));
+    }
+
+    return members.map(m => {
+      const user = DataEngine.getUserById(m.userId);
+      const memberEvents = events.filter(e =>
+        (m.contactId && e.contactId === m.contactId) ||
+        (m.emailAddress && e.emailAddress === m.emailAddress)
+      );
+      return {
+        emailAddress: m.emailAddress || (user && user.emailAddress) || '',
+        campaignName: m.campaignName || (data.campaigns.find(c => c.campaignId === m.campaignId) || {}).campaignName || m.campaignId,
+        membershipStatus: m.membershipStatus,
+        preDeliveryCheckStatus: m.preDeliveryCheckStatus,
+        leadStatus: (user && user.leadStatus) || '',
+        sent: memberEvents.filter(MetricsEngine.isSent).length,
+        opened: memberEvents.some(e => DataEngine.getEngagement(e).opened),
+        replied: memberEvents.some(e => DataEngine.getEngagement(e).replied)
+      };
+    });
+  }
+
   return {
-    calculateMetrics: calculateMetrics,
-    getFilteredEvents: getFilteredEvents
+    getFilteredEvents,
+    getFilteredMembers,
+    getFilteredFollowUps,
+    getOverview,
+    groupByCampaign,
+    groupBySequence,
+    getRecipientRows
   };
 })();

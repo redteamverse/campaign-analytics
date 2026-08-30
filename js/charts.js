@@ -1,505 +1,85 @@
-/**
- * =========================================================
- * CAMPAIGN ANALYTICS - CHARTS
- * =========================================================
- *
- * Responsible only for visualizing analytics data.
- *
- * Charts receive already-filtered data from app.js.
- *
- * Current charts:
- *
- * 1. Engagement Funnel
- * 2. Sending Trend
- *
- * =========================================================
- */
-
-
+/** CAMPAIGN ANALYTICS - CHART RENDERERS */
 let engagementFunnelChart = null;
 let sendingTrendChart = null;
 
-
-/**
- * =========================================================
- * CHART DEFAULTS
- * =========================================================
- */
-
-const CHART_FONT = {
-    family: "Arial, sans-serif"
-};
-
-
-/**
- * =========================================================
- * ENGAGEMENT FUNNEL
- * =========================================================
- *
- * Funnel stages:
- *
- * Messages
- * Sent
- * Verified
- * Opened
- * Clicked
- * Replied
- *
- * =========================================================
- */
-
-function renderEngagementFunnel(data) {
-
-    const canvas =
-        document.getElementById("engagementFunnelChart");
-
-    if (!canvas) {
-        console.warn(
-            "Engagement funnel canvas not found."
-        );
-
-        return;
-    }
-
-
-    const metrics =
-        calculateOverviewMetrics(data);
-
-
-    const values = [
-
-        metrics.messages,
-
-        metrics.sent,
-
-        metrics.verified,
-
-        metrics.opened,
-
-        metrics.clicked,
-
-        metrics.replied
-    ];
-
-
-    const labels = [
-
-        "Messages",
-
-        "Sent",
-
-        "Verified",
-
-        "Opened",
-
-        "Clicked",
-
-        "Replied"
-    ];
-
-
-    /**
-     * Destroy previous chart.
-     *
-     * This is important because filters cause the chart
-     * to be redrawn.
-     */
-
-    if (engagementFunnelChart) {
-
-        engagementFunnelChart.destroy();
-
-    }
-
-
-    engagementFunnelChart =
-        new Chart(canvas, {
-
-            type: "bar",
-
-            data: {
-
-                labels: labels,
-
-                datasets: [{
-
-                    label: "Messages",
-
-                    data: values,
-
-                    borderRadius: 4,
-
-                    borderSkipped: false
-
-                }]
-            },
-
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-
-                plugins: {
-
-                    legend: {
-
-                        display: false
-
-                    },
-
-
-                    tooltip: {
-
-                        callbacks: {
-
-                            label: function(context) {
-
-                                return `${context.raw.toLocaleString()} messages`;
-
-                            }
-
-                        }
-
-                    }
-
-                },
-
-
-                scales: {
-
-                    x: {
-
-                        grid: {
-
-                            display: false
-
-                        },
-
-                        ticks: {
-
-                            font: CHART_FONT
-
-                        }
-
-                    },
-
-
-                    y: {
-
-                        beginAtZero: true,
-
-                        ticks: {
-
-                            precision: 0,
-
-                            font: CHART_FONT
-
-                        },
-
-                        grid: {
-
-                            drawBorder: false
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        });
+function destroyChart(chart) {
+  if (chart) chart.destroy();
 }
 
+function renderEngagementFunnel(metrics) {
+  const canvas = document.getElementById('engagementFunnelChart');
+  if (!canvas || typeof Chart === 'undefined') return;
 
-/**
- * =========================================================
- * SENDING TREND
- * =========================================================
- *
- * Uses:
- *
- * Sent Timestamp
- *
- * Groups successfully sent messages by date.
- *
- * =========================================================
- */
-
-function getSendingTrendData(data) {
-
-    const dateCounts = {};
-
-
-    data.forEach(record => {
-
-        /**
-         * Only count messages that were actually sent.
-         */
-
-        if (
-            record.mailSentStatus
-                .toLowerCase() !== "sent"
-        ) {
-
-            return;
-
-        }
-
-
-        if (!record.sentTimestamp) {
-
-            return;
-
-        }
-
-
-        const parsedDate =
-            new Date(record.sentTimestamp);
-
-
-        /**
-         * Ignore invalid timestamps.
-         */
-
-        if (isNaN(parsedDate.getTime())) {
-
-            return;
-
-        }
-
-
-        /**
-         * Convert to YYYY-MM-DD.
-         */
-
-        const date =
-            parsedDate
-                .toISOString()
-                .split("T")[0];
-
-
-        if (!dateCounts[date]) {
-
-            dateCounts[date] = 0;
-
-        }
-
-
-        dateCounts[date]++;
-
-    });
-
-
-    const sortedDates =
-        Object.keys(dateCounts)
-            .sort();
-
-
-    return {
-
-        labels: sortedDates,
-
-        values: sortedDates.map(
-            date => dateCounts[date]
-        )
-
-    };
+  destroyChart(engagementFunnelChart);
+  engagementFunnelChart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: ['Sent', 'Delivered', 'Opened', 'Clicked', 'Replied'],
+      datasets: [{
+        label: 'Messages',
+        data: [metrics.sent, metrics.delivered, metrics.opened, metrics.clicked, metrics.replied],
+        borderRadius: 5,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } }
+      }
+    }
+  });
 }
 
-
-/**
- * Format date for chart.
- *
- * YYYY-MM-DD
- * →
- * Aug 07
- */
-
-function formatChartDate(dateString) {
-
-    const date =
-        new Date(`${dateString}T00:00:00`);
-
-    if (isNaN(date.getTime())) {
-
-        return dateString;
-
-    }
-
-
-    return date.toLocaleDateString(
-        "en-US",
-        {
-            month: "short",
-            day: "numeric"
-        }
-    );
+function dateKey(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
 }
 
+function renderSendingTrend(events) {
+  const canvas = document.getElementById('sendingTrendChart');
+  if (!canvas || typeof Chart === 'undefined') return;
 
-/**
- * Render sending trend.
- */
+  const counts = new Map();
+  (events || []).filter(MetricsEngine.isSent).forEach(event => {
+    const key = dateKey(event.sentTimestamp);
+    if (key) counts.set(key, (counts.get(key) || 0) + 1);
+  });
 
-function renderSendingTrend(data) {
+  const labels = Array.from(counts.keys()).sort();
+  const values = labels.map(label => counts.get(label));
 
-    const canvas =
-        document.getElementById(
-            "sendingTrendChart"
-        );
-
-
-    if (!canvas) {
-
-        console.warn(
-            "Sending trend canvas not found."
-        );
-
-        return;
-
+  destroyChart(sendingTrendChart);
+  sendingTrendChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Sent',
+        data: values,
+        tension: 0.25,
+        fill: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } }
+      }
     }
-
-
-    const trend =
-        getSendingTrendData(data);
-
-
-    if (sendingTrendChart) {
-
-        sendingTrendChart.destroy();
-
-    }
-
-
-    sendingTrendChart =
-        new Chart(canvas, {
-
-            type: "line",
-
-
-            data: {
-
-                labels:
-                    trend.labels.map(
-                        formatChartDate
-                    ),
-
-
-                datasets: [{
-
-                    label: "Messages Sent",
-
-                    data: trend.values,
-
-                    tension: 0.3,
-
-                    fill: false,
-
-                    pointRadius: 4,
-
-                    pointHoverRadius: 6
-
-                }]
-
-            },
-
-
-            options: {
-
-                responsive: true,
-
-                maintainAspectRatio: false,
-
-
-                plugins: {
-
-                    legend: {
-
-                        display: false
-
-                    },
-
-
-                    tooltip: {
-
-                        callbacks: {
-
-                            label: function(context) {
-
-                                return `${context.raw.toLocaleString()} sent`;
-
-                            }
-
-                        }
-
-                    }
-
-                },
-
-
-                scales: {
-
-                    x: {
-
-                        grid: {
-
-                            display: false
-
-                        },
-
-                        ticks: {
-
-                            font: CHART_FONT,
-
-                            maxRotation: 0
-
-                        }
-
-                    },
-
-
-                    y: {
-
-                        beginAtZero: true,
-
-                        ticks: {
-
-                            precision: 0,
-
-                            font: CHART_FONT
-
-                        },
-
-                        grid: {
-
-                            drawBorder: false
-
-                        }
-
-                    }
-
-                }
-
-            }
-
-        });
+  });
 }
 
-
-/**
- * =========================================================
- * RENDER ALL CHARTS
- * =========================================================
- */
-
-function renderCharts(data) {
-
-    renderEngagementFunnel(data);
-
-    renderSendingTrend(data);
-
+function renderCharts(overview) {
+  renderEngagementFunnel(overview.metrics);
+  renderSendingTrend(overview.events);
 }

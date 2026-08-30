@@ -935,3 +935,32 @@ tbody tr:hover {
 .chart-body {
     padding: 20px;
 }
+
+/* =========================================================
+   RELATIONAL DASHBOARD ADDITIONS
+========================================================= */
+.dashboard-notice {
+    margin-bottom: 18px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+.dashboard-notice.warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.dashboard-notice.error { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.status-dot[data-state="loading"] { background: #f59e0b; }
+.status-dot[data-state="ready"] { background: #22c55e; }
+.status-dot[data-state="error"] { background: #ef4444; }
+.status-subtitle { margin-top: 2px; color: rgba(255,255,255,.48); font-size: 10px; }
+.section-heading { margin-bottom: 18px; }
+.section-heading span { color: var(--primary); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.section-heading h2 { margin-top: 5px; font-size: 22px; }
+.section-heading p { margin-top: 4px; color: var(--text-secondary); font-size: 12px; }
+.status-badge { display: inline-flex; align-items: center; padding: 3px 7px; border-radius: 999px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.badge-success { background: #ecfdf3; color: #166534; }
+.badge-warning { background: #fff7ed; color: #9a3412; }
+.badge-danger { background: #fef2f2; color: #991b1b; }
+.badge-neutral { background: #f2f4f7; color: #475467; }
+.table-container { overflow-x: auto; }
+.table-container table { min-width: 760px; }

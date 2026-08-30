@@ -1,205 +1,171 @@
-/**
- * ============================================================
- * DIRECT UI CONTROLLER & METRIC RENDERER
- * ============================================================
- */
+/** CAMPAIGN ANALYTICS - UI CONTROLLER */
+document.addEventListener('DOMContentLoaded', initDashboard);
 
-document.addEventListener('DOMContentLoaded', async () => {
-  await initDashboard();
-});
+const FILTER_IDS = ['campaignFilter', 'sequenceFilter', 'versionFilter', 'segmentFilter'];
+let listenersAttached = false;
 
-async function initDashboard() {
-  try {
-    const rawStore = await DataSource.loadData(true);
-    DataEngine.init(rawStore);
+function getFilters() {
+  return {
+    campaignId: document.getElementById('campaignFilter')?.value || 'all',
+    sequence: document.getElementById('sequenceFilter')?.value || 'all',
+    version: document.getElementById('versionFilter')?.value || 'all',
+    segment: document.getElementById('segmentFilter')?.value || 'all'
+  };
+}
 
-    populateFilterDropdowns();
-    attachEventListeners();
-    renderDashboard();
-  } catch (err) {
-    console.error('Failed to initialize dashboard:', err);
+function setDataStatus(message, state = 'ready') {
+  const label = document.getElementById('dataStatusLabel');
+  const dot = document.getElementById('dataStatusDot');
+  if (label) label.textContent = message;
+  if (dot) dot.dataset.state = state;
+}
+
+function showDashboardError(error) {
+  console.error(error);
+  setDataStatus('Data load failed', 'error');
+  const banner = document.getElementById('dashboardNotice');
+  if (banner) {
+    banner.hidden = false;
+    banner.className = 'dashboard-notice error';
+    banner.textContent = error?.message || String(error);
   }
 }
 
-function populateFilterDropdowns() {
+async function initDashboard(forceRefresh = true) {
+  setDataStatus('Loading data…', 'loading');
+  try {
+    const current = getFilters();
+    const rawStore = await DataSource.loadData(forceRefresh);
+    DataEngine.init(rawStore);
+    populateFilterDropdowns(current);
+    if (!listenersAttached) attachEventListeners();
+    renderDashboard();
+    updateLastUpdated(rawStore.lastUpdated);
+
+    const warning = rawStore.sourceWarnings && rawStore.sourceWarnings[0];
+    const banner = document.getElementById('dashboardNotice');
+    if (banner) {
+      banner.hidden = !warning;
+      banner.className = 'dashboard-notice warning';
+      banner.textContent = warning || '';
+    }
+    setDataStatus('Live data ready', 'ready');
+  } catch (error) {
+    showDashboardError(error);
+  }
+}
+
+function setOptions(id, firstLabel, values, selectedValue) {
+  const select = document.getElementById(id);
+  if (!select) return;
+  select.innerHTML = '';
+  const first = document.createElement('option');
+  first.value = 'all';
+  first.textContent = firstLabel;
+  select.appendChild(first);
+  values.forEach(item => {
+    const option = document.createElement('option');
+    option.value = item.value;
+    option.textContent = item.label;
+    select.appendChild(option);
+  });
+  const available = Array.from(select.options).some(o => o.value === selectedValue);
+  select.value = available ? selectedValue : 'all';
+}
+
+function populateFilterDropdowns(previous = {}) {
   const data = DataEngine.getNormalized();
-  const selects = document.querySelectorAll('select');
+  const campaignMap = new Map();
+  data.campaigns.forEach(c => { if (c.campaignId) campaignMap.set(c.campaignId, c.campaignName || c.campaignId); });
+  data.emailEvents.forEach(e => { if (e.campaignId && !campaignMap.has(e.campaignId)) campaignMap.set(e.campaignId, e.campaignName || e.campaignId); });
 
-  // 1. Campaign Select
-  if (selects[0]) {
-    selects[0].innerHTML = '<option value="all">All Campaigns</option>';
-    const campaignMap = new Map();
-    
-    data.campaigns.forEach(c => {
-      if (c.campaignId) campaignMap.set(c.campaignId, c.campaignName || c.campaignId);
-    });
-    data.emailEvents.forEach(e => {
-      if (e.campaignId) campaignMap.set(e.campaignId, e.campaignName || e.campaignId);
-    });
+  setOptions(
+    'campaignFilter',
+    'All Campaigns',
+    Array.from(campaignMap, ([value, label]) => ({ value, label })).sort((a, b) => a.label.localeCompare(b.label)),
+    previous.campaignId
+  );
 
-    campaignMap.forEach((name, id) => {
-      const opt = document.createElement('option');
-      opt.value = id;
-      opt.textContent = name;
-      selects[0].appendChild(opt);
-    });
-  }
+  const uniqueOptions = (field) => [...new Set(data.emailEvents.map(e => e[field]).filter(Boolean))]
+    .sort((a, b) => String(a).localeCompare(String(b)))
+    .map(value => ({ value: String(value), label: String(value) }));
 
-  // 2. Sequence Select
-  if (selects[1]) {
-    selects[1].innerHTML = '<option value="all">All Sequences</option>';
-    const seqs = [...new Set(data.emailEvents.map(e => e.sequence).filter(Boolean))];
-    seqs.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = `Sequence ${s}`;
-      selects[1].appendChild(opt);
-    });
-  }
+  setOptions('sequenceFilter', 'All Sequences', uniqueOptions('sequence'), previous.sequence);
+  setOptions('versionFilter', 'All Versions', uniqueOptions('emailVersion'), previous.version);
+  setOptions('segmentFilter', 'All Segments', uniqueOptions('targetSegment'), previous.segment);
+}
 
-  // 3. Version Select
-  if (selects[2]) {
-    selects[2].innerHTML = '<option value="all">All Versions</option>';
-    const vers = [...new Set(data.emailEvents.map(e => e.emailVersion).filter(Boolean))];
-    vers.forEach(v => {
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      selects[2].appendChild(opt);
-    });
-  }
-
-  // 4. Segment Select
-  if (selects[3]) {
-    selects[3].innerHTML = '<option value="all">All Segments</option>';
-    const segs = [...new Set(data.emailEvents.map(e => e.targetSegment).filter(Boolean))];
-    segs.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      selects[3].appendChild(opt);
-    });
-  }
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }
 
 function renderDashboard() {
-  const data = DataEngine.getNormalized();
-  const selects = document.querySelectorAll('select');
+  const filters = getFilters();
+  const overview = AnalyticsEngine.getOverview(filters);
+  const m = overview.metrics;
+  const f = overview.followUpMetrics;
 
-  const selectedCampaign = selects[0] ? selects[0].value : 'all';
-  const selectedSeq = selects[1] ? selects[1].value : 'all';
-  const selectedVer = selects[2] ? selects[2].value : 'all';
-  const selectedSeg = selects[3] ? selects[3].value : 'all';
+  setText('kpiRecipients', m.recipients.toLocaleString());
+  setText('kpiMessages', m.messages.toLocaleString());
+  setText('kpiSent', m.sent.toLocaleString());
+  setText('kpiDelivered', m.delivered.toLocaleString());
+  setText('kpiPrecheckValid', m.preCheckValid.toLocaleString());
+  setText('kpiPrecheckRisky', m.preCheckRisky.toLocaleString());
+  setText('kpiBounced', m.bounced.toLocaleString());
+  setText('kpiPendingFollowups', f.pending.toLocaleString());
+  setText('kpiOpenRate', `${m.openRate.toFixed(1)}%`);
+  setText('kpiClickRate', `${m.clickRate.toFixed(1)}%`);
+  setText('kpiReplyRate', `${m.replyRate.toFixed(1)}%`);
+  setText('kpiUnsubscribeRate', `${m.unsubscribeRate.toFixed(1)}%`);
 
-  // Filter Email Events
-  let events = data.emailEvents || [];
-
-  if (selectedCampaign !== 'all') {
-    events = events.filter(e => e.campaignId === selectedCampaign || e.campaignName === selectedCampaign);
-  }
-  if (selectedSeq !== 'all') {
-    events = events.filter(e => String(e.sequence) === String(selectedSeq));
-  }
-  if (selectedVer !== 'all') {
-    events = events.filter(e => e.emailVersion === selectedVer);
-  }
-  if (selectedSeg !== 'all') {
-    events = events.filter(e => e.targetSegment === selectedSeg);
-  }
-
-  // Calculate Aggregates
-  const totalMessages = events.length;
-  
-  // Collect unique recipients across Users & Events
-  const recipients = new Set();
-  data.users.forEach(u => { if (u.email || u.contactId) recipients.add(u.email || u.contactId); });
-  events.forEach(e => { if (e.emailAddress || e.contactId) recipients.add(e.emailAddress || e.contactId); });
-  
-  const totalRecipients = recipients.size > 0 ? recipients.size : totalMessages;
-
-  const totalOpened = events.filter(e => {
-    const t = DataEngine.getTrackingForEvent(e.emailEventId);
-    return e.isOpened || (t && t.isOpened);
-  }).length;
-
-  const totalClicked = events.filter(e => {
-    const t = DataEngine.getTrackingForEvent(e.emailEventId);
-    return e.linkClicked || (t && t.linkClicked);
-  }).length;
-
-  const totalReplied = events.filter(e => {
-    const t = DataEngine.getTrackingForEvent(e.emailEventId);
-    return e.isReplied || (t && t.isReplied);
-  }).length;
-
-  const totalUnsub = events.filter(e => {
-    const t = DataEngine.getTrackingForEvent(e.emailEventId);
-    return e.unsubscribed || (t && t.unsubscribed);
-  }).length;
-
-  const openRate = totalMessages > 0 ? ((totalOpened / totalMessages) * 100).toFixed(1) : '0.0';
-  const clickRate = totalMessages > 0 ? ((totalClicked / totalMessages) * 100).toFixed(1) : '0.0';
-  const replyRate = totalMessages > 0 ? ((totalReplied / totalMessages) * 100).toFixed(1) : '0.0';
-  const unsubRate = totalMessages > 0 ? ((totalUnsub / totalMessages) * 100).toFixed(1) : '0.0';
-
-  // Direct DOM Injection by searching card labels
-  setCardValue('Recipients', totalRecipients);
-  setCardValue('Messages', totalMessages);
-  setCardValue('Sent', totalMessages);
-  setCardValue('Verified', totalMessages);
-  setCardValue('Open Rate', `${openRate}%`);
-  setCardValue('Click Rate', `${clickRate}%`);
-  setCardValue('Reply Rate', `${replyRate}%`);
-  setCardValue('Unsubscribe Rate', `${unsubRate}%`);
-
-  console.log('Dashboard UI updated:', {
-    recipients: totalRecipients,
-    messages: totalMessages,
-    openRate: `${openRate}%`,
-    clickRate: `${clickRate}%`
-  });
+  renderCharts(overview);
+  renderCampaignSummaryTable(AnalyticsEngine.groupByCampaign(filters));
+  renderSequenceTable(AnalyticsEngine.groupBySequence(filters));
+  renderRecipientTable(AnalyticsEngine.getRecipientRows(filters));
 }
 
-function setCardValue(label, value) {
-  // Finds every element on the page
-  const allNodes = Array.from(document.querySelectorAll('*'));
-  const match = allNodes.find(node => {
-    return node.children.length === 0 && node.textContent.trim().toLowerCase() === label.toLowerCase();
+function resetFilters() {
+  FILTER_IDS.forEach(id => {
+    const select = document.getElementById(id);
+    if (select) select.value = 'all';
   });
+  renderDashboard();
+}
 
-  if (match) {
-    // Find parent container box
-    const card = match.closest('div');
-    if (card) {
-      // Find the large display number within the card container
-      const valContainer = Array.from(card.querySelectorAll('*')).find(el => {
-        return el !== match && (el.children.length === 0 || el.tagName === 'H2' || el.tagName === 'H3' || el.classList.contains('text-2xl'));
-      });
+function switchView(viewId) {
+  document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewId));
+  document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === viewId));
+  closeMobileSidebar();
+}
 
-      if (valContainer) {
-        valContainer.textContent = value;
-      }
-    }
-  }
+function openMobileSidebar() {
+  document.querySelector('.sidebar')?.classList.add('open');
+  document.getElementById('sidebarOverlay')?.classList.add('open');
+}
+
+function closeMobileSidebar() {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('sidebarOverlay')?.classList.remove('open');
 }
 
 function attachEventListeners() {
-  const selects = document.querySelectorAll('select');
-  selects.forEach(select => {
-    select.addEventListener('change', renderDashboard);
+  listenersAttached = true;
+  FILTER_IDS.forEach(id => document.getElementById(id)?.addEventListener('change', renderDashboard));
+  document.getElementById('resetFiltersButton')?.addEventListener('click', resetFilters);
+  document.getElementById('refreshButton')?.addEventListener('click', () => initDashboard(true));
+  document.getElementById('mobileMenuButton')?.addEventListener('click', openMobileSidebar);
+  document.getElementById('sidebarOverlay')?.addEventListener('click', closeMobileSidebar);
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', event => {
+      event.preventDefault();
+      switchView(item.dataset.view);
+    });
   });
+}
 
-  const buttons = document.querySelectorAll('button');
-  buttons.forEach(btn => {
-    if (btn.textContent.toLowerCase().includes('reset')) {
-      btn.addEventListener('click', () => {
-        selects.forEach(s => s.value = 'all');
-        renderDashboard();
-      });
-    } else if (btn.textContent.toLowerCase().includes('refresh')) {
-      btn.addEventListener('click', async () => {
-        await initDashboard();
-      });
-    }
-  });
+function updateLastUpdated(date) {
+  const label = document.getElementById('lastUpdatedLabel');
+  if (!label || !date) return;
+  label.textContent = `Updated ${new Date(date).toLocaleString()}`;
 }
