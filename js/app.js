@@ -383,3 +383,290 @@ function attachUserManagementListeners() {
     if (unsubButton) toggleUserSubscription(unsubButton.dataset.userUnsubscribe, unsubButton.dataset.nextState);
   });
 }
+/* ============================================================
+   ADMIN AUTHENTICATION UI
+   ============================================================ */
+
+(function initializeAdminAuthentication() {
+
+  document.addEventListener('DOMContentLoaded', function () {
+
+    const overlay =
+      document.getElementById(
+        'adminAuthOverlay'
+      );
+
+    const loginForm =
+      document.getElementById(
+        'adminLoginForm'
+      );
+
+    const usernameInput =
+      document.getElementById(
+        'adminUsername'
+      );
+
+    const passwordInput =
+      document.getElementById(
+        'adminPassword'
+      );
+
+    const loginButton =
+      document.getElementById(
+        'adminLoginButton'
+      );
+
+    const loginError =
+      document.getElementById(
+        'adminLoginError'
+      );
+
+    const logoutButton =
+      document.getElementById(
+        'adminLogoutButton'
+      );
+
+
+    // ----------------------------------------------------------
+    // SAFETY CHECK
+    // ----------------------------------------------------------
+
+    if (
+      !overlay ||
+      !loginForm ||
+      !usernameInput ||
+      !passwordInput ||
+      !loginButton ||
+      !loginError ||
+      !logoutButton
+    ) {
+
+      console.warn(
+        'Admin authentication UI elements were not found.'
+      );
+
+      return;
+    }
+
+
+    // ----------------------------------------------------------
+    // UI HELPERS
+    // ----------------------------------------------------------
+
+    function showLogin() {
+
+      overlay.style.display =
+        'flex';
+
+      logoutButton.style.display =
+        'none';
+
+      loginError.style.display =
+        'none';
+
+      loginError.textContent =
+        '';
+
+      passwordInput.value =
+        '';
+
+      setTimeout(
+        function () {
+          usernameInput.focus();
+        },
+        50
+      );
+    }
+
+
+    function hideLogin() {
+
+      overlay.style.display =
+        'none';
+
+      logoutButton.style.display =
+        'inline-flex';
+
+      loginError.style.display =
+        'none';
+
+      loginError.textContent =
+        '';
+    }
+
+
+    function showLoginError(
+      message
+    ) {
+
+      loginError.textContent =
+        message ||
+        'Login failed.';
+
+      loginError.style.display =
+        'block';
+    }
+
+
+    function setLoginLoading(
+      loading
+    ) {
+
+      loginButton.disabled =
+        loading;
+
+      usernameInput.disabled =
+        loading;
+
+      passwordInput.disabled =
+        loading;
+
+      loginButton.textContent =
+        loading
+          ? 'Signing In...'
+          : 'Sign In';
+    }
+
+
+    // ----------------------------------------------------------
+    // INITIAL SESSION CHECK
+    // ----------------------------------------------------------
+
+    if (
+      DashboardApi.isAuthenticated()
+    ) {
+
+      hideLogin();
+
+    } else {
+
+      showLogin();
+    }
+
+
+    // ----------------------------------------------------------
+    // LOGIN
+    // ----------------------------------------------------------
+
+    loginForm.addEventListener(
+      'submit',
+      async function (event) {
+
+        event.preventDefault();
+
+
+        const username =
+          usernameInput.value.trim();
+
+        const password =
+          passwordInput.value;
+
+
+        if (
+          !username ||
+          !password
+        ) {
+
+          showLoginError(
+            'Username and password are required.'
+          );
+
+          return;
+        }
+
+
+        setLoginLoading(
+          true
+        );
+
+
+        loginError.style.display =
+          'none';
+
+
+        try {
+
+          const result =
+            await DashboardApi.login(
+              username,
+              password
+            );
+
+
+          if (
+            !result ||
+            result.success !== true
+          ) {
+
+            throw new Error(
+              'Login failed.'
+            );
+          }
+
+
+          passwordInput.value =
+            '';
+
+
+          hideLogin();
+
+
+          console.log(
+            'Admin authenticated successfully.'
+          );
+
+
+        } catch (error) {
+
+          DashboardApi.logout();
+
+
+          showLoginError(
+            error &&
+            error.message
+              ? error.message
+              : 'Unable to sign in.'
+          );
+
+        } finally {
+
+          setLoginLoading(
+            false
+          );
+        }
+      }
+    );
+
+
+    // ----------------------------------------------------------
+    // LOGOUT
+    // ----------------------------------------------------------
+
+    logoutButton.addEventListener(
+      'click',
+      function () {
+
+        DashboardApi.logout();
+
+        showLogin();
+      }
+    );
+
+
+    // ----------------------------------------------------------
+    // GLOBAL AUTH FAILURE HANDLER
+    // ----------------------------------------------------------
+
+    window.addEventListener(
+      'admin-auth-required',
+      function () {
+
+        DashboardApi.logout();
+
+        showLogin();
+      }
+    );
+
+  });
+
+})();
