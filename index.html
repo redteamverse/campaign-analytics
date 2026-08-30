@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Campaign Analytics</title>
+  <meta name="description" content="Relational campaign performance and engagement analytics dashboard.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark">CA</div>
+        <div class="brand-text">
+          <div class="brand-name">Campaign Analytics</div>
+          <div class="brand-subtitle">Engagement Intelligence</div>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#overview" class="nav-item active" data-view="overviewView">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Overview</span>
+        </a>
+        <a href="#users" class="nav-item" data-view="usersView">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg>
+          <span>Users</span>
+        </a>
+        <a href="#campaigns" class="nav-item" data-view="campaignsView">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          <span>Campaigns</span>
+        </a>
+        <a href="#sequences" class="nav-item" data-view="sequencesView">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+          <span>Sequences</span>
+        </a>
+        <a href="#recipients" class="nav-item" data-view="recipientsView">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Recipients</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="data-status">
+          <span class="status-dot" id="dataStatusDot" data-state="loading"></span>
+          <div>
+            <div class="status-title" id="dataStatusLabel">Loading data…</div>
+            <div class="status-subtitle">Google Sheets API</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button type="button" class="mobile-menu-button" id="mobileMenuButton" aria-label="Open navigation menu">☰</button>
+          <div>
+            <h1 class="page-title">Analytics Dashboard</h1>
+            <p class="page-subtitle">Relational campaign, delivery and engagement performance</p>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <span class="last-updated" id="lastUpdatedLabel">Loading…</span>
+          <button type="button" class="refresh-button" id="refreshButton">Refresh</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <div id="dashboardNotice" class="dashboard-notice" hidden></div>
+
+        <div class="filter-bar">
+          <div class="filters">
+            <div class="filter-group"><label for="campaignFilter">Campaign</label><select id="campaignFilter"><option value="all">All Campaigns</option></select></div>
+            <div class="filter-group"><label for="sequenceFilter">Sequence</label><select id="sequenceFilter"><option value="all">All Sequences</option></select></div>
+            <div class="filter-group"><label for="versionFilter">Version</label><select id="versionFilter"><option value="all">All Versions</option></select></div>
+            <div class="filter-group"><label for="segmentFilter">Segment</label><select id="segmentFilter"><option value="all">All Segments</option></select></div>
+          </div>
+          <div class="filter-actions"><button type="button" class="reset-button" id="resetFiltersButton">Reset Filters</button></div>
+        </div>
+
+        <section class="view active" id="overviewView">
+          <div class="kpi-grid">
+            <div class="kpi-card"><span class="kpi-label">Recipients</span><span class="kpi-value" id="kpiRecipients">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Messages</span><span class="kpi-value" id="kpiMessages">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Sent</span><span class="kpi-value" id="kpiSent">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Delivered</span><span class="kpi-value" id="kpiDelivered">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Valid Pre-check</span><span class="kpi-value" id="kpiPrecheckValid">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Risky Pre-check</span><span class="kpi-value" id="kpiPrecheckRisky">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Bounced</span><span class="kpi-value" id="kpiBounced">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Pending Follow-ups</span><span class="kpi-value" id="kpiPendingFollowups">0</span></div>
+            <div class="kpi-card"><span class="kpi-label">Open Rate</span><span class="kpi-value" id="kpiOpenRate">0.0%</span></div>
+            <div class="kpi-card"><span class="kpi-label">Click Rate</span><span class="kpi-value" id="kpiClickRate">0.0%</span></div>
+            <div class="kpi-card"><span class="kpi-label">Reply Rate</span><span class="kpi-value" id="kpiReplyRate">0.0%</span></div>
+            <div class="kpi-card"><span class="kpi-label">Unsubscribe Rate</span><span class="kpi-value" id="kpiUnsubscribeRate">0.0%</span></div>
+          </div>
+
+          <div class="charts-grid two-columns">
+            <div class="chart-card"><div class="chart-header"><h3>Engagement Funnel</h3></div><div class="chart-container"><canvas id="engagementFunnelChart"></canvas></div></div>
+            <div class="chart-card"><div class="chart-header"><h3>Sending Trend</h3></div><div class="chart-container"><canvas id="sendingTrendChart"></canvas></div></div>
+          </div>
+
+          <div class="table-card" style="margin-top:24px">
+            <div class="table-header"><h3>Campaign Performance Summary</h3></div>
+            <div class="table-container"><table><thead><tr><th>Campaign</th><th>Recipients</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Clicked</th><th>Replied</th><th>Open Rate</th></tr></thead><tbody id="campaignSummaryTable"></tbody></table></div>
+          </div>
+        </section>
+
+        <section class="view" id="usersView">
+          <div class="section-heading management-heading">
+            <div>
+              <span>Users</span>
+              <h2>User Management</h2>
+              <p>Create and manage outreach users. Email identity is locked after creation.</p>
+            </div>
+            <button type="button" class="primary-action-button" id="addUserButton">+ Add User</button>
+          </div>
+
+          <div class="management-toolbar">
+            <div class="search-field-wrap">
+              <input type="search" id="userSearchInput" class="management-search" placeholder="Search by name, email, company, User ID or Contact ID">
+            </div>
+            <select id="userLeadStatusFilter" class="management-filter" aria-label="Filter by lead status">
+              <option value="all">All lead statuses</option>
+            </select>
+            <select id="userSubscriptionFilter" class="management-filter" aria-label="Filter by subscription status">
+              <option value="all">All subscription states</option>
+              <option value="subscribed">Subscribed</option>
+              <option value="unsubscribed">Unsubscribed</option>
+            </select>
+          </div>
+
+          <div class="users-summary-grid">
+            <div class="mini-stat"><span>Total Users</span><strong id="usersTotalCount">0</strong></div>
+            <div class="mini-stat"><span>Subscribed</span><strong id="usersSubscribedCount">0</strong></div>
+            <div class="mini-stat"><span>Unsubscribed</span><strong id="usersUnsubscribedCount">0</strong></div>
+            <div class="mini-stat"><span>Showing</span><strong id="usersShowingCount">0</strong></div>
+          </div>
+
+          <div id="usersActionNotice" class="dashboard-notice" hidden></div>
+
+          <div class="table-card">
+            <div class="table-container">
+              <table class="users-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Lead Status</th>
+                    <th>Subscription</th>
+                    <th>User ID</th>
+                    <th>Contact ID</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="usersManagementTable"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="campaignsView">
+          <div class="section-heading"><div><span>Campaigns</span><h2>Campaign Deep Dive</h2><p>Campaign-level sending, delivery and engagement performance.</p></div></div>
+          <div class="table-card"><div class="table-container"><table><thead><tr><th>Campaign</th><th>Recipients</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Clicked</th><th>Replied</th><th>Open Rate</th></tr></thead><tbody id="campaignSummaryTableSecondary"></tbody></table></div></div>
+        </section>
+
+        <section class="view" id="sequencesView">
+          <div class="section-heading"><div><span>Sequences</span><h2>Sequence Performance</h2><p>Compare outreach sequences using the same delivery denominator.</p></div></div>
+          <div class="table-card"><div class="table-container"><table><thead><tr><th>Sequence</th><th>Sent</th><th>Delivered</th><th>Opened</th><th>Clicked</th><th>Replied</th><th>Open Rate</th></tr></thead><tbody id="sequenceSummaryTable"></tbody></table></div></div>
+        </section>
+
+        <section class="view" id="recipientsView">
+          <div class="section-heading"><div><span>Recipients</span><h2>Recipient Explorer</h2><p>Campaign membership, pre-check status and engagement by recipient.</p></div></div>
+          <div class="table-card"><div class="table-container"><table><thead><tr><th>Email</th><th>Campaign</th><th>Membership</th><th>Pre-check</th><th>Lead Status</th><th>Sent</th><th>Opened</th><th>Replied</th></tr></thead><tbody id="recipientTable"></tbody></table></div></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="userModalBackdrop" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="userModalTitle">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow">User Management</div>
+          <h3 id="userModalTitle">Add User</h3>
+        </div>
+        <button type="button" class="modal-close" id="userModalClose" aria-label="Close">×</button>
+      </div>
+
+      <form id="userForm" class="management-form">
+        <input type="hidden" id="userFormUserId">
+
+        <label>
+          <span>First Name</span>
+          <input type="text" id="userFormFirstName" autocomplete="off">
+        </label>
+
+        <label>
+          <span>Email Address <strong>*</strong></span>
+          <input type="email" id="userFormEmail" required autocomplete="off">
+          <small id="userEmailHelp">Email becomes the user's relational identity and cannot be edited later.</small>
+        </label>
+
+        <label>
+          <span>Company</span>
+          <input type="text" id="userFormCompany" autocomplete="off">
+        </label>
+
+        <label>
+          <span>Lead Status</span>
+          <select id="userFormLeadStatus">
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Interested">Interested</option>
+            <option value="Replied">Replied</option>
+            <option value="Qualified">Qualified</option>
+            <option value="Not Interested">Not Interested</option>
+          </select>
+        </label>
+
+        <div id="userFormError" class="form-error" hidden></div>
+
+        <div class="modal-actions">
+          <button type="button" class="secondary-action-button" id="userFormCancel">Cancel</button>
+          <button type="submit" class="primary-action-button" id="userFormSubmit">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"></script>
+  <script src="js/datasource.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/metrics.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/tables.js"></script>
+  <script src="js/dashboard-api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
