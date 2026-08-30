@@ -395,24 +395,29 @@ const DashboardApi = (function () {
     // AUTH FAILURE
     // ==========================================================
 
-    if (
-      response.status === 401
-    ) {
+  if (
+  response.status === 401
+) {
 
-      clearSession();
+  clearSession();
 
+  window.dispatchEvent(
+    new CustomEvent(
+      'admin-auth-required'
+    )
+  );
 
-      const error =
-        new Error(
-          data.error ||
-          'Your admin session is invalid or expired. Please log in again.'
-        );
+  const error =
+    new Error(
+      data.error ||
+      'Your admin session is invalid or expired. Please log in again.'
+    );
 
-      error.code =
-        'AUTH_REQUIRED';
+  error.code =
+    'AUTH_REQUIRED';
 
-      throw error;
-    }
+  throw error;
+}
 
 
     // ==========================================================
