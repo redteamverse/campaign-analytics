@@ -161,7 +161,7 @@ const DashboardApi = (function () {
 
 
   // ============================================================
-  // PARSE RESPONSE
+  // RESPONSE PARSER
   // ============================================================
 
   async function parseResponse(
@@ -195,7 +195,7 @@ const DashboardApi = (function () {
 
 
   // ============================================================
-  // LOGIN REQUEST
+  // LOGIN
   // ============================================================
 
   async function login(
@@ -226,34 +226,46 @@ const DashboardApi = (function () {
     }
 
 
-    const response =
-      await fetch(
-        WORKER_URL,
-        {
-          method:
-            'POST',
+    let response;
 
-          headers: {
-            'Content-Type':
-              'application/json'
-          },
 
-          cache:
-            'no-store',
+    try {
 
-          body:
-            JSON.stringify({
-              action:
-                'login',
+      response =
+        await fetch(
+          WORKER_URL,
+          {
+            method:
+              'POST',
 
-              username:
-                cleanUsername,
+            headers: {
+              'Content-Type':
+                'application/json'
+            },
 
-              password:
-                cleanPassword
-            })
-        }
+            cache:
+              'no-store',
+
+            body:
+              JSON.stringify({
+                action:
+                  'login',
+
+                username:
+                  cleanUsername,
+
+                password:
+                  cleanPassword
+              })
+          }
+        );
+
+    } catch (error) {
+
+      throw new Error(
+        'Unable to connect to the admin API.'
       );
+    }
 
 
     const data =
@@ -334,6 +346,13 @@ const DashboardApi = (function () {
       clearSession();
 
 
+      window.dispatchEvent(
+        new CustomEvent(
+          'admin-auth-required'
+        )
+      );
+
+
       const error =
         new Error(
           'Your admin session has expired. Please log in again.'
@@ -395,29 +414,31 @@ const DashboardApi = (function () {
     // AUTH FAILURE
     // ==========================================================
 
-  if (
-  response.status === 401
-) {
+    if (
+      response.status === 401
+    ) {
 
-  clearSession();
+      clearSession();
 
-  window.dispatchEvent(
-    new CustomEvent(
-      'admin-auth-required'
-    )
-  );
 
-  const error =
-    new Error(
-      data.error ||
-      'Your admin session is invalid or expired. Please log in again.'
-    );
+      window.dispatchEvent(
+        new CustomEvent(
+          'admin-auth-required'
+        )
+      );
 
-  error.code =
-    'AUTH_REQUIRED';
 
-  throw error;
-}
+      const error =
+        new Error(
+          data.error ||
+          'Your admin session is invalid or expired. Please log in again.'
+        );
+
+      error.code =
+        'AUTH_REQUIRED';
+
+      throw error;
+    }
 
 
     // ==========================================================
@@ -525,6 +546,32 @@ const DashboardApi = (function () {
           userId,
           unsubscribed
         }
+      );
+    },
+
+
+    // ----------------------------------------------------------
+    // CAMPAIGNS
+    // ----------------------------------------------------------
+
+    createCampaign(
+      payload
+    ) {
+
+      return post(
+        'create_campaign',
+        payload
+      );
+    },
+
+
+    updateCampaign(
+      payload
+    ) {
+
+      return post(
+        'update_campaign',
+        payload
       );
     },
 
