@@ -150,6 +150,7 @@ function resetFilters() {
 }
 
 function switchView(viewId) {
+
   document.querySelectorAll('.view').forEach(
     view =>
       view.classList.toggle(
@@ -175,6 +176,35 @@ function switchView(viewId) {
     globalFilters.hidden =
       viewId !== 'overviewView';
   }
+
+  const pageMap = {
+    overviewView: {
+      title: 'Overview',
+      subtitle: 'Campaign delivery and engagement at a glance'
+    },
+    usersView: {
+      title: 'Users',
+      subtitle: 'Manage contacts, campaign membership and subscription status'
+    },
+    campaignsView: {
+      title: 'Campaigns',
+      subtitle: 'Manage campaign setup, members, verification and performance'
+    }
+  };
+
+  const page =
+    pageMap[viewId] ||
+    pageMap.overviewView;
+
+  setText(
+    'pageTitle',
+    page.title
+  );
+
+  setText(
+    'pageSubtitle',
+    page.subtitle
+  );
 
   closeMobileSidebar();
 }
