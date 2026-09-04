@@ -9,7 +9,7 @@
     content="width=device-width, initial-scale=1.0"
   >
 
-  <title>Campaign Analytics</title>
+  <title>AltSec Outreach</title>
 
   <meta
     name="description"
@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css"
+    href="css/dashboard-modules.css?v=2"
   >
 </head>
 
@@ -165,7 +165,7 @@
           </div>
 
           <div class="brand-subtitle">
-            Engagement Intelligence
+            Campaign Operations
           </div>
 
         </div>
@@ -310,12 +310,12 @@
 
           <div>
 
-            <h1 class="page-title">
-              Analytics Dashboard
+            <h1 class="page-title" id="pageTitle">
+              Overview
             </h1>
 
-            <p class="page-subtitle">
-              Relational campaign, delivery and engagement performance
+            <p class="page-subtitle" id="pageSubtitle">
+              Campaign delivery and engagement at a glance
             </p>
 
           </div>
@@ -610,21 +610,25 @@
           id="usersView"
         >
 
-          <div class="module-header">
+          <div class="module-commandbar">
 
-            <div>
+            <div
+              class="module-tabs"
+              role="tablist"
+              aria-label="User management"
+            >
 
-              <div class="module-eyebrow">
-                Users
-              </div>
+              <button type="button" class="module-tab active" data-user-tab="all">
+                All Users
+              </button>
 
-              <h2>
-                User Management
-              </h2>
+              <button type="button" class="module-tab" data-user-tab="campaign">
+                By Campaign
+              </button>
 
-              <p>
-                Manage people, campaign membership and subscription state without mixing unrelated operations.
-              </p>
+              <button type="button" class="module-tab" data-user-tab="subscription">
+                Subscription
+              </button>
 
             </div>
 
@@ -634,39 +638,6 @@
               id="addUserButton"
             >
               + Add User
-            </button>
-
-          </div>
-
-
-          <div
-            class="module-tabs"
-            role="tablist"
-            aria-label="User management"
-          >
-
-            <button
-              type="button"
-              class="module-tab active"
-              data-user-tab="all"
-            >
-              All Users
-            </button>
-
-            <button
-              type="button"
-              class="module-tab"
-              data-user-tab="campaign"
-            >
-              By Campaign
-            </button>
-
-            <button
-              type="button"
-              class="module-tab"
-              data-user-tab="subscription"
-            >
-              Subscription
             </button>
 
           </div>
@@ -739,10 +710,6 @@
 
 
             <div class="table-card">
-
-              <div class="table-header">
-                <h3>All Users</h3>
-              </div>
 
               <div class="table-container">
 
@@ -948,21 +915,29 @@
           id="campaignsView"
         >
 
-          <div class="module-header">
+          <div class="module-commandbar">
 
-            <div>
+            <div
+              class="module-tabs"
+              role="tablist"
+              aria-label="Campaign management"
+            >
 
-              <div class="module-eyebrow">
-                Campaigns
-              </div>
+              <button type="button" class="module-tab active" data-campaign-tab="all">
+                All Campaigns
+              </button>
 
-              <h2>
-                Campaign Management
-              </h2>
+              <button type="button" class="module-tab" data-campaign-tab="members">
+                Members
+              </button>
 
-              <p>
-                Keep campaign setup, membership, pre-check operations and performance in separate focused tabs.
-              </p>
+              <button type="button" class="module-tab" data-campaign-tab="precheck">
+                Pre-check
+              </button>
+
+              <button type="button" class="module-tab" data-campaign-tab="performance">
+                Performance
+              </button>
 
             </div>
 
@@ -972,47 +947,6 @@
               id="addCampaignButton"
             >
               + Add Campaign
-            </button>
-
-          </div>
-
-
-          <div
-            class="module-tabs"
-            role="tablist"
-            aria-label="Campaign management"
-          >
-
-            <button
-              type="button"
-              class="module-tab active"
-              data-campaign-tab="all"
-            >
-              All Campaigns
-            </button>
-
-            <button
-              type="button"
-              class="module-tab"
-              data-campaign-tab="members"
-            >
-              Members
-            </button>
-
-            <button
-              type="button"
-              class="module-tab"
-              data-campaign-tab="precheck"
-            >
-              Pre-check
-            </button>
-
-            <button
-              type="button"
-              class="module-tab"
-              data-campaign-tab="performance"
-            >
-              Performance
             </button>
 
           </div>
@@ -1091,10 +1025,6 @@
 
 
             <div class="table-card">
-
-              <div class="table-header">
-                <h3>All Campaigns</h3>
-              </div>
 
               <div class="table-container">
 
@@ -1231,10 +1161,6 @@
 
               <div class="table-card">
 
-                <div class="table-header">
-                  <h3>Members</h3>
-                </div>
-
                 <div class="table-container">
 
                   <table class="campaign-members-table">
@@ -1365,10 +1291,6 @@
 
             <div class="table-card">
 
-              <div class="table-header">
-                <h3>Pre-check Results</h3>
-              </div>
-
               <div class="table-container">
 
                 <table>
@@ -1403,10 +1325,6 @@
           >
 
             <div class="table-card">
-
-              <div class="table-header">
-                <h3>Campaign Performance</h3>
-              </div>
 
               <div class="table-container">
 
@@ -2040,9 +1958,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js"></script>
+  <script src="js/dashboard-api.js?v=2"></script>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=2"></script>
 
 </body>
 
