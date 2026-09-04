@@ -150,8 +150,32 @@ function resetFilters() {
 }
 
 function switchView(viewId) {
-  document.querySelectorAll('.view').forEach(view => view.classList.toggle('active', view.id === viewId));
-  document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === viewId));
+  document.querySelectorAll('.view').forEach(
+    view =>
+      view.classList.toggle(
+        'active',
+        view.id === viewId
+      )
+  );
+
+  document.querySelectorAll('.nav-item').forEach(
+    item =>
+      item.classList.toggle(
+        'active',
+        item.dataset.view === viewId
+      )
+  );
+
+  const globalFilters =
+    document.getElementById(
+      'globalAnalyticsFilters'
+    );
+
+  if (globalFilters) {
+    globalFilters.hidden =
+      viewId !== 'overviewView';
+  }
+
   closeMobileSidebar();
 }
 
@@ -1564,7 +1588,55 @@ function renderCampaignMembers() {
   if (!campaign) {
 
     panel.hidden =
-      true;
+      false;
+
+    setText(
+      'campaignMembersCampaignName',
+      'Campaign Members'
+    );
+
+    const meta =
+      document.getElementById(
+        'campaignMembersCampaignMeta'
+      );
+
+    if (meta) {
+      meta.textContent =
+        'Select a campaign to manage membership.';
+    }
+
+    setText(
+      'campaignMembersTotalCount',
+      '0'
+    );
+
+    setText(
+      'campaignMembersActiveCount',
+      '0'
+    );
+
+    setText(
+      'campaignMembersInactiveCount',
+      '0'
+    );
+
+    setText(
+      'campaignMembersShowingCount',
+      '0'
+    );
+
+    const tbody =
+      document.getElementById(
+        'campaignMembersTable'
+      );
+
+    if (tbody) {
+      tbody.innerHTML =
+        emptyRow(
+          6,
+          'Select a campaign to view its members.'
+        );
+    }
 
     return;
   }
@@ -3007,6 +3079,7 @@ function switchCampaignModuleTab(
     'members'
   ) {
 
+    ensureCampaignSelectedForMembers();
     renderCampaignMembers();
   }
 
@@ -3016,8 +3089,142 @@ function switchCampaignModuleTab(
     'precheck'
   ) {
 
+    ensureCampaignSelectedForPrecheck();
     renderPrecheckManagement();
   }
+}
+
+
+
+function getDefaultManagementCampaign() {
+
+  const campaigns =
+    DataEngine
+      .getNormalized()
+      .campaigns || [];
+
+
+  if (!campaigns.length) {
+    return null;
+  }
+
+
+  return (
+    campaigns.find(
+      campaign =>
+        String(
+          campaign.campaignStatus ||
+          campaign.status ||
+          ''
+        )
+          .trim()
+          .toUpperCase() ===
+        'ACTIVE'
+    ) ||
+    campaigns[0]
+  );
+}
+
+
+function ensureCampaignSelectedForMembers() {
+
+  const current =
+    getSelectedCampaignForMembers();
+
+
+  if (current) {
+
+    const select =
+      document.getElementById(
+        'campaignMembersCampaignSelect'
+      );
+
+
+    if (select) {
+      select.value =
+        current.campaignId;
+    }
+
+    return current;
+  }
+
+
+  const fallback =
+    getDefaultManagementCampaign();
+
+
+  if (!fallback) {
+    return null;
+  }
+
+
+  selectedCampaignMembersCampaignId =
+    fallback.campaignId;
+
+
+  const hidden =
+    document.getElementById(
+      'campaignMembersSelectedCampaignId'
+    );
+
+
+  if (hidden) {
+    hidden.value =
+      fallback.campaignId;
+  }
+
+
+  const select =
+    document.getElementById(
+      'campaignMembersCampaignSelect'
+    );
+
+
+  if (select) {
+    select.value =
+      fallback.campaignId;
+  }
+
+
+  return fallback;
+}
+
+
+function ensureCampaignSelectedForPrecheck() {
+
+  const select =
+    document.getElementById(
+      'precheckCampaignSelect'
+    );
+
+
+  if (!select) {
+    return null;
+  }
+
+
+  if (select.value) {
+
+    return getCampaignById(
+      select.value
+    );
+  }
+
+
+  const fallback =
+    getDefaultManagementCampaign();
+
+
+  if (!fallback) {
+    return null;
+  }
+
+
+  select.value =
+    fallback.campaignId;
+
+
+  return fallback;
 }
 
 
@@ -3101,8 +3308,38 @@ function populateModuleCampaignSelectors() {
     selectedCampaignMembersCampaignId
   ) {
 
-    memberSelect.value =
-      selectedCampaignMembersCampaignId;
+    const memberCampaignExists =
+      campaigns.some(
+        campaign =>
+          String(
+            campaign.campaignId || ''
+          ) ===
+          String(
+            selectedCampaignMembersCampaignId
+          )
+      );
+
+
+    if (memberCampaignExists) {
+      memberSelect.value =
+        selectedCampaignMembersCampaignId;
+    }
+  }
+
+
+  if (
+    activeCampaignModuleTab ===
+    'members'
+  ) {
+    ensureCampaignSelectedForMembers();
+  }
+
+
+  if (
+    activeCampaignModuleTab ===
+    'precheck'
+  ) {
+    ensureCampaignSelectedForPrecheck();
   }
 }
 
