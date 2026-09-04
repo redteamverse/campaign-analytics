@@ -41,6 +41,7 @@ async function initDashboard(forceRefresh = true) {
     if (!listenersAttached) attachEventListeners();
     attachUserManagementListeners();
     attachCampaignManagementListeners();
+    attachCampaignMemberManagementListeners();
     populateUserLeadStatusFilter();
     renderDashboard();
     updateLastUpdated(rawStore.lastUpdated);
@@ -128,6 +129,7 @@ function renderDashboard() {
   renderRecipientTable(AnalyticsEngine.getRecipientRows(filters));
   renderUsersManagement();
   renderCampaignManagement();
+  renderCampaignMembers();
 }
 
 function resetFilters() {
@@ -1080,54 +1082,58 @@ function openCampaign(
   }
 
 
-  /*
-   * Campaign Members management is the next module.
-   *
-   * For now, Open selects this campaign in the global
-   * analytics filter so the existing dashboard can
-   * immediately show campaign-specific performance.
-   */
+  selectedCampaignMembersCampaignId =
+    campaignId;
 
-  const campaignFilter =
+
+  const selectedInput =
     document.getElementById(
-      'campaignFilter'
+      'campaignMembersSelectedCampaignId'
     );
 
 
-  if (
-    campaignFilter &&
-    Array.from(
-      campaignFilter.options
-    ).some(
-      option =>
-        option.value ===
-        campaignId
-    )
-  ) {
+  if (selectedInput) {
 
-    campaignFilter.value =
+    selectedInput.value =
       campaignId;
-
-    renderDashboard();
-
-    switchView(
-      'overviewView'
-    );
-
-    showDashboardCampaignSelectionNotice(
-      campaign
-    );
-
-    return;
   }
 
 
-  showCampaignsNotice(
-    `Campaign "${campaign.campaignName || campaignId}" is ready. Campaign Members management will be added next.`,
-    'success'
+  const panel =
+    document.getElementById(
+      'campaignMembersPanel'
+    );
+
+
+  if (panel) {
+
+    panel.hidden =
+      false;
+  }
+
+
+  switchView(
+    'campaignsView'
+  );
+
+
+  renderCampaignMembers();
+
+
+  setTimeout(
+    function () {
+
+      panel?.scrollIntoView({
+        behavior:
+          'smooth',
+
+        block:
+          'start'
+      });
+    },
+    0
   );
 }
-
 
 function showDashboardCampaignSelectionNotice(
   campaign
@@ -1273,6 +1279,1302 @@ function attachCampaignManagementListeners() {
           openButton.dataset.campaignOpen
         );
       }
+    }
+  );
+}
+
+
+
+/* ============================================================
+   CAMPAIGN MEMBER MANAGEMENT
+   ============================================================ */
+
+let campaignMemberManagementAttached = false;
+let selectedCampaignMembersCampaignId = '';
+
+
+function getSelectedCampaignForMembers() {
+
+  if (
+    !selectedCampaignMembersCampaignId
+  ) {
+
+    return null;
+  }
+
+
+  return getCampaignById(
+    selectedCampaignMembersCampaignId
+  );
+}
+
+
+function getCampaignMembersForSelectedCampaign() {
+
+  if (
+    !selectedCampaignMembersCampaignId
+  ) {
+
+    return [];
+  }
+
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  return data.campaignMembers.filter(
+    member =>
+      String(
+        member.campaignId || ''
+      ) ===
+      String(
+        selectedCampaignMembersCampaignId
+      )
+  );
+}
+
+
+function getCampaignMemberStatus(
+  member
+) {
+
+  return String(
+    member.membershipStatus ||
+    member.status ||
+    'ACTIVE'
+  )
+    .trim()
+    .toUpperCase();
+}
+
+
+function getCampaignMemberUser(
+  member
+) {
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  return data.users.find(
+    user =>
+      String(
+        user.userId || ''
+      ) ===
+      String(
+        member.userId || ''
+      )
+  ) || null;
+}
+
+
+function getFilteredCampaignMembers() {
+
+  const query =
+    (
+      document.getElementById(
+        'campaignMemberSearchInput'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const status =
+    document.getElementById(
+      'campaignMemberStatusFilter'
+    )?.value || 'all';
+
+
+  return getCampaignMembersForSelectedCampaign()
+    .filter(
+      member => {
+
+        const memberStatus =
+          getCampaignMemberStatus(
+            member
+          );
+
+
+        if (
+          status !== 'all' &&
+          memberStatus !== status
+        ) {
+
+          return false;
+        }
+
+
+        if (!query) {
+
+          return true;
+        }
+
+
+        const user =
+          getCampaignMemberUser(
+            member
+          );
+
+
+        return [
+          user?.firstName,
+          user?.emailAddress,
+          user?.company,
+          member.emailAddress,
+          member.campaignMemberId,
+          member.userId,
+          member.contactId
+        ].some(
+          value =>
+            String(
+              value || ''
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+        );
+      }
+    )
+    .sort(
+      (a, b) => {
+
+        const userA =
+          getCampaignMemberUser(a);
+
+        const userB =
+          getCampaignMemberUser(b);
+
+        const nameA =
+          userA?.firstName ||
+          a.emailAddress ||
+          a.userId ||
+          '';
+
+        const nameB =
+          userB?.firstName ||
+          b.emailAddress ||
+          b.userId ||
+          '';
+
+        return String(nameA)
+          .localeCompare(
+            String(nameB)
+          );
+      }
+    );
+}
+
+
+function renderCampaignMembers() {
+
+  const panel =
+    document.getElementById(
+      'campaignMembersPanel'
+    );
+
+
+  if (!panel) {
+
+    return;
+  }
+
+
+  const campaign =
+    getSelectedCampaignForMembers();
+
+
+  if (!campaign) {
+
+    panel.hidden =
+      true;
+
+    return;
+  }
+
+
+  panel.hidden =
+    false;
+
+
+  setText(
+    'campaignMembersCampaignName',
+    campaign.campaignName ||
+    campaign.campaignId ||
+    'Selected Campaign'
+  );
+
+
+  const meta =
+    document.getElementById(
+      'campaignMembersCampaignMeta'
+    );
+
+
+  if (meta) {
+
+    meta.textContent =
+      `${campaign.campaignId} · ${String(
+        campaign.campaignStatus ||
+        campaign.status ||
+        ''
+      ).toUpperCase()}`;
+  }
+
+
+  const allMembers =
+    getCampaignMembersForSelectedCampaign();
+
+
+  const rows =
+    getFilteredCampaignMembers();
+
+
+  setText(
+    'campaignMembersTotalCount',
+    allMembers.length.toLocaleString()
+  );
+
+
+  setText(
+    'campaignMembersActiveCount',
+    allMembers.filter(
+      member =>
+        getCampaignMemberStatus(
+          member
+        ) ===
+        'ACTIVE'
+    ).length.toLocaleString()
+  );
+
+
+  setText(
+    'campaignMembersInactiveCount',
+    allMembers.filter(
+      member =>
+        getCampaignMemberStatus(
+          member
+        ) ===
+        'INACTIVE'
+    ).length.toLocaleString()
+  );
+
+
+  setText(
+    'campaignMembersShowingCount',
+    rows.length.toLocaleString()
+  );
+
+
+  const tbody =
+    document.getElementById(
+      'campaignMembersTable'
+    );
+
+
+  if (!tbody) {
+
+    return;
+  }
+
+
+  if (!rows.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        9,
+        'No campaign members match the current search or filters.'
+      );
+
+    return;
+  }
+
+
+  tbody.innerHTML =
+    rows
+      .slice(
+        0,
+        1000
+      )
+      .map(
+        member => {
+
+          const user =
+            getCampaignMemberUser(
+              member
+            );
+
+
+          const memberStatus =
+            getCampaignMemberStatus(
+              member
+            );
+
+
+          const firstName =
+            user?.firstName ||
+            '—';
+
+
+          const emailAddress =
+            user?.emailAddress ||
+            member.emailAddress ||
+            '—';
+
+
+          const company =
+            user?.company ||
+            '';
+
+
+          const nextStatus =
+            memberStatus ===
+            'ACTIVE'
+              ? 'INACTIVE'
+              : 'ACTIVE';
+
+
+          const actionLabel =
+            memberStatus ===
+            'ACTIVE'
+              ? 'Deactivate'
+              : 'Activate';
+
+
+          return `
+            <tr>
+
+              <td class="user-name-cell">
+
+                <strong>
+                  ${escapeHtml(firstName)}
+                </strong>
+
+                <small>
+                  ${escapeHtml(company)}
+                </small>
+
+              </td>
+
+              <td>
+                ${escapeHtml(emailAddress)}
+              </td>
+
+              <td>
+                ${statusBadge(memberStatus)}
+              </td>
+
+              <td>
+                <span class="muted-id">
+                  ${escapeHtml(member.campaignMemberId || '')}
+                </span>
+              </td>
+
+              <td>
+                <span class="muted-id">
+                  ${escapeHtml(member.userId || '')}
+                </span>
+              </td>
+
+              <td>
+                <span class="muted-id">
+                  ${escapeHtml(member.contactId || '')}
+                </span>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  formatCampaignDate(
+                    member.createdAt
+                  )
+                )}
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  formatCampaignDate(
+                    member.updatedAt
+                  )
+                )}
+              </td>
+
+              <td>
+
+                <div class="user-actions">
+
+                  <button
+                    type="button"
+                    class="table-action-button ${memberStatus === 'ACTIVE' ? 'danger' : 'success'}"
+                    data-campaign-member-status="${escapeHtml(member.campaignMemberId || '')}"
+                    data-next-member-status="${nextStatus}"
+                  >
+                    ${actionLabel}
+                  </button>
+
+                </div>
+
+              </td>
+
+            </tr>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+function showCampaignMembersNotice(
+  message,
+  type = 'success'
+) {
+
+  const notice =
+    document.getElementById(
+      'campaignMembersActionNotice'
+    );
+
+
+  if (!notice) {
+
+    return;
+  }
+
+
+  notice.hidden =
+    !message;
+
+
+  notice.className =
+    `dashboard-notice ${type}`;
+
+
+  notice.textContent =
+    message || '';
+}
+
+
+function populateCampaignMemberUserOptions() {
+
+  const select =
+    document.getElementById(
+      'campaignMemberFormUserId'
+    );
+
+
+  if (!select) {
+
+    return;
+  }
+
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  const memberships =
+    getCampaignMembersForSelectedCampaign();
+
+
+  const activeUserIds =
+    new Set(
+      memberships
+        .filter(
+          member =>
+            getCampaignMemberStatus(
+              member
+            ) ===
+            'ACTIVE'
+        )
+        .map(
+          member =>
+            String(
+              member.userId || ''
+            )
+        )
+    );
+
+
+  const inactiveUserIds =
+    new Set(
+      memberships
+        .filter(
+          member =>
+            getCampaignMemberStatus(
+              member
+            ) ===
+            'INACTIVE'
+        )
+        .map(
+          member =>
+            String(
+              member.userId || ''
+            )
+        )
+    );
+
+
+  const options =
+    data.users
+      .filter(
+        user =>
+          user.userId &&
+          !activeUserIds.has(
+            String(
+              user.userId
+            )
+          )
+      )
+      .sort(
+        (a, b) =>
+          String(
+            a.emailAddress ||
+            a.firstName ||
+            ''
+          ).localeCompare(
+            String(
+              b.emailAddress ||
+              b.firstName ||
+              ''
+            )
+          )
+      );
+
+
+  select.innerHTML =
+    '<option value="">Select a user</option>' +
+    options
+      .map(
+        user => {
+
+          const reactivationLabel =
+            inactiveUserIds.has(
+              String(
+                user.userId
+              )
+            )
+              ? ' — Reactivate'
+              : '';
+
+
+          const label =
+            [
+              user.firstName,
+              user.emailAddress,
+              user.company
+            ]
+              .filter(Boolean)
+              .join(
+                ' · '
+              ) +
+            reactivationLabel;
+
+
+          return `
+            <option value="${escapeHtml(user.userId)}">
+              ${escapeHtml(label)}
+            </option>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+function updateCampaignMemberUserDetails() {
+
+  const select =
+    document.getElementById(
+      'campaignMemberFormUserId'
+    );
+
+
+  const details =
+    document.getElementById(
+      'campaignMemberFormUserDetails'
+    );
+
+
+  if (
+    !select ||
+    !details
+  ) {
+
+    return;
+  }
+
+
+  const userId =
+    select.value;
+
+
+  if (!userId) {
+
+    details.hidden =
+      true;
+
+    details.textContent =
+      '';
+
+    return;
+  }
+
+
+  const user =
+    DataEngine.getNormalized().users.find(
+      item =>
+        String(
+          item.userId || ''
+        ) ===
+        String(
+          userId
+        )
+    );
+
+
+  if (!user) {
+
+    details.hidden =
+      true;
+
+    return;
+  }
+
+
+  details.hidden =
+    false;
+
+
+  details.textContent =
+    [
+      user.emailAddress,
+      user.company,
+      user.contactId
+    ]
+      .filter(Boolean)
+      .join(
+        ' · '
+      );
+}
+
+
+function openCampaignMemberModal() {
+
+  const campaign =
+    getSelectedCampaignForMembers();
+
+
+  if (!campaign) {
+
+    showCampaignMembersNotice(
+      'Select a campaign first.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const status =
+    String(
+      campaign.campaignStatus ||
+      campaign.status ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    status !==
+    'ACTIVE'
+  ) {
+
+    showCampaignMembersNotice(
+      'Members can only be added or reactivated while the campaign is ACTIVE.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const campaignIdInput =
+    document.getElementById(
+      'campaignMemberFormCampaignId'
+    );
+
+
+  const campaignNameInput =
+    document.getElementById(
+      'campaignMemberFormCampaignName'
+    );
+
+
+  const errorBox =
+    document.getElementById(
+      'campaignMemberFormError'
+    );
+
+
+  const backdrop =
+    document.getElementById(
+      'campaignMemberModalBackdrop'
+    );
+
+
+  if (
+    !campaignIdInput ||
+    !campaignNameInput ||
+    !errorBox ||
+    !backdrop
+  ) {
+
+    console.warn(
+      'Campaign Member modal elements were not found.'
+    );
+
+    return;
+  }
+
+
+  campaignIdInput.value =
+    campaign.campaignId || '';
+
+
+  campaignNameInput.value =
+    campaign.campaignName || '';
+
+
+  errorBox.hidden =
+    true;
+
+
+  errorBox.textContent =
+    '';
+
+
+  populateCampaignMemberUserOptions();
+
+
+  updateCampaignMemberUserDetails();
+
+
+  backdrop.hidden =
+    false;
+
+
+  setTimeout(
+    () =>
+      document.getElementById(
+        'campaignMemberFormUserId'
+      )?.focus(),
+    0
+  );
+}
+
+
+function closeCampaignMemberModal() {
+
+  const backdrop =
+    document.getElementById(
+      'campaignMemberModalBackdrop'
+    );
+
+
+  const form =
+    document.getElementById(
+      'campaignMemberForm'
+    );
+
+
+  const errorBox =
+    document.getElementById(
+      'campaignMemberFormError'
+    );
+
+
+  const details =
+    document.getElementById(
+      'campaignMemberFormUserDetails'
+    );
+
+
+  if (backdrop) {
+
+    backdrop.hidden =
+      true;
+  }
+
+
+  if (form) {
+
+    form.reset();
+  }
+
+
+  if (errorBox) {
+
+    errorBox.hidden =
+      true;
+
+    errorBox.textContent =
+      '';
+  }
+
+
+  if (details) {
+
+    details.hidden =
+      true;
+
+    details.textContent =
+      '';
+  }
+}
+
+
+function setCampaignMemberFormBusy(
+  busy
+) {
+
+  const submit =
+    document.getElementById(
+      'campaignMemberFormSubmit'
+    );
+
+
+  const cancel =
+    document.getElementById(
+      'campaignMemberFormCancel'
+    );
+
+
+  if (submit) {
+
+    submit.disabled =
+      busy;
+
+
+    submit.textContent =
+      busy
+        ? 'Adding…'
+        : 'Add Member';
+  }
+
+
+  if (cancel) {
+
+    cancel.disabled =
+      busy;
+  }
+}
+
+
+async function submitCampaignMemberForm(
+  event
+) {
+
+  event.preventDefault();
+
+
+  const errorBox =
+    document.getElementById(
+      'campaignMemberFormError'
+    );
+
+
+  const campaignId =
+    document.getElementById(
+      'campaignMemberFormCampaignId'
+    )?.value || '';
+
+
+  const userId =
+    document.getElementById(
+      'campaignMemberFormUserId'
+    )?.value || '';
+
+
+  if (!errorBox) {
+
+    return;
+  }
+
+
+  errorBox.hidden =
+    true;
+
+
+  errorBox.textContent =
+    '';
+
+
+  if (
+    !campaignId ||
+    !userId
+  ) {
+
+    errorBox.textContent =
+      'Campaign and User are required.';
+
+    errorBox.hidden =
+      false;
+
+    return;
+  }
+
+
+  try {
+
+    setCampaignMemberFormBusy(
+      true
+    );
+
+
+    const result =
+      await DashboardApi.addCampaignMember({
+        campaignId,
+        userId
+      });
+
+
+    closeCampaignMemberModal();
+
+
+    await initDashboard(
+      true
+    );
+
+
+    selectedCampaignMembersCampaignId =
+      campaignId;
+
+
+    switchView(
+      'campaignsView'
+    );
+
+
+    renderCampaignMembers();
+
+
+    showCampaignMembersNotice(
+      result?.result?.message ||
+      'Campaign member added successfully.',
+      'success'
+    );
+
+
+  } catch (error) {
+
+    errorBox.textContent =
+      error?.message ||
+      String(error);
+
+
+    errorBox.hidden =
+      false;
+
+  } finally {
+
+    setCampaignMemberFormBusy(
+      false
+    );
+  }
+}
+
+
+async function setCampaignMemberStatus(
+  campaignMemberId,
+  nextStatus
+) {
+
+  const memberships =
+    getCampaignMembersForSelectedCampaign();
+
+
+  const member =
+    memberships.find(
+      item =>
+        String(
+          item.campaignMemberId || ''
+        ) ===
+        String(
+          campaignMemberId || ''
+        )
+    );
+
+
+  if (!member) {
+
+    showCampaignMembersNotice(
+      'Campaign Member could not be found.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const actionLabel =
+    nextStatus ===
+    'ACTIVE'
+      ? 'activate'
+      : 'deactivate';
+
+
+  const user =
+    getCampaignMemberUser(
+      member
+    );
+
+
+  const identity =
+    user?.emailAddress ||
+    member.emailAddress ||
+    campaignMemberId;
+
+
+  if (
+    !window.confirm(
+      `Are you sure you want to ${actionLabel} ${identity}?`
+    )
+  ) {
+
+    return;
+  }
+
+
+  try {
+
+    showCampaignMembersNotice(
+      `${nextStatus === 'ACTIVE' ? 'Activating' : 'Deactivating'} ${identity}…`,
+      'warning'
+    );
+
+
+    await DashboardApi.setCampaignMemberStatus(
+      campaignMemberId,
+      nextStatus
+    );
+
+
+    const campaignId =
+      selectedCampaignMembersCampaignId;
+
+
+    await initDashboard(
+      true
+    );
+
+
+    selectedCampaignMembersCampaignId =
+      campaignId;
+
+
+    switchView(
+      'campaignsView'
+    );
+
+
+    renderCampaignMembers();
+
+
+    showCampaignMembersNotice(
+      `${identity} ${nextStatus === 'ACTIVE' ? 'activated' : 'deactivated'} successfully.`,
+      'success'
+    );
+
+
+  } catch (error) {
+
+    showCampaignMembersNotice(
+      error?.message ||
+      String(error),
+      'error'
+    );
+  }
+}
+
+
+function closeCampaignMembersPanel() {
+
+  selectedCampaignMembersCampaignId =
+    '';
+
+
+  const panel =
+    document.getElementById(
+      'campaignMembersPanel'
+    );
+
+
+  if (panel) {
+
+    panel.hidden =
+      true;
+  }
+
+
+  const selectedInput =
+    document.getElementById(
+      'campaignMembersSelectedCampaignId'
+    );
+
+
+  if (selectedInput) {
+
+    selectedInput.value =
+      '';
+  }
+
+
+  const search =
+    document.getElementById(
+      'campaignMemberSearchInput'
+    );
+
+
+  if (search) {
+
+    search.value =
+      '';
+  }
+
+
+  const status =
+    document.getElementById(
+      'campaignMemberStatusFilter'
+    );
+
+
+  if (status) {
+
+    status.value =
+      'all';
+  }
+}
+
+
+function attachCampaignMemberManagementListeners() {
+
+  if (
+    campaignMemberManagementAttached
+  ) {
+
+    return;
+  }
+
+
+  campaignMemberManagementAttached =
+    true;
+
+
+  document.getElementById(
+    'addCampaignMemberButton'
+  )?.addEventListener(
+    'click',
+    openCampaignMemberModal
+  );
+
+
+  document.getElementById(
+    'closeCampaignMembersButton'
+  )?.addEventListener(
+    'click',
+    closeCampaignMembersPanel
+  );
+
+
+  document.getElementById(
+    'campaignMemberSearchInput'
+  )?.addEventListener(
+    'input',
+    renderCampaignMembers
+  );
+
+
+  document.getElementById(
+    'campaignMemberStatusFilter'
+  )?.addEventListener(
+    'change',
+    renderCampaignMembers
+  );
+
+
+  document.getElementById(
+    'campaignMemberModalClose'
+  )?.addEventListener(
+    'click',
+    closeCampaignMemberModal
+  );
+
+
+  document.getElementById(
+    'campaignMemberFormCancel'
+  )?.addEventListener(
+    'click',
+    closeCampaignMemberModal
+  );
+
+
+  document.getElementById(
+    'campaignMemberModalBackdrop'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      if (
+        event.target.id ===
+        'campaignMemberModalBackdrop'
+      ) {
+
+        closeCampaignMemberModal();
+      }
+    }
+  );
+
+
+  document.getElementById(
+    'campaignMemberFormUserId'
+  )?.addEventListener(
+    'change',
+    updateCampaignMemberUserDetails
+  );
+
+
+  document.getElementById(
+    'campaignMemberForm'
+  )?.addEventListener(
+    'submit',
+    submitCampaignMemberForm
+  );
+
+
+  document.getElementById(
+    'campaignMembersTable'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      const statusButton =
+        event.target.closest(
+          '[data-campaign-member-status]'
+        );
+
+
+      if (!statusButton) {
+
+        return;
+      }
+
+
+      setCampaignMemberStatus(
+        statusButton.dataset.campaignMemberStatus,
+        statusButton.dataset.nextMemberStatus
+      );
     }
   );
 }
