@@ -1031,6 +1031,241 @@
           </div>
 
 
+
+          <!-- ===================================================
+               CAMPAIGN MEMBERS
+               =================================================== -->
+
+          <div
+            id="campaignMembersPanel"
+            class="campaign-members-panel"
+            hidden
+            style="margin-top:24px;"
+          >
+
+            <div class="section-heading management-heading">
+
+              <div>
+
+                <span>
+                  Campaign Members
+                </span>
+
+                <h2 id="campaignMembersCampaignName">
+                  Selected Campaign
+                </h2>
+
+                <p id="campaignMembersCampaignMeta">
+                  Manage the users assigned to this campaign.
+                </p>
+
+              </div>
+
+
+              <div class="campaign-member-heading-actions">
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="closeCampaignMembersButton"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  class="primary-action-button"
+                  id="addCampaignMemberButton"
+                >
+                  + Add Member
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <input
+              type="hidden"
+              id="campaignMembersSelectedCampaignId"
+            >
+
+
+            <div class="management-toolbar">
+
+              <div class="search-field-wrap">
+
+                <input
+                  type="search"
+                  id="campaignMemberSearchInput"
+                  class="management-search"
+                  placeholder="Search by name, email, User ID, Contact ID or Campaign Member ID"
+                >
+
+              </div>
+
+
+              <select
+                id="campaignMemberStatusFilter"
+                class="management-filter"
+                aria-label="Filter campaign members by status"
+              >
+
+                <option value="all">
+                  All membership states
+                </option>
+
+                <option value="ACTIVE">
+                  Active
+                </option>
+
+                <option value="INACTIVE">
+                  Inactive
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="users-summary-grid campaign-member-summary-grid">
+
+              <div class="mini-stat">
+
+                <span>
+                  Total Members
+                </span>
+
+                <strong id="campaignMembersTotalCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Active
+                </span>
+
+                <strong id="campaignMembersActiveCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Inactive
+                </span>
+
+                <strong id="campaignMembersInactiveCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Showing
+                </span>
+
+                <strong id="campaignMembersShowingCount">
+                  0
+                </strong>
+
+              </div>
+
+            </div>
+
+
+            <div
+              id="campaignMembersActionNotice"
+              class="dashboard-notice"
+              hidden
+            ></div>
+
+
+            <div class="table-card">
+
+              <div class="table-header">
+
+                <div>
+
+                  <h3>
+                    Members
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="table-container">
+
+                <table class="campaign-members-table">
+
+                  <thead>
+
+                    <tr>
+
+                      <th>
+                        User
+                      </th>
+
+                      <th>
+                        Email
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th>
+                        Campaign Member ID
+                      </th>
+
+                      <th>
+                        User ID
+                      </th>
+
+                      <th>
+                        Contact ID
+                      </th>
+
+                      <th>
+                        Created
+                      </th>
+
+                      <th>
+                        Updated
+                      </th>
+
+                      <th>
+                        Actions
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody id="campaignMembersTable"></tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
           <!-- PERFORMANCE TABLE -->
 
           <div
@@ -1504,6 +1739,147 @@
             id="campaignFormSubmit"
           >
             Create Campaign
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================================================
+       ADD CAMPAIGN MEMBER MODAL
+       ========================================================= -->
+
+  <div
+    class="modal-backdrop"
+    id="campaignMemberModalBackdrop"
+    hidden
+  >
+
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="campaignMemberModalTitle"
+    >
+
+      <div class="modal-header">
+
+        <div>
+
+          <div class="modal-eyebrow">
+            Campaign Members
+          </div>
+
+          <h3 id="campaignMemberModalTitle">
+            Add Member
+          </h3>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="modal-close"
+          id="campaignMemberModalClose"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <form
+        id="campaignMemberForm"
+        class="management-form"
+      >
+
+        <input
+          type="hidden"
+          id="campaignMemberFormCampaignId"
+        >
+
+
+        <label>
+
+          <span>
+            Campaign
+          </span>
+
+          <input
+            type="text"
+            id="campaignMemberFormCampaignName"
+            readonly
+          >
+
+          <small>
+            The member will be added to this campaign.
+          </small>
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Select Existing User <strong>*</strong>
+          </span>
+
+          <select
+            id="campaignMemberFormUserId"
+            required
+          >
+
+            <option value="">
+              Select a user
+            </option>
+
+          </select>
+
+          <small>
+            Only existing users are assigned. User records are not duplicated.
+          </small>
+
+        </label>
+
+
+        <div
+          id="campaignMemberFormUserDetails"
+          class="campaign-member-user-details"
+          hidden
+        ></div>
+
+
+        <div
+          id="campaignMemberFormError"
+          class="form-error"
+          hidden
+        ></div>
+
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary-action-button"
+            id="campaignMemberFormCancel"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            type="submit"
+            class="primary-action-button"
+            id="campaignMemberFormSubmit"
+          >
+            Add Member
           </button>
 
         </div>
