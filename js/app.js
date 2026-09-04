@@ -1604,16 +1604,12 @@ function renderCampaignMembers() {
       'campaignMembersPanel'
     );
 
-
   if (!panel) {
-
     return;
   }
 
-
   const campaign =
     getSelectedCampaignForMembers();
-
 
   if (!campaign) {
 
@@ -1635,25 +1631,10 @@ function renderCampaignMembers() {
         'Select a campaign to manage membership.';
     }
 
-    setText(
-      'campaignMembersTotalCount',
-      '0'
-    );
-
-    setText(
-      'campaignMembersActiveCount',
-      '0'
-    );
-
-    setText(
-      'campaignMembersInactiveCount',
-      '0'
-    );
-
-    setText(
-      'campaignMembersShowingCount',
-      '0'
-    );
+    setText('campaignMembersTotalCount', '0');
+    setText('campaignMembersActiveCount', '0');
+    setText('campaignMembersInactiveCount', '0');
+    setText('campaignMembersShowingCount', '0');
 
     const tbody =
       document.getElementById(
@@ -1663,7 +1644,7 @@ function renderCampaignMembers() {
     if (tbody) {
       tbody.innerHTML =
         emptyRow(
-          6,
+          5,
           'Select a campaign to view its members.'
         );
     }
@@ -1671,10 +1652,8 @@ function renderCampaignMembers() {
     return;
   }
 
-
   panel.hidden =
     false;
-
 
   setText(
     'campaignMembersCampaignName',
@@ -1683,15 +1662,12 @@ function renderCampaignMembers() {
     'Selected Campaign'
   );
 
-
   const meta =
     document.getElementById(
       'campaignMembersCampaignMeta'
     );
 
-
   if (meta) {
-
     meta.textContent =
       `${campaign.campaignId} · ${String(
         campaign.campaignStatus ||
@@ -1700,74 +1676,80 @@ function renderCampaignMembers() {
       ).toUpperCase()}`;
   }
 
-
   const allMembers =
     getCampaignMembersForSelectedCampaign();
-
 
   const rows =
     getFilteredCampaignMembers();
 
-
-  setText(
-    'campaignMembersTotalCount',
-    allMembers.length.toLocaleString()
-  );
-
-
-  setText(
-    'campaignMembersActiveCount',
+  const activeCount =
     allMembers.filter(
       member =>
         getCampaignMemberStatus(
           member
         ) ===
         'ACTIVE'
-    ).length.toLocaleString()
-  );
+    ).length;
 
-
-  setText(
-    'campaignMembersInactiveCount',
+  const inactiveCount =
     allMembers.filter(
       member =>
         getCampaignMemberStatus(
           member
         ) ===
         'INACTIVE'
-    ).length.toLocaleString()
+    ).length;
+
+  setText(
+    'campaignMembersTotalCount',
+    allMembers.length.toLocaleString()
   );
 
+  setText(
+    'campaignMembersActiveCount',
+    activeCount.toLocaleString()
+  );
+
+  setText(
+    'campaignMembersInactiveCount',
+    inactiveCount.toLocaleString()
+  );
 
   setText(
     'campaignMembersShowingCount',
     rows.length.toLocaleString()
   );
 
+  const showingWrap =
+    document.getElementById(
+      'campaignMembersShowingWrap'
+    );
+
+  if (showingWrap) {
+    showingWrap.hidden =
+      rows.length ===
+      allMembers.length;
+  }
 
   const tbody =
     document.getElementById(
       'campaignMembersTable'
     );
 
-
   if (!tbody) {
-
     return;
   }
-
 
   if (!rows.length) {
 
     tbody.innerHTML =
       emptyRow(
-        6,
-        'No campaign members match the current search or filters.'
+        5,
+        'No members match the current filters.'
       );
 
     return;
   }
-
 
   tbody.innerHTML =
     rows
@@ -1819,22 +1801,25 @@ function renderCampaignMembers() {
               ''
             ).trim();
 
+          const memberId =
+            escapeHtml(
+              member.campaignMemberId ||
+              ''
+            );
+
           return `
             <tr>
 
               <td class="user-name-cell">
                 <strong>${escapeHtml(firstName)}</strong>
-                <small>${escapeHtml(company)}</small>
+                ${
+                  company
+                    ? `<small>${escapeHtml(company)}</small>`
+                    : ''
+                }
               </td>
 
               <td>${escapeHtml(emailAddress)}</td>
-
-              <td>${escapeHtml(
-                member.campaignName ||
-                getSelectedCampaignForMembers()?.campaignName ||
-                member.campaignId ||
-                '—'
-              )}</td>
 
               <td>${statusBadge(memberStatus)}</td>
 
@@ -1846,33 +1831,53 @@ function renderCampaignMembers() {
                 }
               </td>
 
-              <td>
-                <div class="user-actions">
+              <td class="actions-column">
 
-                  ${
-                    memberStatus === 'ACTIVE'
-                      ? `
-                        <button
-                          type="button"
-                          class="table-action-button"
-                          data-campaign-member-precheck="${escapeHtml(member.campaignMemberId || '')}"
-                        >
-                          Check
-                        </button>
-                      `
-                      : ''
-                  }
+                <div class="row-menu">
 
                   <button
                     type="button"
-                    class="table-action-button ${memberStatus === 'ACTIVE' ? 'danger' : 'success'}"
-                    data-campaign-member-status="${escapeHtml(member.campaignMemberId || '')}"
-                    data-next-member-status="${nextStatus}"
+                    class="row-menu-trigger"
+                    data-member-menu-toggle="${memberId}"
+                    aria-label="Open member actions"
+                    aria-expanded="false"
                   >
-                    ${actionLabel}
+                    •••
                   </button>
 
+                  <div
+                    class="row-menu-panel"
+                    data-member-menu="${memberId}"
+                    hidden
+                  >
+
+                    ${
+                      memberStatus === 'ACTIVE'
+                        ? `
+                          <button
+                            type="button"
+                            class="row-menu-item"
+                            data-campaign-member-precheck="${memberId}"
+                          >
+                            Run pre-check
+                          </button>
+                        `
+                        : ''
+                    }
+
+                    <button
+                      type="button"
+                      class="row-menu-item ${memberStatus === 'ACTIVE' ? 'danger' : ''}"
+                      data-campaign-member-status="${memberId}"
+                      data-next-member-status="${nextStatus}"
+                    >
+                      ${actionLabel}
+                    </button>
+
+                  </div>
+
                 </div>
+
               </td>
 
             </tr>
@@ -1881,7 +1886,6 @@ function renderCampaignMembers() {
       )
       .join('');
 }
-
 
 function showCampaignMembersNotice(
   message,
@@ -2844,6 +2848,89 @@ function closeCampaignMembersPanel() {
 }
 
 
+function closeMemberActionMenus(
+  exceptMemberId = ''
+) {
+
+  document
+    .querySelectorAll(
+      '[data-member-menu]'
+    )
+    .forEach(
+      menu => {
+
+        if (
+          exceptMemberId &&
+          menu.dataset.memberMenu ===
+            exceptMemberId
+        ) {
+          return;
+        }
+
+        menu.hidden =
+          true;
+      }
+    );
+
+  document
+    .querySelectorAll(
+      '[data-member-menu-toggle]'
+    )
+    .forEach(
+      button => {
+
+        if (
+          exceptMemberId &&
+          button.dataset.memberMenuToggle ===
+            exceptMemberId
+        ) {
+          return;
+        }
+
+        button.setAttribute(
+          'aria-expanded',
+          'false'
+        );
+      }
+    );
+}
+
+
+function toggleMemberActionMenu(
+  memberId,
+  trigger
+) {
+
+  const menu =
+    document.querySelector(
+      `[data-member-menu="${CSS.escape(memberId)}"]`
+    );
+
+  if (!menu) {
+    return;
+  }
+
+  const willOpen =
+    menu.hidden;
+
+  closeMemberActionMenus(
+    willOpen
+      ? memberId
+      : ''
+  );
+
+  menu.hidden =
+    !willOpen;
+
+  trigger?.setAttribute(
+    'aria-expanded',
+    willOpen
+      ? 'true'
+      : 'false'
+  );
+}
+
+
 function attachCampaignMemberManagementListeners() {
 
   if (
@@ -2939,6 +3026,25 @@ function attachCampaignMemberManagementListeners() {
     'click',
     event => {
 
+      const menuTrigger =
+        event.target.closest(
+          '[data-member-menu-toggle]'
+        );
+
+
+      if (menuTrigger) {
+
+        event.stopPropagation();
+
+        toggleMemberActionMenu(
+          menuTrigger.dataset.memberMenuToggle,
+          menuTrigger
+        );
+
+        return;
+      }
+
+
       const precheckButton =
         event.target.closest(
           '[data-campaign-member-precheck]'
@@ -2946,6 +3052,8 @@ function attachCampaignMemberManagementListeners() {
 
 
       if (precheckButton) {
+
+        closeMemberActionMenus();
 
         runCampaignMemberPrecheck(
           precheckButton.dataset.campaignMemberPrecheck
@@ -2962,15 +3070,30 @@ function attachCampaignMemberManagementListeners() {
 
 
       if (!statusButton) {
-
         return;
       }
+
+
+      closeMemberActionMenus();
 
 
       setCampaignMemberStatus(
         statusButton.dataset.campaignMemberStatus,
         statusButton.dataset.nextMemberStatus
       );
+    }
+  );
+  document.addEventListener(
+    'click',
+    event => {
+
+      if (
+        !event.target.closest(
+          '.row-menu'
+        )
+      ) {
+        closeMemberActionMenus();
+      }
     }
   );
 }
