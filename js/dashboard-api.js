@@ -1,459 +1,1951 @@
-/**
- * CAMPAIGN ANALYTICS - ADMIN WRITE API CLIENT
- *
- * Browser talks only to the Cloudflare Worker.
- *
- * Security:
- * - ADMIN_USERNAME / ADMIN_PASSWORD stay in Cloudflare Worker Secrets
- * - DASHBOARD_API_KEY stays in Cloudflare Worker Secrets
- * - Session token is stored only in sessionStorage
- * - Protected requests send:
- *
- *   Authorization: Bearer <session-token>
- */
-
-const DashboardApi = (function () {
-
-  // ============================================================
-  // CONFIG
-  // ============================================================
-
-  const WORKER_URL =
-    'https://altsec-outreach-api.deepak-95d.workers.dev';
-
-  const TOKEN_STORAGE_KEY =
-    'altsec_admin_session_token';
-
-  const EXPIRY_STORAGE_KEY =
-    'altsec_admin_session_expiry';
-
-
-  // ============================================================
-  // SESSION STORAGE
-  // ============================================================
-
-  function getToken() {
-    return sessionStorage.getItem(TOKEN_STORAGE_KEY);
-  }
-
-  function getExpiry() {
-    return sessionStorage.getItem(EXPIRY_STORAGE_KEY);
-  }
-
-  function saveSession(token, expiresAt) {
-    if (!token) {
-      throw new Error(
-        'Login response did not contain a session token.'
-      );
-    }
-
-    sessionStorage.setItem(
-      TOKEN_STORAGE_KEY,
-      token
-    );
-
-    if (expiresAt) {
-      sessionStorage.setItem(
-        EXPIRY_STORAGE_KEY,
-        expiresAt
-      );
-    } else {
-      sessionStorage.removeItem(
-        EXPIRY_STORAGE_KEY
-      );
-    }
-  }
-
-  function clearSession() {
-    sessionStorage.removeItem(
-      TOKEN_STORAGE_KEY
-    );
-
-    sessionStorage.removeItem(
-      EXPIRY_STORAGE_KEY
-    );
-  }
-
-
-  // ============================================================
-  // SESSION VALIDATION
-  // ============================================================
-
-  function isSessionExpired() {
-    const expiresAt = getExpiry();
-
-    if (!expiresAt) {
-      return false;
-    }
-
-    const expiryTime =
-      new Date(expiresAt).getTime();
-
-    if (Number.isNaN(expiryTime)) {
-      return true;
-    }
-
-    return Date.now() >= expiryTime;
-  }
-
-  function isAuthenticated() {
-    const token = getToken();
-
-    if (!token) {
-      return false;
-    }
-
-    if (isSessionExpired()) {
-      clearSession();
-      return false;
-    }
-
-    return true;
-  }
-
-
-  // ============================================================
-  // RESPONSE PARSER
-  // ============================================================
-
-  async function parseResponse(response) {
-    const text =
-      await response.text();
-
-    let data = {};
-
-    try {
-      data =
-        text
-          ? JSON.parse(text)
-          : {};
-    } catch (error) {
-      throw new Error(
-        `Admin API returned a non-JSON response (HTTP ${response.status}).`
-      );
-    }
-
-    return data;
-  }
-
-
-  // ============================================================
-  // LOGIN
-  // ============================================================
-
-  async function login(username, password) {
-    const cleanUsername =
-      String(username || '').trim();
-
-    const cleanPassword =
-      String(password || '');
-
-    if (!cleanUsername || !cleanPassword) {
-      throw new Error(
-        'Username and password are required.'
-      );
-    }
-
-    let response;
-
-    try {
-      response =
-        await fetch(
-          WORKER_URL,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type':
-                'application/json'
-            },
-            cache:
-              'no-store',
-            body:
-              JSON.stringify({
-                action:
-                  'login',
-                username:
-                  cleanUsername,
-                password:
-                  cleanPassword
-              })
-          }
-        );
-    } catch (error) {
-      throw new Error(
-        'Unable to connect to the admin API.'
-      );
-    }
-
-    const data =
-      await parseResponse(response);
-
-    if (
-      !response.ok ||
-      data.success === false
-    ) {
-      clearSession();
-
-      throw new Error(
-        data.error ||
-        `Login failed (HTTP ${response.status}).`
-      );
-    }
-
-    if (!data.token) {
-      clearSession();
-
-      throw new Error(
-        'Login succeeded but no session token was returned.'
-      );
-    }
-
-    saveSession(
-      data.token,
-      data.expiresAt || ''
-    );
-
-    return data;
-  }
-
-
-  // ============================================================
-  // PROTECTED ADMIN REQUEST
-  // ============================================================
-
-  async function post(action, payload = {}) {
-    const token =
-      getToken();
-
-    if (!token) {
-      const error =
-        new Error(
-          'Administrator login required.'
-        );
-
-      error.code =
-        'AUTH_REQUIRED';
-
-      throw error;
-    }
-
-    if (isSessionExpired()) {
-      clearSession();
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'admin-auth-required'
-        )
-      );
-
-      const error =
-        new Error(
-          'Your admin session has expired. Please log in again.'
-        );
-
-      error.code =
-        'SESSION_EXPIRED';
-
-      throw error;
-    }
-
-    let response;
-
-    try {
-      response =
-        await fetch(
-          WORKER_URL,
-          {
-            method:
-              'POST',
-            headers: {
-              'Content-Type':
-                'application/json',
-              'Authorization':
-                `Bearer ${token}`
-            },
-            cache:
-              'no-store',
-            body:
-              JSON.stringify({
-                action,
-                ...payload
-              })
-          }
-        );
-    } catch (error) {
-      throw new Error(
-        'Unable to connect to the admin API.'
-      );
-    }
-
-    const data =
-      await parseResponse(response);
-
-    // ==========================================================
-    // AUTH FAILURE
-    // ==========================================================
-
-    if (
-      response.status === 401
-    ) {
-      clearSession();
-
-      window.dispatchEvent(
-        new CustomEvent(
-          'admin-auth-required'
-        )
-      );
-
-      const error =
-        new Error(
-          data.error ||
-          'Your admin session is invalid or expired. Please log in again.'
-        );
-
-      error.code =
-        'AUTH_REQUIRED';
-
-      throw error;
-    }
-
-    // ==========================================================
-    // OTHER API FAILURE
-    // ==========================================================
-
-    if (
-      !response.ok ||
-      data.success === false
-    ) {
-      throw new Error(
-        data.error ||
-        `Admin API HTTP ${response.status}`
-      );
-    }
-
-    return data;
-  }
-
-
-  // ============================================================
-  // PUBLIC METHODS
-  // ============================================================
-
-  return {
-
-    // ----------------------------------------------------------
-    // AUTH
-    // ----------------------------------------------------------
-
-    login(username, password) {
-      return login(
-        username,
-        password
-      );
-    },
-
-    logout() {
-      clearSession();
-      return true;
-    },
-
-    isAuthenticated() {
-      return isAuthenticated();
-    },
-
-    getSessionToken() {
-      return getToken();
-    },
-
-    getSessionExpiry() {
-      return getExpiry();
-    },
-
-
-    // ----------------------------------------------------------
-    // USERS
-    // ----------------------------------------------------------
-
-    createUser(payload) {
-      return post(
-        'create_user',
-        payload
-      );
-    },
-
-    updateUser(payload) {
-      return post(
-        'update_user',
-        payload
-      );
-    },
-
-    setUserUnsubscribed(
-      userId,
-      unsubscribed
-    ) {
-      return post(
-        'set_user_unsubscribed',
-        {
-          userId,
-          unsubscribed
-        }
-      );
-    },
-
-
-    // ----------------------------------------------------------
-    // CAMPAIGNS
-    // ----------------------------------------------------------
-
-    createCampaign(payload) {
-      return post(
-        'create_campaign',
-        payload
-      );
-    },
-
-    updateCampaign(payload) {
-      return post(
-        'update_campaign',
-        payload
-      );
-    },
-
-
-    // ----------------------------------------------------------
-    // CAMPAIGN MEMBERS
-    // ----------------------------------------------------------
-
-    addCampaignMember(payload) {
-      return post(
-        'add_campaign_member',
-        payload
-      );
-    },
-
-    setCampaignMemberStatus(
-      campaignMemberId,
-      membershipStatus
-    ) {
-      return post(
-        'set_campaign_member_status',
-        {
-          campaignMemberId,
-          membershipStatus
-        }
-      );
-    },
-
-
-    // ----------------------------------------------------------
-    // DEBUG / CONFIG
-    // ----------------------------------------------------------
-
-    getWorkerUrl() {
-      return WORKER_URL;
-    }
-
-  };
-
-})();
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Campaign Analytics</title>
+
+  <meta
+    name="description"
+    content="Relational campaign performance and engagement analytics dashboard."
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
+
+  <link
+    rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin
+  >
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
+</head>
+
+
+<body>
+
+  <!-- =========================================================
+       ADMIN AUTHENTICATION
+       ========================================================= -->
+
+  <div
+    id="adminAuthOverlay"
+    class="admin-auth-overlay"
+    style="display:none;"
+  >
+
+    <div class="admin-auth-card">
+
+      <div class="admin-auth-header">
+
+        <div class="admin-auth-badge">
+          ADMIN ACCESS
+        </div>
+
+        <h2>
+          Campaign Analytics
+        </h2>
+
+        <p>
+          Sign in to access administrative controls.
+        </p>
+
+      </div>
+
+
+      <form id="adminLoginForm">
+
+        <div class="admin-auth-field">
+
+          <label for="adminUsername">
+            Username
+          </label>
+
+          <input
+            type="text"
+            id="adminUsername"
+            name="username"
+            autocomplete="username"
+            placeholder="Admin username"
+            required
+          >
+
+        </div>
+
+
+        <div class="admin-auth-field">
+
+          <label for="adminPassword">
+            Password
+          </label>
+
+          <input
+            type="password"
+            id="adminPassword"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Admin password"
+            required
+          >
+
+        </div>
+
+
+        <div
+          id="adminLoginError"
+          class="admin-auth-error"
+          style="display:none;"
+        ></div>
+
+
+        <button
+          type="submit"
+          id="adminLoginButton"
+          class="admin-auth-button"
+        >
+          Sign In
+        </button>
+
+      </form>
+
+
+      <div class="admin-auth-security">
+        Protected administrative access
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       APPLICATION
+       ========================================================= -->
+
+  <div class="app">
+
+    <!-- =======================================================
+         SIDEBAR
+         ======================================================= -->
+
+    <aside class="sidebar">
+
+      <div class="sidebar-brand">
+
+        <div class="brand-mark">
+          CA
+        </div>
+
+        <div class="brand-text">
+
+          <div class="brand-name">
+            Campaign Analytics
+          </div>
+
+          <div class="brand-subtitle">
+            Engagement Intelligence
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <nav class="sidebar-nav">
+
+        <a
+          href="#overview"
+          class="nav-item active"
+          data-view="overviewView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <rect x="3" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="3" width="7" height="7" rx="1"/>
+            <rect x="14" y="14" width="7" height="7" rx="1"/>
+            <rect x="3" y="14" width="7" height="7" rx="1"/>
+          </svg>
+
+          <span>
+            Overview
+          </span>
+
+        </a>
+
+
+        <a
+          href="#users"
+          class="nav-item"
+          data-view="usersView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M19 8v6M22 11h-6"/>
+          </svg>
+
+          <span>
+            Users
+          </span>
+
+        </a>
+
+
+        <a
+          href="#campaigns"
+          class="nav-item"
+          data-view="campaignsView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+
+          <span>
+            Campaigns
+          </span>
+
+        </a>
+
+
+        <a
+          href="#sequences"
+          class="nav-item"
+          data-view="sequencesView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+
+          <span>
+            Sequences
+          </span>
+
+        </a>
+
+
+        <a
+          href="#recipients"
+          class="nav-item"
+          data-view="recipientsView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+
+          <span>
+            Recipients
+          </span>
+
+        </a>
+
+      </nav>
+
+
+      <div class="sidebar-footer">
+
+        <div class="data-status">
+
+          <span
+            class="status-dot"
+            id="dataStatusDot"
+            data-state="loading"
+          ></span>
+
+          <div>
+
+            <div
+              class="status-title"
+              id="dataStatusLabel"
+            >
+              Loading data…
+            </div>
+
+            <div class="status-subtitle">
+              Google Sheets API
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </aside>
+
+
+    <!-- =======================================================
+         MAIN
+         ======================================================= -->
+
+    <main class="main">
+
+      <!-- =====================================================
+           TOP BAR
+           ===================================================== -->
+
+      <header class="topbar">
+
+        <div class="topbar-left">
+
+          <button
+            type="button"
+            class="mobile-menu-button"
+            id="mobileMenuButton"
+            aria-label="Open navigation menu"
+          >
+            ☰
+          </button>
+
+
+          <div>
+
+            <h1 class="page-title">
+              Analytics Dashboard
+            </h1>
+
+            <p class="page-subtitle">
+              Relational campaign, delivery and engagement performance
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="topbar-actions">
+
+          <span
+            class="last-updated"
+            id="lastUpdatedLabel"
+          >
+            Loading…
+          </span>
+
+
+          <button
+            type="button"
+            class="refresh-button"
+            id="refreshButton"
+          >
+            Refresh
+          </button>
+
+
+          <button
+            type="button"
+            id="adminLogoutButton"
+            class="admin-logout-button"
+            style="display:none;"
+          >
+            Logout
+          </button>
+
+        </div>
+
+      </header>
+
+
+      <div class="content">
+
+        <div
+          id="dashboardNotice"
+          class="dashboard-notice"
+          hidden
+        ></div>
+
+
+        <!-- ===================================================
+             GLOBAL FILTERS
+             =================================================== -->
+
+        <div class="filter-bar">
+
+          <div class="filters">
+
+            <div class="filter-group">
+
+              <label for="campaignFilter">
+                Campaign
+              </label>
+
+              <select id="campaignFilter">
+
+                <option value="all">
+                  All Campaigns
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="filter-group">
+
+              <label for="sequenceFilter">
+                Sequence
+              </label>
+
+              <select id="sequenceFilter">
+
+                <option value="all">
+                  All Sequences
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="filter-group">
+
+              <label for="versionFilter">
+                Version
+              </label>
+
+              <select id="versionFilter">
+
+                <option value="all">
+                  All Versions
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="filter-group">
+
+              <label for="segmentFilter">
+                Segment
+              </label>
+
+              <select id="segmentFilter">
+
+                <option value="all">
+                  All Segments
+                </option>
+
+              </select>
+
+            </div>
+
+          </div>
+
+
+          <div class="filter-actions">
+
+            <button
+              type="button"
+              class="reset-button"
+              id="resetFiltersButton"
+            >
+              Reset Filters
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===================================================
+             OVERVIEW
+             =================================================== -->
+
+        <section
+          class="view active"
+          id="overviewView"
+        >
+
+          <div class="kpi-grid">
+
+            <div class="kpi-card">
+              <span class="kpi-label">Recipients</span>
+              <span class="kpi-value" id="kpiRecipients">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Messages</span>
+              <span class="kpi-value" id="kpiMessages">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Sent</span>
+              <span class="kpi-value" id="kpiSent">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Delivered</span>
+              <span class="kpi-value" id="kpiDelivered">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Valid Pre-check</span>
+              <span class="kpi-value" id="kpiPrecheckValid">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Risky Pre-check</span>
+              <span class="kpi-value" id="kpiPrecheckRisky">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Bounced</span>
+              <span class="kpi-value" id="kpiBounced">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Pending Follow-ups</span>
+              <span class="kpi-value" id="kpiPendingFollowups">0</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Open Rate</span>
+              <span class="kpi-value" id="kpiOpenRate">0.0%</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Click Rate</span>
+              <span class="kpi-value" id="kpiClickRate">0.0%</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Reply Rate</span>
+              <span class="kpi-value" id="kpiReplyRate">0.0%</span>
+            </div>
+
+            <div class="kpi-card">
+              <span class="kpi-label">Unsubscribe Rate</span>
+              <span class="kpi-value" id="kpiUnsubscribeRate">0.0%</span>
+            </div>
+
+          </div>
+
+
+          <div class="charts-grid two-columns">
+
+            <div class="chart-card">
+
+              <div class="chart-header">
+                <h3>Engagement Funnel</h3>
+              </div>
+
+              <div class="chart-container">
+                <canvas id="engagementFunnelChart"></canvas>
+              </div>
+
+            </div>
+
+
+            <div class="chart-card">
+
+              <div class="chart-header">
+                <h3>Sending Trend</h3>
+              </div>
+
+              <div class="chart-container">
+                <canvas id="sendingTrendChart"></canvas>
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="table-card"
+            style="margin-top:24px"
+          >
+
+            <div class="table-header">
+              <h3>Campaign Performance Summary</h3>
+            </div>
+
+            <div class="table-container">
+
+              <table>
+
+                <thead>
+
+                  <tr>
+                    <th>Campaign</th>
+                    <th>Recipients</th>
+                    <th>Sent</th>
+                    <th>Delivered</th>
+                    <th>Opened</th>
+                    <th>Clicked</th>
+                    <th>Replied</th>
+                    <th>Open Rate</th>
+                  </tr>
+
+                </thead>
+
+                <tbody id="campaignSummaryTable"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             USERS
+             =================================================== -->
+
+        <section
+          class="view"
+          id="usersView"
+        >
+
+          <div class="section-heading management-heading">
+
+            <div>
+
+              <span>
+                Users
+              </span>
+
+              <h2>
+                User Management
+              </h2>
+
+              <p>
+                Create and manage outreach users. Email identity is locked after creation.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              class="primary-action-button"
+              id="addUserButton"
+            >
+              + Add User
+            </button>
+
+          </div>
+
+
+          <div class="management-toolbar">
+
+            <div class="search-field-wrap">
+
+              <input
+                type="search"
+                id="userSearchInput"
+                class="management-search"
+                placeholder="Search by name, email, company, User ID or Contact ID"
+              >
+
+            </div>
+
+
+            <select
+              id="userLeadStatusFilter"
+              class="management-filter"
+              aria-label="Filter by lead status"
+            >
+
+              <option value="all">
+                All lead statuses
+              </option>
+
+            </select>
+
+
+            <select
+              id="userSubscriptionFilter"
+              class="management-filter"
+              aria-label="Filter by subscription status"
+            >
+
+              <option value="all">
+                All subscription states
+              </option>
+
+              <option value="subscribed">
+                Subscribed
+              </option>
+
+              <option value="unsubscribed">
+                Unsubscribed
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="users-summary-grid">
+
+            <div class="mini-stat">
+              <span>Total Users</span>
+              <strong id="usersTotalCount">0</strong>
+            </div>
+
+            <div class="mini-stat">
+              <span>Subscribed</span>
+              <strong id="usersSubscribedCount">0</strong>
+            </div>
+
+            <div class="mini-stat">
+              <span>Unsubscribed</span>
+              <strong id="usersUnsubscribedCount">0</strong>
+            </div>
+
+            <div class="mini-stat">
+              <span>Showing</span>
+              <strong id="usersShowingCount">0</strong>
+            </div>
+
+          </div>
+
+
+          <div
+            id="usersActionNotice"
+            class="dashboard-notice"
+            hidden
+          ></div>
+
+
+          <div class="table-card">
+
+            <div class="table-container">
+
+              <table class="users-table">
+
+                <thead>
+
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Company</th>
+                    <th>Campaigns</th>
+                    <th>Lead Status</th>
+                    <th>Subscription</th>
+                    <th>User ID</th>
+                    <th>Contact ID</th>
+                    <th>Updated</th>
+                    <th>Actions</th>
+                  </tr>
+
+                </thead>
+
+                <tbody id="usersManagementTable"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             CAMPAIGNS
+             =================================================== -->
+
+        <section
+          class="view"
+          id="campaignsView"
+        >
+
+          <div class="section-heading management-heading">
+
+            <div>
+
+              <span>
+                Campaigns
+              </span>
+
+              <h2>
+                Campaign Management
+              </h2>
+
+              <p>
+                Create and manage outreach campaigns and review campaign-level activity.
+              </p>
+
+            </div>
+
+
+            <button
+              type="button"
+              class="primary-action-button"
+              id="addCampaignButton"
+            >
+              + Add Campaign
+            </button>
+
+          </div>
+
+
+          <!-- CAMPAIGN MANAGEMENT TOOLBAR -->
+
+          <div class="management-toolbar">
+
+            <div class="search-field-wrap">
+
+              <input
+                type="search"
+                id="campaignSearchInput"
+                class="management-search"
+                placeholder="Search by campaign name or Campaign ID"
+              >
+
+            </div>
+
+
+            <select
+              id="campaignStatusFilter"
+              class="management-filter"
+              aria-label="Filter campaigns by status"
+            >
+
+              <option value="all">
+                All statuses
+              </option>
+
+              <option value="ACTIVE">
+                Active
+              </option>
+
+              <option value="PAUSED">
+                Paused
+              </option>
+
+              <option value="COMPLETED">
+                Completed
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <!-- CAMPAIGN COUNTS -->
+
+          <div class="users-summary-grid campaign-summary-grid">
+
+            <div class="mini-stat">
+
+              <span>
+                Total Campaigns
+              </span>
+
+              <strong id="campaignsTotalCount">
+                0
+              </strong>
+
+            </div>
+
+
+            <div class="mini-stat">
+
+              <span>
+                Active
+              </span>
+
+              <strong id="campaignsActiveCount">
+                0
+              </strong>
+
+            </div>
+
+
+            <div class="mini-stat">
+
+              <span>
+                Paused
+              </span>
+
+              <strong id="campaignsPausedCount">
+                0
+              </strong>
+
+            </div>
+
+
+            <div class="mini-stat">
+
+              <span>
+                Completed
+              </span>
+
+              <strong id="campaignsCompletedCount">
+                0
+              </strong>
+
+            </div>
+
+
+            <div class="mini-stat">
+
+              <span>
+                Showing
+              </span>
+
+              <strong id="campaignsShowingCount">
+                0
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <!-- ACTION NOTICE -->
+
+          <div
+            id="campaignsActionNotice"
+            class="dashboard-notice"
+            hidden
+          ></div>
+
+
+          <!-- CAMPAIGN MANAGEMENT TABLE -->
+
+          <div class="table-card">
+
+            <div class="table-header">
+
+              <div>
+
+                <h3>
+                  Campaigns
+                </h3>
+
+              </div>
+
+            </div>
+
+
+            <div class="table-container">
+
+              <table class="campaign-management-table">
+
+                <thead>
+
+                  <tr>
+
+                    <th>
+                      Campaign
+                    </th>
+
+                    <th>
+                      Status
+                    </th>
+
+                    <th>
+                      Contacts
+                    </th>
+
+                    <th>
+                      Email Events
+                    </th>
+
+                    <th>
+                      Created
+                    </th>
+
+                    <th>
+                      Updated
+                    </th>
+
+                    <th>
+                      Campaign ID
+                    </th>
+
+                    <th>
+                      Actions
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+
+                <tbody id="campaignManagementTable"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+
+
+          <!-- ===================================================
+               CAMPAIGN MEMBERS
+               =================================================== -->
+
+          <div
+            id="campaignMembersPanel"
+            class="campaign-members-panel"
+            hidden
+            style="margin-top:24px;"
+          >
+
+            <div class="section-heading management-heading">
+
+              <div>
+
+                <span>
+                  Campaign Members
+                </span>
+
+                <h2 id="campaignMembersCampaignName">
+                  Selected Campaign
+                </h2>
+
+                <p id="campaignMembersCampaignMeta">
+                  Manage the users assigned to this campaign.
+                </p>
+
+              </div>
+
+
+              <div class="campaign-member-heading-actions">
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="closeCampaignMembersButton"
+                >
+                  Close
+                </button>
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="runCampaignPrecheckButton"
+                >
+                  Run Pre-check for All
+                </button>
+
+                <button
+                  type="button"
+                  class="primary-action-button"
+                  id="addCampaignMemberButton"
+                >
+                  + Add Member
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <input
+              type="hidden"
+              id="campaignMembersSelectedCampaignId"
+            >
+
+
+            <div class="management-toolbar">
+
+              <div class="search-field-wrap">
+
+                <input
+                  type="search"
+                  id="campaignMemberSearchInput"
+                  class="management-search"
+                  placeholder="Search by name, email, User ID, Contact ID or Campaign Member ID"
+                >
+
+              </div>
+
+
+              <select
+                id="campaignMemberStatusFilter"
+                class="management-filter"
+                aria-label="Filter campaign members by status"
+              >
+
+                <option value="all">
+                  All membership states
+                </option>
+
+                <option value="ACTIVE">
+                  Active
+                </option>
+
+                <option value="INACTIVE">
+                  Inactive
+                </option>
+
+              </select>
+
+            </div>
+
+
+            <div class="users-summary-grid campaign-member-summary-grid">
+
+              <div class="mini-stat">
+
+                <span>
+                  Total Members
+                </span>
+
+                <strong id="campaignMembersTotalCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Active
+                </span>
+
+                <strong id="campaignMembersActiveCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Inactive
+                </span>
+
+                <strong id="campaignMembersInactiveCount">
+                  0
+                </strong>
+
+              </div>
+
+
+              <div class="mini-stat">
+
+                <span>
+                  Showing
+                </span>
+
+                <strong id="campaignMembersShowingCount">
+                  0
+                </strong>
+
+              </div>
+
+            </div>
+
+
+            <div
+              id="campaignMembersActionNotice"
+              class="dashboard-notice"
+              hidden
+            ></div>
+
+
+            <div class="table-card">
+
+              <div class="table-header">
+
+                <div>
+
+                  <h3>
+                    Members
+                  </h3>
+
+                </div>
+
+              </div>
+
+
+              <div class="table-container">
+
+                <table class="campaign-members-table">
+
+                  <thead>
+
+                    <tr>
+
+                      <th>
+                        User
+                      </th>
+
+                      <th>
+                        Email
+                      </th>
+
+                      <th>
+                        Campaign
+                      </th>
+
+                      <th>
+                        Status
+                      </th>
+
+                      <th>
+                        Pre-check Status
+                      </th>
+
+                      <th>
+                        Pre-check Message
+                      </th>
+
+                      <th>
+                        Pre-check At
+                      </th>
+
+                      <th>
+                        Campaign Member ID
+                      </th>
+
+                      <th>
+                        User ID
+                      </th>
+
+                      <th>
+                        Contact ID
+                      </th>
+
+                      <th>
+                        Created
+                      </th>
+
+                      <th>
+                        Updated
+                      </th>
+
+                      <th>
+                        Actions
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+
+                  <tbody id="campaignMembersTable"></tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- PERFORMANCE TABLE -->
+
+          <div
+            class="table-card"
+            style="margin-top:24px;"
+          >
+
+            <div class="table-header">
+
+              <h3>
+                Campaign Performance
+              </h3>
+
+            </div>
+
+
+            <div class="table-container">
+
+              <table>
+
+                <thead>
+
+                  <tr>
+                    <th>Campaign</th>
+                    <th>Recipients</th>
+                    <th>Sent</th>
+                    <th>Delivered</th>
+                    <th>Opened</th>
+                    <th>Clicked</th>
+                    <th>Replied</th>
+                    <th>Open Rate</th>
+                  </tr>
+
+                </thead>
+
+                <tbody id="campaignSummaryTableSecondary"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             SEQUENCES
+             =================================================== -->
+
+        <section
+          class="view"
+          id="sequencesView"
+        >
+
+          <div class="section-heading">
+
+            <div>
+
+              <span>
+                Sequences
+              </span>
+
+              <h2>
+                Sequence Performance
+              </h2>
+
+              <p>
+                Compare outreach sequences using the same delivery denominator.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="table-card">
+
+            <div class="table-container">
+
+              <table>
+
+                <thead>
+
+                  <tr>
+                    <th>Sequence</th>
+                    <th>Sent</th>
+                    <th>Delivered</th>
+                    <th>Opened</th>
+                    <th>Clicked</th>
+                    <th>Replied</th>
+                    <th>Open Rate</th>
+                  </tr>
+
+                </thead>
+
+                <tbody id="sequenceSummaryTable"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </section>
+
+
+        <!-- ===================================================
+             RECIPIENTS
+             =================================================== -->
+
+        <section
+          class="view"
+          id="recipientsView"
+        >
+
+          <div class="section-heading">
+
+            <div>
+
+              <span>
+                Recipients
+              </span>
+
+              <h2>
+                Recipient Explorer
+              </h2>
+
+              <p>
+                Campaign membership, pre-check status and engagement by recipient.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div class="table-card">
+
+            <div class="table-container">
+
+              <table>
+
+                <thead>
+
+                  <tr>
+                    <th>Email</th>
+                    <th>Campaign</th>
+                    <th>Membership</th>
+                    <th>Pre-check</th>
+                    <th>Lead Status</th>
+                    <th>Sent</th>
+                    <th>Opened</th>
+                    <th>Replied</th>
+                  </tr>
+
+                </thead>
+
+                <tbody id="recipientTable"></tbody>
+
+              </table>
+
+            </div>
+
+          </div>
+
+        </section>
+
+      </div>
+
+    </main>
+
+  </div>
+
+
+  <!-- =========================================================
+       USER MODAL
+       ========================================================= -->
+
+  <div
+    class="modal-backdrop"
+    id="userModalBackdrop"
+    hidden
+  >
+
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="userModalTitle"
+    >
+
+      <div class="modal-header">
+
+        <div>
+
+          <div class="modal-eyebrow">
+            User Management
+          </div>
+
+          <h3 id="userModalTitle">
+            Add User
+          </h3>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="modal-close"
+          id="userModalClose"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <form
+        id="userForm"
+        class="management-form"
+      >
+
+        <input
+          type="hidden"
+          id="userFormUserId"
+        >
+
+
+        <label>
+
+          <span>
+            First Name
+          </span>
+
+          <input
+            type="text"
+            id="userFormFirstName"
+            autocomplete="off"
+          >
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Email Address <strong>*</strong>
+          </span>
+
+          <input
+            type="email"
+            id="userFormEmail"
+            required
+            autocomplete="off"
+          >
+
+          <small id="userEmailHelp">
+            Email becomes the user's relational identity and cannot be edited later.
+          </small>
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Company
+          </span>
+
+          <input
+            type="text"
+            id="userFormCompany"
+            autocomplete="off"
+          >
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Lead Status
+          </span>
+
+          <select id="userFormLeadStatus">
+
+            <option value="New">
+              New
+            </option>
+
+            <option value="Contacted">
+              Contacted
+            </option>
+
+            <option value="Interested">
+              Interested
+            </option>
+
+            <option value="Replied">
+              Replied
+            </option>
+
+            <option value="Qualified">
+              Qualified
+            </option>
+
+            <option value="Not Interested">
+              Not Interested
+            </option>
+
+          </select>
+
+        </label>
+
+
+        <div
+          id="userFormError"
+          class="form-error"
+          hidden
+        ></div>
+
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary-action-button"
+            id="userFormCancel"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            type="submit"
+            class="primary-action-button"
+            id="userFormSubmit"
+          >
+            Create User
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       CAMPAIGN MODAL
+       ========================================================= -->
+
+  <div
+    class="modal-backdrop"
+    id="campaignModalBackdrop"
+    hidden
+  >
+
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="campaignModalTitle"
+    >
+
+      <div class="modal-header">
+
+        <div>
+
+          <div class="modal-eyebrow">
+            Campaign Management
+          </div>
+
+          <h3 id="campaignModalTitle">
+            Add Campaign
+          </h3>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="modal-close"
+          id="campaignModalClose"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <form
+        id="campaignForm"
+        class="management-form"
+      >
+
+        <input
+          type="hidden"
+          id="campaignFormCampaignId"
+        >
+
+
+        <label>
+
+          <span>
+            Campaign Name <strong>*</strong>
+          </span>
+
+          <input
+            type="text"
+            id="campaignFormName"
+            autocomplete="off"
+            placeholder="Example: AltSecCON 2026"
+            required
+          >
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Campaign Status
+          </span>
+
+          <select id="campaignFormStatus">
+
+            <option value="ACTIVE">
+              Active
+            </option>
+
+            <option value="PAUSED">
+              Paused
+            </option>
+
+            <option value="COMPLETED">
+              Completed
+            </option>
+
+          </select>
+
+        </label>
+
+
+        <div
+          id="campaignFormError"
+          class="form-error"
+          hidden
+        ></div>
+
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary-action-button"
+            id="campaignFormCancel"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            type="submit"
+            class="primary-action-button"
+            id="campaignFormSubmit"
+          >
+            Create Campaign
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+
+  <!-- =========================================================
+       ADD CAMPAIGN MEMBER MODAL
+       ========================================================= -->
+
+  <div
+    class="modal-backdrop"
+    id="campaignMemberModalBackdrop"
+    hidden
+  >
+
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="campaignMemberModalTitle"
+    >
+
+      <div class="modal-header">
+
+        <div>
+
+          <div class="modal-eyebrow">
+            Campaign Members
+          </div>
+
+          <h3 id="campaignMemberModalTitle">
+            Add Member
+          </h3>
+
+        </div>
+
+
+        <button
+          type="button"
+          class="modal-close"
+          id="campaignMemberModalClose"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+      </div>
+
+
+      <form
+        id="campaignMemberForm"
+        class="management-form"
+      >
+
+        <input
+          type="hidden"
+          id="campaignMemberFormCampaignId"
+        >
+
+
+        <label>
+
+          <span>
+            Campaign
+          </span>
+
+          <input
+            type="text"
+            id="campaignMemberFormCampaignName"
+            readonly
+          >
+
+          <small>
+            The member will be added to this campaign.
+          </small>
+
+        </label>
+
+
+        <label>
+
+          <span>
+            Select Existing User <strong>*</strong>
+          </span>
+
+          <select
+            id="campaignMemberFormUserId"
+            required
+          >
+
+            <option value="">
+              Select a user
+            </option>
+
+          </select>
+
+          <small>
+            Only existing users are assigned. User records are not duplicated.
+          </small>
+
+        </label>
+
+
+        <div
+          id="campaignMemberFormUserDetails"
+          class="campaign-member-user-details"
+          hidden
+        ></div>
+
+
+        <div
+          id="campaignMemberFormError"
+          class="form-error"
+          hidden
+        ></div>
+
+
+        <div class="modal-actions">
+
+          <button
+            type="button"
+            class="secondary-action-button"
+            id="campaignMemberFormCancel"
+          >
+            Cancel
+          </button>
+
+
+          <button
+            type="submit"
+            class="primary-action-button"
+            id="campaignMemberFormSubmit"
+          >
+            Add Member
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
+  </div>
+
+
+  <!-- =========================================================
+       MOBILE SIDEBAR OVERLAY
+       ========================================================= -->
+
+  <div
+    class="sidebar-overlay"
+    id="sidebarOverlay"
+  ></div>
+
+
+  <!-- =========================================================
+       SCRIPTS
+       ========================================================= -->
+
+  <script
+    src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"
+  ></script>
+
+  <script src="js/datasource.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/metrics.js"></script>
+  <script src="js/analytics.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/tables.js"></script>
+
+  <!-- Admin API must load before app.js -->
+  <script src="js/dashboard-api.js"></script>
+
+  <script src="js/app.js"></script>
+
+</body>
+
+</html>
