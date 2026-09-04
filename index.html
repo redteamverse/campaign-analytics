@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=2"
+    href="css/dashboard-modules.css?v=3"
   >
 </head>
 
@@ -65,7 +65,7 @@
         </div>
 
         <h2>
-          Campaign Analytics
+          AltSec Outreach
         </h2>
 
         <p>
@@ -155,13 +155,13 @@
       <div class="sidebar-brand">
 
         <div class="brand-mark">
-          CA
+          AS
         </div>
 
         <div class="brand-text">
 
           <div class="brand-name">
-            Campaign Analytics
+            AltSec Outreach
           </div>
 
           <div class="brand-subtitle">
@@ -467,116 +467,129 @@
           id="overviewView"
         >
 
-          <div class="kpi-grid">
+          <div class="overview-primary-grid">
 
-            <div class="kpi-card">
-              <span class="kpi-label">Recipients</span>
-              <span class="kpi-value" id="kpiRecipients">0</span>
+            <article class="metric-card metric-card-primary">
+              <div class="metric-card-label">Recipients</div>
+              <div class="metric-card-value" id="kpiRecipients">0</div>
+              <div class="metric-card-caption">Active campaign audience</div>
+            </article>
+
+            <article class="metric-card metric-card-primary">
+              <div class="metric-card-label">Delivered</div>
+              <div class="metric-card-value" id="kpiDelivered">0</div>
+              <div class="metric-card-caption">Confirmed deliveries</div>
+            </article>
+
+            <article class="metric-card metric-card-primary">
+              <div class="metric-card-label">Open Rate</div>
+              <div class="metric-card-value" id="kpiOpenRate">0.0%</div>
+              <div class="metric-card-caption">Based on delivered messages</div>
+            </article>
+
+            <article class="metric-card metric-card-primary">
+              <div class="metric-card-label">Reply Rate</div>
+              <div class="metric-card-value" id="kpiReplyRate">0.0%</div>
+              <div class="metric-card-caption">Based on delivered messages</div>
+            </article>
+
+          </div>
+
+          <div class="overview-health-card">
+
+            <div class="overview-health-header">
+              <div>
+                <strong>Operational health</strong>
+                <span>Delivery, verification and follow-up signals</span>
+              </div>
             </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Messages</span>
-              <span class="kpi-value" id="kpiMessages">0</span>
-            </div>
+            <div class="overview-health-grid">
 
-            <div class="kpi-card">
-              <span class="kpi-label">Sent</span>
-              <span class="kpi-value" id="kpiSent">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Messages</span>
+                <strong id="kpiMessages">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Delivered</span>
-              <span class="kpi-value" id="kpiDelivered">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Sent</span>
+                <strong id="kpiSent">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Valid Pre-check</span>
-              <span class="kpi-value" id="kpiPrecheckValid">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Click Rate</span>
+                <strong id="kpiClickRate">0.0%</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Risky Pre-check</span>
-              <span class="kpi-value" id="kpiPrecheckRisky">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Pending Follow-ups</span>
+                <strong id="kpiPendingFollowups">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Bounced</span>
-              <span class="kpi-value" id="kpiBounced">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Valid Pre-check</span>
+                <strong id="kpiPrecheckValid">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Pending Follow-ups</span>
-              <span class="kpi-value" id="kpiPendingFollowups">0</span>
-            </div>
+              <div class="health-stat">
+                <span>Risky Pre-check</span>
+                <strong id="kpiPrecheckRisky">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Open Rate</span>
-              <span class="kpi-value" id="kpiOpenRate">0.0%</span>
-            </div>
+              <div class="health-stat">
+                <span>Bounced</span>
+                <strong id="kpiBounced">0</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Click Rate</span>
-              <span class="kpi-value" id="kpiClickRate">0.0%</span>
-            </div>
+              <div class="health-stat">
+                <span>Unsubscribe Rate</span>
+                <strong id="kpiUnsubscribeRate">0.0%</strong>
+              </div>
 
-            <div class="kpi-card">
-              <span class="kpi-label">Reply Rate</span>
-              <span class="kpi-value" id="kpiReplyRate">0.0%</span>
-            </div>
-
-            <div class="kpi-card">
-              <span class="kpi-label">Unsubscribe Rate</span>
-              <span class="kpi-value" id="kpiUnsubscribeRate">0.0%</span>
             </div>
 
           </div>
 
+          <div class="overview-section-heading">
+            <div>
+              <h2>Engagement</h2>
+              <p>How recipients move from delivery to interaction.</p>
+            </div>
+          </div>
 
-          <div class="charts-grid two-columns">
+          <div class="charts-grid two-columns overview-charts">
 
             <div class="chart-card">
-
               <div class="chart-header">
                 <h3>Engagement Funnel</h3>
               </div>
-
               <div class="chart-container">
                 <canvas id="engagementFunnelChart"></canvas>
               </div>
-
             </div>
 
-
             <div class="chart-card">
-
               <div class="chart-header">
                 <h3>Sending Trend</h3>
               </div>
-
               <div class="chart-container">
                 <canvas id="sendingTrendChart"></canvas>
               </div>
-
             </div>
 
           </div>
 
-
-          <div
-            class="table-card"
-            style="margin-top:24px"
-          >
-
-            <div class="table-header">
-              <h3>Campaign Performance Summary</h3>
+          <div class="overview-section-heading overview-performance-heading">
+            <div>
+              <h2>Campaign performance</h2>
+              <p>Compare delivery and engagement across campaigns.</p>
             </div>
+          </div>
 
+          <div class="table-card">
             <div class="table-container">
-
               <table>
-
                 <thead>
-
                   <tr>
                     <th>Campaign</th>
                     <th>Recipients</th>
@@ -587,15 +600,10 @@
                     <th>Replied</th>
                     <th>Open Rate</th>
                   </tr>
-
                 </thead>
-
                 <tbody id="campaignSummaryTable"></tbody>
-
               </table>
-
             </div>
-
           </div>
 
         </section>
@@ -1066,91 +1074,77 @@
               class="campaign-members-panel"
             >
 
-              <div class="module-context-bar">
-
-                <div>
-                  <strong id="campaignMembersCampaignName">Campaign Members</strong>
-                  <span id="campaignMembersCampaignMeta">Select a campaign to manage membership.</span>
-                </div>
-
-                <div class="context-actions">
-
-                  <select
-                    id="campaignMembersCampaignSelect"
-                    class="management-filter wide-select"
-                    aria-label="Select campaign"
-                  >
-                    <option value="">Select campaign</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    class="primary-action-button"
-                    id="addCampaignMemberButton"
-                  >
-                    + Add Member
-                  </button>
-
-                </div>
-
-              </div>
-
-
               <input
                 type="hidden"
                 id="campaignMembersSelectedCampaignId"
               >
 
+              <div class="members-toolbar">
 
-              <div class="management-toolbar compact-toolbar">
+                <select
+                  id="campaignMembersCampaignSelect"
+                  class="management-filter members-campaign-select"
+                  aria-label="Select campaign"
+                >
+                  <option value="">Select campaign</option>
+                </select>
 
                 <div class="search-field-wrap">
-
                   <input
                     type="search"
                     id="campaignMemberSearchInput"
                     class="management-search"
-                    placeholder="Search member or email"
+                    placeholder="Search members"
                   >
-
                 </div>
 
                 <select
                   id="campaignMemberStatusFilter"
                   class="management-filter"
                 >
-                  <option value="all">All membership states</option>
+                  <option value="all">All memberships</option>
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
                 </select>
 
+                <button
+                  type="button"
+                  class="primary-action-button"
+                  id="addCampaignMemberButton"
+                >
+                  + Add Member
+                </button>
+
               </div>
 
+              <div class="members-summary-line">
 
-              <div class="users-summary-grid module-summary-grid">
-
-                <div class="mini-stat">
-                  <span>Total Members</span>
+                <span>
                   <strong id="campaignMembersTotalCount">0</strong>
-                </div>
+                  Members
+                </span>
 
-                <div class="mini-stat">
-                  <span>Active</span>
+                <span class="summary-separator">•</span>
+
+                <span>
                   <strong id="campaignMembersActiveCount">0</strong>
-                </div>
+                  Active
+                </span>
 
-                <div class="mini-stat">
-                  <span>Inactive</span>
+                <span class="summary-separator">•</span>
+
+                <span>
                   <strong id="campaignMembersInactiveCount">0</strong>
-                </div>
+                  Inactive
+                </span>
 
-                <div class="mini-stat">
-                  <span>Showing</span>
+                <span id="campaignMembersShowingWrap">
+                  <span class="summary-separator">•</span>
                   <strong id="campaignMembersShowingCount">0</strong>
-                </div>
+                  Showing
+                </span>
 
               </div>
-
 
               <div
                 id="campaignMembersActionNotice"
@@ -1158,6 +1152,10 @@
                 hidden
               ></div>
 
+              <div class="members-compatibility-meta" hidden>
+                <strong id="campaignMembersCampaignName">Campaign Members</strong>
+                <span id="campaignMembersCampaignMeta"></span>
+              </div>
 
               <div class="table-card">
 
@@ -1169,10 +1167,9 @@
                       <tr>
                         <th>User</th>
                         <th>Email</th>
-                        <th>Campaign</th>
                         <th>Membership</th>
                         <th>Pre-check</th>
-                        <th>Actions</th>
+                        <th class="actions-column">Actions</th>
                       </tr>
                     </thead>
 
@@ -1958,9 +1955,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=2"></script>
+  <script src="js/dashboard-api.js?v=3"></script>
 
-  <script src="js/app.js?v=2"></script>
+  <script src="js/app.js?v=3"></script>
 
 </body>
 
