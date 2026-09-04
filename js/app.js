@@ -236,7 +236,7 @@ function renderUsersManagement() {
   setText('usersShowingCount', rows.length.toLocaleString());
 
   if (!rows.length) {
-    tbody.innerHTML = emptyRow(9, 'No users match the current search or filters.');
+    tbody.innerHTML = emptyRow(10, 'No users match the current search or filters.');
     return;
   }
 
@@ -245,6 +245,7 @@ function renderUsersManagement() {
       <td class="user-name-cell"><strong>${escapeHtml(user.firstName || '—')}</strong><small>${escapeHtml(user.company || '')}</small></td>
       <td>${escapeHtml(user.emailAddress)}</td>
       <td>${escapeHtml(user.company || '—')}</td>
+      <td>${renderUserCampaignMemberships(user.userId)}</td>
       <td>${statusBadge(user.leadStatus || 'New')}</td>
       <td>${user.unsubscribed ? '<span class="status-badge badge-danger">Unsubscribed</span>' : '<span class="status-badge badge-success">Subscribed</span>'}</td>
       <td><span class="muted-id">${escapeHtml(user.userId)}</span></td>
@@ -258,6 +259,132 @@ function renderUsersManagement() {
       </td>
     </tr>`).join('');
 }
+
+
+function renderUserCampaignMemberships(
+  userId
+) {
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  const memberships =
+    data.campaignMembers.filter(
+      member =>
+        String(
+          member.userId || ''
+        ) ===
+        String(
+          userId || ''
+        )
+    );
+
+
+  if (!memberships.length) {
+
+    return '<span class="muted-id">—</span>';
+  }
+
+
+  const campaignsById =
+    new Map(
+      data.campaigns.map(
+        campaign => [
+          String(
+            campaign.campaignId || ''
+          ),
+          campaign
+        ]
+      )
+    );
+
+
+  return `
+    <div class="user-campaign-list">
+      ${memberships
+        .sort(
+          (a, b) => {
+
+            const campaignA =
+              campaignsById.get(
+                String(
+                  a.campaignId || ''
+                )
+              );
+
+            const campaignB =
+              campaignsById.get(
+                String(
+                  b.campaignId || ''
+                )
+              );
+
+            const nameA =
+              campaignA?.campaignName ||
+              a.campaignName ||
+              a.campaignId ||
+              '';
+
+            const nameB =
+              campaignB?.campaignName ||
+              b.campaignName ||
+              b.campaignId ||
+              '';
+
+            return String(nameA)
+              .localeCompare(
+                String(nameB)
+              );
+          }
+        )
+        .map(
+          member => {
+
+            const campaign =
+              campaignsById.get(
+                String(
+                  member.campaignId || ''
+                )
+              );
+
+
+            const campaignName =
+              campaign?.campaignName ||
+              member.campaignName ||
+              member.campaignId ||
+              'Unknown Campaign';
+
+
+            const status =
+              String(
+                member.membershipStatus ||
+                member.status ||
+                'ACTIVE'
+              )
+                .trim()
+                .toUpperCase();
+
+
+            return `
+              <div class="user-campaign-item">
+                <span class="user-campaign-name">
+                  ${escapeHtml(campaignName)}
+                </span>
+                ${
+                  status === 'INACTIVE'
+                    ? '<span class="status-badge badge-muted">Inactive</span>'
+                    : '<span class="status-badge badge-success">Active</span>'
+                }
+              </div>
+            `;
+          }
+        )
+        .join('')}
+    </div>
+  `;
+}
+
 
 function showUsersNotice(message, type = 'success') {
   const notice = document.getElementById('usersActionNotice');
@@ -1584,7 +1711,7 @@ function renderCampaignMembers() {
 
     tbody.innerHTML =
       emptyRow(
-        9,
+        10,
         'No campaign members match the current search or filters.'
       );
 
@@ -1660,6 +1787,15 @@ function renderCampaignMembers() {
 
               <td>
                 ${escapeHtml(emailAddress)}
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  member.campaignName ||
+                  campaign?.campaignName ||
+                  member.campaignId ||
+                  '—'
+                )}
               </td>
 
               <td>
