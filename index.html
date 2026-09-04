@@ -36,6 +36,11 @@
     rel="stylesheet"
     href="css/style.css"
   >
+
+  <link
+    rel="stylesheet"
+    href="css/dashboard-modules.css"
+  >
 </head>
 
 
@@ -243,54 +248,6 @@
 
         </a>
 
-
-        <a
-          href="#sequences"
-          class="nav-item"
-          data-view="sequencesView"
-        >
-
-          <svg
-            class="nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M4 6h16M4 12h16M4 18h16"/>
-          </svg>
-
-          <span>
-            Sequences
-          </span>
-
-        </a>
-
-
-        <a
-          href="#recipients"
-          class="nav-item"
-          data-view="recipientsView"
-        >
-
-          <svg
-            class="nav-icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-            <circle cx="9" cy="7" r="4"/>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
-
-          <span>
-            Recipients
-          </span>
-
-        </a>
 
       </nav>
 
@@ -653,24 +610,23 @@
           id="usersView"
         >
 
-          <div class="section-heading management-heading">
+          <div class="module-header">
 
             <div>
 
-              <span>
+              <div class="module-eyebrow">
                 Users
-              </span>
+              </div>
 
               <h2>
                 User Management
               </h2>
 
               <p>
-                Create and manage outreach users. Email identity is locked after creation.
+                Manage people, campaign membership and subscription state without mixing unrelated operations.
               </p>
 
             </div>
-
 
             <button
               type="button"
@@ -683,114 +639,298 @@
           </div>
 
 
-          <div class="management-toolbar">
+          <div
+            class="module-tabs"
+            role="tablist"
+            aria-label="User management"
+          >
 
-            <div class="search-field-wrap">
-
-              <input
-                type="search"
-                id="userSearchInput"
-                class="management-search"
-                placeholder="Search by name, email, company, User ID or Contact ID"
-              >
-
-            </div>
-
-
-            <select
-              id="userLeadStatusFilter"
-              class="management-filter"
-              aria-label="Filter by lead status"
+            <button
+              type="button"
+              class="module-tab active"
+              data-user-tab="all"
             >
+              All Users
+            </button>
 
-              <option value="all">
-                All lead statuses
-              </option>
-
-            </select>
-
-
-            <select
-              id="userSubscriptionFilter"
-              class="management-filter"
-              aria-label="Filter by subscription status"
+            <button
+              type="button"
+              class="module-tab"
+              data-user-tab="campaign"
             >
+              By Campaign
+            </button>
 
-              <option value="all">
-                All subscription states
-              </option>
-
-              <option value="subscribed">
-                Subscribed
-              </option>
-
-              <option value="unsubscribed">
-                Unsubscribed
-              </option>
-
-            </select>
+            <button
+              type="button"
+              class="module-tab"
+              data-user-tab="subscription"
+            >
+              Subscription
+            </button>
 
           </div>
 
 
-          <div class="users-summary-grid">
-
-            <div class="mini-stat">
-              <span>Total Users</span>
-              <strong id="usersTotalCount">0</strong>
-            </div>
-
-            <div class="mini-stat">
-              <span>Subscribed</span>
-              <strong id="usersSubscribedCount">0</strong>
-            </div>
-
-            <div class="mini-stat">
-              <span>Unsubscribed</span>
-              <strong id="usersUnsubscribedCount">0</strong>
-            </div>
-
-            <div class="mini-stat">
-              <span>Showing</span>
-              <strong id="usersShowingCount">0</strong>
-            </div>
-
-          </div>
-
+          <!-- USERS / ALL USERS -->
 
           <div
-            id="usersActionNotice"
-            class="dashboard-notice"
+            class="module-tab-panel active"
+            id="userTabAll"
+            data-user-panel="all"
+          >
+
+            <div class="management-toolbar compact-toolbar">
+
+              <div class="search-field-wrap">
+
+                <input
+                  type="search"
+                  id="userSearchInput"
+                  class="management-search"
+                  placeholder="Search name, email or company"
+                >
+
+              </div>
+
+              <select
+                id="userLeadStatusFilter"
+                class="management-filter"
+                aria-label="Filter by lead status"
+              >
+                <option value="all">
+                  All lead statuses
+                </option>
+              </select>
+
+            </div>
+
+
+            <div class="users-summary-grid module-summary-grid">
+
+              <div class="mini-stat">
+                <span>Total Users</span>
+                <strong id="usersTotalCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Subscribed</span>
+                <strong id="usersSubscribedCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Unsubscribed</span>
+                <strong id="usersUnsubscribedCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Showing</span>
+                <strong id="usersShowingCount">0</strong>
+              </div>
+
+            </div>
+
+
+            <div
+              id="usersActionNotice"
+              class="dashboard-notice"
+              hidden
+            ></div>
+
+
+            <div class="table-card">
+
+              <div class="table-header">
+                <h3>All Users</h3>
+              </div>
+
+              <div class="table-container">
+
+                <table class="users-table">
+
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Company</th>
+                      <th>Lead Status</th>
+                      <th>Campaigns</th>
+                      <th>Subscription</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+
+                  <tbody id="usersManagementTable"></tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- USERS / BY CAMPAIGN -->
+
+          <div
+            class="module-tab-panel"
+            id="userTabCampaign"
+            data-user-panel="campaign"
             hidden
-          ></div>
+          >
+
+            <div class="module-context-bar">
+
+              <div>
+                <strong>Users by Campaign</strong>
+                <span>Review membership for one campaign at a time.</span>
+              </div>
+
+              <select
+                id="userCampaignFilter"
+                class="management-filter wide-select"
+                aria-label="Select campaign"
+              >
+                <option value="">
+                  Select campaign
+                </option>
+              </select>
+
+            </div>
 
 
-          <div class="table-card">
+            <div class="management-toolbar compact-toolbar">
 
-            <div class="table-container">
+              <div class="search-field-wrap">
 
-              <table class="users-table">
+                <input
+                  type="search"
+                  id="userCampaignSearchInput"
+                  class="management-search"
+                  placeholder="Search user, email or company"
+                >
 
-                <thead>
+              </div>
 
-                  <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Company</th>
-                    <th>Campaigns</th>
-                    <th>Lead Status</th>
-                    <th>Subscription</th>
-                    <th>User ID</th>
-                    <th>Contact ID</th>
-                    <th>Updated</th>
-                    <th>Actions</th>
-                  </tr>
+              <select
+                id="userCampaignMembershipFilter"
+                class="management-filter"
+              >
+                <option value="all">All memberships</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
 
-                </thead>
+            </div>
 
-                <tbody id="usersManagementTable"></tbody>
 
-              </table>
+            <div class="table-card">
+
+              <div class="table-header">
+                <h3 id="usersByCampaignTitle">Campaign Users</h3>
+              </div>
+
+              <div class="table-container">
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Company</th>
+                      <th>Membership</th>
+                      <th>Subscription</th>
+                      <th>Lead Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="usersByCampaignTable"></tbody>
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- USERS / SUBSCRIPTION -->
+
+          <div
+            class="module-tab-panel"
+            id="userTabSubscription"
+            data-user-panel="subscription"
+            hidden
+          >
+
+            <div class="management-toolbar compact-toolbar">
+
+              <div class="search-field-wrap">
+
+                <input
+                  type="search"
+                  id="subscriptionSearchInput"
+                  class="management-search"
+                  placeholder="Search user, email or company"
+                >
+
+              </div>
+
+              <select
+                id="subscriptionStateFilter"
+                class="management-filter"
+              >
+                <option value="all">All subscription states</option>
+                <option value="subscribed">Subscribed</option>
+                <option value="unsubscribed">Unsubscribed</option>
+              </select>
+
+            </div>
+
+
+            <div class="users-summary-grid module-summary-grid">
+
+              <div class="mini-stat">
+                <span>Subscribed</span>
+                <strong id="subscriptionSubscribedCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Unsubscribed</span>
+                <strong id="subscriptionUnsubscribedCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Showing</span>
+                <strong id="subscriptionShowingCount">0</strong>
+              </div>
+
+            </div>
+
+
+            <div class="table-card">
+
+              <div class="table-header">
+                <h3>Subscription Management</h3>
+              </div>
+
+              <div class="table-container">
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Company</th>
+                      <th>Campaigns</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="subscriptionManagementTable"></tbody>
+                </table>
+
+              </div>
 
             </div>
 
@@ -808,24 +948,23 @@
           id="campaignsView"
         >
 
-          <div class="section-heading management-heading">
+          <div class="module-header">
 
             <div>
 
-              <span>
+              <div class="module-eyebrow">
                 Campaigns
-              </span>
+              </div>
 
               <h2>
                 Campaign Management
               </h2>
 
               <p>
-                Create and manage outreach campaigns and review campaign-level activity.
+                Keep campaign setup, membership, pre-check operations and performance in separate focused tabs.
               </p>
 
             </div>
-
 
             <button
               type="button"
@@ -838,363 +977,114 @@
           </div>
 
 
-          <!-- CAMPAIGN MANAGEMENT TOOLBAR -->
-
-          <div class="management-toolbar">
-
-            <div class="search-field-wrap">
-
-              <input
-                type="search"
-                id="campaignSearchInput"
-                class="management-search"
-                placeholder="Search by campaign name or Campaign ID"
-              >
-
-            </div>
-
-
-            <select
-              id="campaignStatusFilter"
-              class="management-filter"
-              aria-label="Filter campaigns by status"
-            >
-
-              <option value="all">
-                All statuses
-              </option>
-
-              <option value="ACTIVE">
-                Active
-              </option>
-
-              <option value="PAUSED">
-                Paused
-              </option>
-
-              <option value="COMPLETED">
-                Completed
-              </option>
-
-            </select>
-
-          </div>
-
-
-          <!-- CAMPAIGN COUNTS -->
-
-          <div class="users-summary-grid campaign-summary-grid">
-
-            <div class="mini-stat">
-
-              <span>
-                Total Campaigns
-              </span>
-
-              <strong id="campaignsTotalCount">
-                0
-              </strong>
-
-            </div>
-
-
-            <div class="mini-stat">
-
-              <span>
-                Active
-              </span>
-
-              <strong id="campaignsActiveCount">
-                0
-              </strong>
-
-            </div>
-
-
-            <div class="mini-stat">
-
-              <span>
-                Paused
-              </span>
-
-              <strong id="campaignsPausedCount">
-                0
-              </strong>
-
-            </div>
-
-
-            <div class="mini-stat">
-
-              <span>
-                Completed
-              </span>
-
-              <strong id="campaignsCompletedCount">
-                0
-              </strong>
-
-            </div>
-
-
-            <div class="mini-stat">
-
-              <span>
-                Showing
-              </span>
-
-              <strong id="campaignsShowingCount">
-                0
-              </strong>
-
-            </div>
-
-          </div>
-
-
-          <!-- ACTION NOTICE -->
-
           <div
-            id="campaignsActionNotice"
-            class="dashboard-notice"
-            hidden
-          ></div>
-
-
-          <!-- CAMPAIGN MANAGEMENT TABLE -->
-
-          <div class="table-card">
-
-            <div class="table-header">
-
-              <div>
-
-                <h3>
-                  Campaigns
-                </h3>
-
-              </div>
-
-            </div>
-
-
-            <div class="table-container">
-
-              <table class="campaign-management-table">
-
-                <thead>
-
-                  <tr>
-
-                    <th>
-                      Campaign
-                    </th>
-
-                    <th>
-                      Status
-                    </th>
-
-                    <th>
-                      Contacts
-                    </th>
-
-                    <th>
-                      Email Events
-                    </th>
-
-                    <th>
-                      Created
-                    </th>
-
-                    <th>
-                      Updated
-                    </th>
-
-                    <th>
-                      Campaign ID
-                    </th>
-
-                    <th>
-                      Actions
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-
-                <tbody id="campaignManagementTable"></tbody>
-
-              </table>
-
-            </div>
-
-          </div>
-
-
-
-          <!-- ===================================================
-               CAMPAIGN MEMBERS
-               =================================================== -->
-
-          <div
-            id="campaignMembersPanel"
-            class="campaign-members-panel"
-            hidden
-            style="margin-top:24px;"
+            class="module-tabs"
+            role="tablist"
+            aria-label="Campaign management"
           >
 
-            <div class="section-heading management-heading">
-
-              <div>
-
-                <span>
-                  Campaign Members
-                </span>
-
-                <h2 id="campaignMembersCampaignName">
-                  Selected Campaign
-                </h2>
-
-                <p id="campaignMembersCampaignMeta">
-                  Manage the users assigned to this campaign.
-                </p>
-
-              </div>
-
-
-              <div class="campaign-member-heading-actions">
-
-                <button
-                  type="button"
-                  class="secondary-action-button"
-                  id="closeCampaignMembersButton"
-                >
-                  Close
-                </button>
-
-                <button
-                  type="button"
-                  class="secondary-action-button"
-                  id="runCampaignPrecheckButton"
-                >
-                  Run Pre-check for All
-                </button>
-
-                <button
-                  type="button"
-                  class="primary-action-button"
-                  id="addCampaignMemberButton"
-                >
-                  + Add Member
-                </button>
-
-              </div>
-
-            </div>
-
-
-            <input
-              type="hidden"
-              id="campaignMembersSelectedCampaignId"
+            <button
+              type="button"
+              class="module-tab active"
+              data-campaign-tab="all"
             >
+              All Campaigns
+            </button>
+
+            <button
+              type="button"
+              class="module-tab"
+              data-campaign-tab="members"
+            >
+              Members
+            </button>
+
+            <button
+              type="button"
+              class="module-tab"
+              data-campaign-tab="precheck"
+            >
+              Pre-check
+            </button>
+
+            <button
+              type="button"
+              class="module-tab"
+              data-campaign-tab="performance"
+            >
+              Performance
+            </button>
+
+          </div>
 
 
-            <div class="management-toolbar">
+          <!-- CAMPAIGNS / ALL -->
+
+          <div
+            class="module-tab-panel active"
+            id="campaignTabAll"
+            data-campaign-panel="all"
+          >
+
+            <div class="management-toolbar compact-toolbar">
 
               <div class="search-field-wrap">
 
                 <input
                   type="search"
-                  id="campaignMemberSearchInput"
+                  id="campaignSearchInput"
                   class="management-search"
-                  placeholder="Search by name, email, User ID, Contact ID or Campaign Member ID"
+                  placeholder="Search campaign"
                 >
 
               </div>
 
-
               <select
-                id="campaignMemberStatusFilter"
+                id="campaignStatusFilter"
                 class="management-filter"
-                aria-label="Filter campaign members by status"
+                aria-label="Filter campaigns by status"
               >
-
-                <option value="all">
-                  All membership states
-                </option>
-
-                <option value="ACTIVE">
-                  Active
-                </option>
-
-                <option value="INACTIVE">
-                  Inactive
-                </option>
-
+                <option value="all">All statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="PAUSED">Paused</option>
+                <option value="COMPLETED">Completed</option>
               </select>
 
             </div>
 
 
-            <div class="users-summary-grid campaign-member-summary-grid">
+            <div class="users-summary-grid module-summary-grid">
 
               <div class="mini-stat">
-
-                <span>
-                  Total Members
-                </span>
-
-                <strong id="campaignMembersTotalCount">
-                  0
-                </strong>
-
+                <span>Total Campaigns</span>
+                <strong id="campaignsTotalCount">0</strong>
               </div>
 
-
               <div class="mini-stat">
-
-                <span>
-                  Active
-                </span>
-
-                <strong id="campaignMembersActiveCount">
-                  0
-                </strong>
-
+                <span>Active</span>
+                <strong id="campaignsActiveCount">0</strong>
               </div>
 
-
               <div class="mini-stat">
-
-                <span>
-                  Inactive
-                </span>
-
-                <strong id="campaignMembersInactiveCount">
-                  0
-                </strong>
-
+                <span>Paused</span>
+                <strong id="campaignsPausedCount">0</strong>
               </div>
 
+              <div class="mini-stat">
+                <span>Completed</span>
+                <strong id="campaignsCompletedCount">0</strong>
+              </div>
 
               <div class="mini-stat">
-
-                <span>
-                  Showing
-                </span>
-
-                <strong id="campaignMembersShowingCount">
-                  0
-                </strong>
-
+                <span>Showing</span>
+                <strong id="campaignsShowingCount">0</strong>
               </div>
 
             </div>
 
 
             <div
-              id="campaignMembersActionNotice"
+              id="campaignsActionNotice"
               class="dashboard-notice"
               hidden
             ></div>
@@ -1203,84 +1093,25 @@
             <div class="table-card">
 
               <div class="table-header">
-
-                <div>
-
-                  <h3>
-                    Members
-                  </h3>
-
-                </div>
-
+                <h3>All Campaigns</h3>
               </div>
-
 
               <div class="table-container">
 
-                <table class="campaign-members-table">
+                <table class="campaign-management-table">
 
                   <thead>
-
                     <tr>
-
-                      <th>
-                        User
-                      </th>
-
-                      <th>
-                        Email
-                      </th>
-
-                      <th>
-                        Campaign
-                      </th>
-
-                      <th>
-                        Status
-                      </th>
-
-                      <th>
-                        Pre-check Status
-                      </th>
-
-                      <th>
-                        Pre-check Message
-                      </th>
-
-                      <th>
-                        Pre-check At
-                      </th>
-
-                      <th>
-                        Campaign Member ID
-                      </th>
-
-                      <th>
-                        User ID
-                      </th>
-
-                      <th>
-                        Contact ID
-                      </th>
-
-                      <th>
-                        Created
-                      </th>
-
-                      <th>
-                        Updated
-                      </th>
-
-                      <th>
-                        Actions
-                      </th>
-
+                      <th>Campaign</th>
+                      <th>Status</th>
+                      <th>Active Members</th>
+                      <th>Email Events</th>
+                      <th>Updated</th>
+                      <th>Actions</th>
                     </tr>
-
                   </thead>
 
-
-                  <tbody id="campaignMembersTable"></tbody>
+                  <tbody id="campaignManagementTable"></tbody>
 
                 </table>
 
@@ -1291,44 +1122,311 @@
           </div>
 
 
-          <!-- PERFORMANCE TABLE -->
+          <!-- CAMPAIGNS / MEMBERS -->
 
           <div
-            class="table-card"
-            style="margin-top:24px;"
+            class="module-tab-panel"
+            id="campaignTabMembers"
+            data-campaign-panel="members"
+            hidden
           >
 
-            <div class="table-header">
+            <div
+              id="campaignMembersPanel"
+              class="campaign-members-panel"
+            >
 
-              <h3>
-                Campaign Performance
-              </h3>
+              <div class="module-context-bar">
+
+                <div>
+                  <strong id="campaignMembersCampaignName">Campaign Members</strong>
+                  <span id="campaignMembersCampaignMeta">Select a campaign to manage membership.</span>
+                </div>
+
+                <div class="context-actions">
+
+                  <select
+                    id="campaignMembersCampaignSelect"
+                    class="management-filter wide-select"
+                    aria-label="Select campaign"
+                  >
+                    <option value="">Select campaign</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    class="primary-action-button"
+                    id="addCampaignMemberButton"
+                  >
+                    + Add Member
+                  </button>
+
+                </div>
+
+              </div>
+
+
+              <input
+                type="hidden"
+                id="campaignMembersSelectedCampaignId"
+              >
+
+
+              <div class="management-toolbar compact-toolbar">
+
+                <div class="search-field-wrap">
+
+                  <input
+                    type="search"
+                    id="campaignMemberSearchInput"
+                    class="management-search"
+                    placeholder="Search member or email"
+                  >
+
+                </div>
+
+                <select
+                  id="campaignMemberStatusFilter"
+                  class="management-filter"
+                >
+                  <option value="all">All membership states</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
+
+              </div>
+
+
+              <div class="users-summary-grid module-summary-grid">
+
+                <div class="mini-stat">
+                  <span>Total Members</span>
+                  <strong id="campaignMembersTotalCount">0</strong>
+                </div>
+
+                <div class="mini-stat">
+                  <span>Active</span>
+                  <strong id="campaignMembersActiveCount">0</strong>
+                </div>
+
+                <div class="mini-stat">
+                  <span>Inactive</span>
+                  <strong id="campaignMembersInactiveCount">0</strong>
+                </div>
+
+                <div class="mini-stat">
+                  <span>Showing</span>
+                  <strong id="campaignMembersShowingCount">0</strong>
+                </div>
+
+              </div>
+
+
+              <div
+                id="campaignMembersActionNotice"
+                class="dashboard-notice"
+                hidden
+              ></div>
+
+
+              <div class="table-card">
+
+                <div class="table-header">
+                  <h3>Members</h3>
+                </div>
+
+                <div class="table-container">
+
+                  <table class="campaign-members-table">
+
+                    <thead>
+                      <tr>
+                        <th>User</th>
+                        <th>Email</th>
+                        <th>Campaign</th>
+                        <th>Membership</th>
+                        <th>Pre-check</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+
+                    <tbody id="campaignMembersTable"></tbody>
+
+                  </table>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- CAMPAIGNS / PRE-CHECK -->
+
+          <div
+            class="module-tab-panel"
+            id="campaignTabPrecheck"
+            data-campaign-panel="precheck"
+            hidden
+          >
+
+            <div class="module-context-bar">
+
+              <div>
+                <strong>Pre-delivery Verification</strong>
+                <span>Run and review mailbox verification for ACTIVE campaign members.</span>
+              </div>
+
+              <div class="context-actions">
+
+                <select
+                  id="precheckCampaignSelect"
+                  class="management-filter wide-select"
+                  aria-label="Select campaign for pre-check"
+                >
+                  <option value="">Select campaign</option>
+                </select>
+
+                <button
+                  type="button"
+                  class="primary-action-button"
+                  id="precheckRunAllButton"
+                >
+                  Run Pre-check for All
+                </button>
+
+              </div>
 
             </div>
 
 
-            <div class="table-container">
+            <div class="management-toolbar compact-toolbar">
 
-              <table>
+              <div class="search-field-wrap">
 
-                <thead>
+                <input
+                  type="search"
+                  id="precheckSearchInput"
+                  class="management-search"
+                  placeholder="Search user or email"
+                >
 
-                  <tr>
-                    <th>Campaign</th>
-                    <th>Recipients</th>
-                    <th>Sent</th>
-                    <th>Delivered</th>
-                    <th>Opened</th>
-                    <th>Clicked</th>
-                    <th>Replied</th>
-                    <th>Open Rate</th>
-                  </tr>
+              </div>
 
-                </thead>
+              <select
+                id="precheckStatusFilter"
+                class="management-filter"
+              >
+                <option value="all">All pre-check states</option>
+                <option value="VALID">Valid</option>
+                <option value="RISKY">Risky</option>
+                <option value="INVALID">Invalid</option>
+                <option value="UNKNOWN">Unknown</option>
+                <option value="ERROR">Error</option>
+                <option value="NOT_CHECKED">Not Checked</option>
+              </select>
 
-                <tbody id="campaignSummaryTableSecondary"></tbody>
+            </div>
 
-              </table>
+
+            <div class="users-summary-grid module-summary-grid">
+
+              <div class="mini-stat">
+                <span>Valid</span>
+                <strong id="precheckValidCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Risky</span>
+                <strong id="precheckRiskyCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Blocked / Unknown</span>
+                <strong id="precheckBlockedCount">0</strong>
+              </div>
+
+              <div class="mini-stat">
+                <span>Not Checked</span>
+                <strong id="precheckNotCheckedCount">0</strong>
+              </div>
+
+            </div>
+
+
+            <div
+              id="precheckActionNotice"
+              class="dashboard-notice"
+              hidden
+            ></div>
+
+
+            <div class="table-card">
+
+              <div class="table-header">
+                <h3>Pre-check Results</h3>
+              </div>
+
+              <div class="table-container">
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Email</th>
+                      <th>Campaign</th>
+                      <th>Status</th>
+                      <th>Message</th>
+                      <th>Checked At</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="precheckResultsTable"></tbody>
+                </table>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- CAMPAIGNS / PERFORMANCE -->
+
+          <div
+            class="module-tab-panel"
+            id="campaignTabPerformance"
+            data-campaign-panel="performance"
+            hidden
+          >
+
+            <div class="table-card">
+
+              <div class="table-header">
+                <h3>Campaign Performance</h3>
+              </div>
+
+              <div class="table-container">
+
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Campaign</th>
+                      <th>Recipients</th>
+                      <th>Sent</th>
+                      <th>Delivered</th>
+                      <th>Opened</th>
+                      <th>Clicked</th>
+                      <th>Replied</th>
+                      <th>Open Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody id="campaignSummaryTableSecondary"></tbody>
+                </table>
+
+              </div>
 
             </div>
 
