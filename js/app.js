@@ -1867,6 +1867,20 @@ function renderCampaignMembers() {
 
                 <div class="user-actions">
 
+                  ${
+                    memberStatus === 'ACTIVE'
+                      ? `
+                        <button
+                          type="button"
+                          class="table-action-button"
+                          data-campaign-member-precheck="${escapeHtml(member.campaignMemberId || '')}"
+                        >
+                          Run Pre-check
+                        </button>
+                      `
+                      : ''
+                  }
+
                   <button
                     type="button"
                     class="table-action-button ${memberStatus === 'ACTIVE' ? 'danger' : 'success'}"
@@ -2449,6 +2463,285 @@ async function submitCampaignMemberForm(
 }
 
 
+
+async function runCampaignMemberPrecheck(
+  campaignMemberId
+) {
+
+  const campaign =
+    getSelectedCampaignForMembers();
+
+
+  if (!campaign) {
+
+    showCampaignMembersNotice(
+      'Select a campaign first.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const member =
+    getCampaignMembersForSelectedCampaign()
+      .find(
+        item =>
+          String(
+            item.campaignMemberId || ''
+          ) ===
+          String(
+            campaignMemberId || ''
+          )
+      );
+
+
+  if (!member) {
+
+    showCampaignMembersNotice(
+      'Campaign Member could not be found.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if (
+    getCampaignMemberStatus(
+      member
+    ) !==
+    'ACTIVE'
+  ) {
+
+    showCampaignMembersNotice(
+      'Pre-check can only be run for ACTIVE Campaign Members.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const user =
+    getCampaignMemberUser(
+      member
+    );
+
+
+  const identity =
+    user?.emailAddress ||
+    member.emailAddress ||
+    campaignMemberId;
+
+
+  try {
+
+    showCampaignMembersNotice(
+      `Running pre-check for ${identity}…`,
+      'warning'
+    );
+
+
+    const result =
+      await DashboardApi.runPrecheckCampaignMember(
+        campaign.campaignId,
+        campaignMemberId
+      );
+
+
+    const campaignId =
+      campaign.campaignId;
+
+
+    await initDashboard(
+      true
+    );
+
+
+    selectedCampaignMembersCampaignId =
+      campaignId;
+
+
+    switchView(
+      'campaignsView'
+    );
+
+
+    renderCampaignMembers();
+
+
+    showCampaignMembersNotice(
+      result?.result ||
+      `Pre-check completed for ${identity}.`,
+      'success'
+    );
+
+
+  } catch (error) {
+
+    showCampaignMembersNotice(
+      error?.message ||
+      String(error),
+      'error'
+    );
+  }
+}
+
+
+async function runCampaignPrecheck() {
+
+  const campaign =
+    getSelectedCampaignForMembers();
+
+
+  if (!campaign) {
+
+    showCampaignMembersNotice(
+      'Select a campaign first.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const campaignStatus =
+    String(
+      campaign.campaignStatus ||
+      campaign.status ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  if (
+    campaignStatus !==
+    'ACTIVE'
+  ) {
+
+    showCampaignMembersNotice(
+      'Campaign pre-check can only run while the campaign is ACTIVE.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const activeMembers =
+    getCampaignMembersForSelectedCampaign()
+      .filter(
+        member =>
+          getCampaignMemberStatus(
+            member
+          ) ===
+          'ACTIVE'
+      );
+
+
+  if (!activeMembers.length) {
+
+    showCampaignMembersNotice(
+      'No ACTIVE Campaign Members found.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if (
+    !window.confirm(
+      `Run pre-check for all ${activeMembers.length} ACTIVE member(s) in ${campaign.campaignName || campaign.campaignId}?`
+    )
+  ) {
+
+    return;
+  }
+
+
+  const button =
+    document.getElementById(
+      'runCampaignPrecheckButton'
+    );
+
+
+  try {
+
+    if (button) {
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        'Running Pre-check…';
+    }
+
+
+    showCampaignMembersNotice(
+      `Running pre-check for ${activeMembers.length} ACTIVE member(s)…`,
+      'warning'
+    );
+
+
+    const result =
+      await DashboardApi.runPrecheckCampaign(
+        campaign.campaignId
+      );
+
+
+    const campaignId =
+      campaign.campaignId;
+
+
+    await initDashboard(
+      true
+    );
+
+
+    selectedCampaignMembersCampaignId =
+      campaignId;
+
+
+    switchView(
+      'campaignsView'
+    );
+
+
+    renderCampaignMembers();
+
+
+    showCampaignMembersNotice(
+      result?.result ||
+      'Campaign pre-check completed successfully.',
+      'success'
+    );
+
+
+  } catch (error) {
+
+    showCampaignMembersNotice(
+      error?.message ||
+      String(error),
+      'error'
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled =
+        false;
+
+      button.textContent =
+        'Run Pre-check for All';
+    }
+  }
+}
+
+
 async function setCampaignMemberStatus(
   campaignMemberId,
   nextStatus
@@ -2644,6 +2937,14 @@ function attachCampaignMemberManagementListeners() {
 
 
   document.getElementById(
+    'runCampaignPrecheckButton'
+  )?.addEventListener(
+    'click',
+    runCampaignPrecheck
+  );
+
+
+  document.getElementById(
     'closeCampaignMembersButton'
   )?.addEventListener(
     'click',
@@ -2721,6 +3022,22 @@ function attachCampaignMemberManagementListeners() {
   )?.addEventListener(
     'click',
     event => {
+
+      const precheckButton =
+        event.target.closest(
+          '[data-campaign-member-precheck]'
+        );
+
+
+      if (precheckButton) {
+
+        runCampaignMemberPrecheck(
+          precheckButton.dataset.campaignMemberPrecheck
+        );
+
+        return;
+      }
+
 
       const statusButton =
         event.target.closest(
