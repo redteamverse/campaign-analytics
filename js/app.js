@@ -3,6 +3,8 @@ document.addEventListener('DOMContentLoaded', initDashboard);
 
 const FILTER_IDS = ['campaignFilter', 'sequenceFilter', 'versionFilter', 'segmentFilter'];
 let listenersAttached = false;
+let activeUserModuleTab = 'all';
+let activeCampaignModuleTab = 'all';
 
 function getFilters() {
   return {
@@ -42,7 +44,9 @@ async function initDashboard(forceRefresh = true) {
     attachUserManagementListeners();
     attachCampaignManagementListeners();
     attachCampaignMemberManagementListeners();
+    attachModuleTabListeners();
     populateUserLeadStatusFilter();
+    populateModuleCampaignSelectors();
     renderDashboard();
     updateLastUpdated(rawStore.lastUpdated);
 
@@ -53,6 +57,8 @@ async function initDashboard(forceRefresh = true) {
       banner.className = 'dashboard-notice warning';
       banner.textContent = warning || '';
     }
+    switchUserModuleTab(activeUserModuleTab);
+    switchCampaignModuleTab(activeCampaignModuleTab);
     setDataStatus('Live data ready', 'ready');
   } catch (error) {
     showDashboardError(error);
@@ -128,8 +134,11 @@ function renderDashboard() {
   renderSequenceTable(AnalyticsEngine.groupBySequence(filters));
   renderRecipientTable(AnalyticsEngine.getRecipientRows(filters));
   renderUsersManagement();
+  renderUsersByCampaign();
+  renderSubscriptionManagement();
   renderCampaignManagement();
   renderCampaignMembers();
+  renderPrecheckManagement();
 }
 
 function resetFilters() {
@@ -193,13 +202,9 @@ function getUserManagementRows() {
   const data = DataEngine.getNormalized();
   const query = (document.getElementById('userSearchInput')?.value || '').trim().toLowerCase();
   const lead = document.getElementById('userLeadStatusFilter')?.value || 'all';
-  const subscription = document.getElementById('userSubscriptionFilter')?.value || 'all';
-
   return data.users
     .filter(user => {
       if (lead !== 'all' && (user.leadStatus || '') !== lead) return false;
-      if (subscription === 'subscribed' && user.unsubscribed) return false;
-      if (subscription === 'unsubscribed' && !user.unsubscribed) return false;
       if (!query) return true;
       return [
         user.firstName,
@@ -236,28 +241,39 @@ function renderUsersManagement() {
   setText('usersShowingCount', rows.length.toLocaleString());
 
   if (!rows.length) {
-    tbody.innerHTML = emptyRow(10, 'No users match the current search or filters.');
+    tbody.innerHTML = emptyRow(7, 'No users match the current search or filters.');
     return;
   }
 
-  tbody.innerHTML = rows.slice(0, 1000).map(user => `
-    <tr>
-      <td class="user-name-cell"><strong>${escapeHtml(user.firstName || '—')}</strong><small>${escapeHtml(user.company || '')}</small></td>
-      <td>${escapeHtml(user.emailAddress)}</td>
-      <td>${escapeHtml(user.company || '—')}</td>
-      <td>${renderUserCampaignMemberships(user.userId)}</td>
-      <td>${statusBadge(user.leadStatus || 'New')}</td>
-      <td>${user.unsubscribed ? '<span class="status-badge badge-danger">Unsubscribed</span>' : '<span class="status-badge badge-success">Subscribed</span>'}</td>
-      <td><span class="muted-id">${escapeHtml(user.userId)}</span></td>
-      <td><span class="muted-id">${escapeHtml(user.contactId)}</span></td>
-      <td>${escapeHtml(formatUserDate(user.updatedAt || user.createdAt))}</td>
-      <td>
-        <div class="user-actions">
-          <button type="button" class="table-action-button" data-user-edit="${escapeHtml(user.userId)}">Edit</button>
-          <button type="button" class="table-action-button ${user.unsubscribed ? 'success' : 'danger'}" data-user-unsubscribe="${escapeHtml(user.userId)}" data-next-state="${user.unsubscribed ? 'N' : 'Y'}">${user.unsubscribed ? 'Resubscribe' : 'Unsubscribe'}</button>
-        </div>
-      </td>
-    </tr>`).join('');
+  const data = DataEngine.getNormalized();
+
+  tbody.innerHTML = rows.slice(0, 1000).map(user => {
+    const campaignCount = data.campaignMembers.filter(
+      member => String(member.userId || '') === String(user.userId || '') &&
+        String(member.membershipStatus || member.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
+    ).length;
+
+    return `
+      <tr>
+        <td class="user-name-cell">
+          <strong>${escapeHtml(user.firstName || '—')}</strong>
+          <small>${escapeHtml(user.company || '')}</small>
+        </td>
+        <td>${escapeHtml(user.emailAddress)}</td>
+        <td>${escapeHtml(user.company || '—')}</td>
+        <td>${statusBadge(user.leadStatus || 'New')}</td>
+        <td>${campaignCount.toLocaleString()}</td>
+        <td>${user.unsubscribed
+          ? '<span class="status-badge badge-danger">Unsubscribed</span>'
+          : '<span class="status-badge badge-success">Subscribed</span>'}</td>
+        <td>
+          <div class="user-actions">
+            <button type="button" class="table-action-button" data-user-edit="${escapeHtml(user.userId)}">Edit</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 
@@ -692,7 +708,7 @@ function renderCampaignManagement() {
 
     tbody.innerHTML =
       emptyRow(
-        8,
+        6,
         'No campaigns match the current search or filters.'
       );
 
@@ -706,9 +722,7 @@ function renderCampaignManagement() {
       .map(campaign => {
 
         const campaignId =
-          String(
-            campaign.campaignId || ''
-          );
+          String(campaign.campaignId || '');
 
         const campaignName =
           String(
@@ -727,66 +741,23 @@ function renderCampaignManagement() {
             .toUpperCase();
 
         const totalContacts =
-          Number(
-            campaign.totalContacts || 0
-          );
+          Number(campaign.totalContacts || 0);
 
         const totalEmailEvents =
-          Number(
-            campaign.totalEmailEvents || 0
-          );
-
+          Number(campaign.totalEmailEvents || 0);
 
         return `
           <tr>
-
             <td class="user-name-cell">
-              <strong>
-                ${escapeHtml(campaignName)}
-              </strong>
-              <small>
-                ${escapeHtml(campaignId)}
-              </small>
+              <strong>${escapeHtml(campaignName)}</strong>
+              <small>${escapeHtml(campaignId)}</small>
             </td>
-
+            <td>${statusBadge(campaignStatus)}</td>
+            <td>${totalContacts.toLocaleString()}</td>
+            <td>${totalEmailEvents.toLocaleString()}</td>
+            <td>${escapeHtml(formatCampaignDate(campaign.updatedAt))}</td>
             <td>
-              ${statusBadge(campaignStatus)}
-            </td>
-
-            <td>
-              ${totalContacts.toLocaleString()}
-            </td>
-
-            <td>
-              ${totalEmailEvents.toLocaleString()}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                formatCampaignDate(
-                  campaign.createdAt
-                )
-              )}
-            </td>
-
-            <td>
-              ${escapeHtml(
-                formatCampaignDate(
-                  campaign.updatedAt
-                )
-              )}
-            </td>
-
-            <td>
-              <span class="muted-id">
-                ${escapeHtml(campaignId)}
-              </span>
-            </td>
-
-            <td>
-
               <div class="user-actions">
-
                 <button
                   type="button"
                   class="table-action-button"
@@ -794,19 +765,15 @@ function renderCampaignManagement() {
                 >
                   Edit
                 </button>
-
                 <button
                   type="button"
                   class="table-action-button"
                   data-campaign-open="${escapeHtml(campaignId)}"
                 >
-                  Open
+                  Members
                 </button>
-
               </div>
-
             </td>
-
           </tr>
         `;
       })
@@ -1197,7 +1164,6 @@ function openCampaign(
       campaignId
     );
 
-
   if (!campaign) {
 
     showCampaignsNotice(
@@ -1208,58 +1174,38 @@ function openCampaign(
     return;
   }
 
-
   selectedCampaignMembersCampaignId =
     campaignId;
-
 
   const selectedInput =
     document.getElementById(
       'campaignMembersSelectedCampaignId'
     );
 
-
   if (selectedInput) {
-
     selectedInput.value =
       campaignId;
   }
 
-
-  const panel =
+  const select =
     document.getElementById(
-      'campaignMembersPanel'
+      'campaignMembersCampaignSelect'
     );
 
-
-  if (panel) {
-
-    panel.hidden =
-      false;
+  if (select) {
+    select.value =
+      campaignId;
   }
-
 
   switchView(
     'campaignsView'
   );
 
+  switchCampaignModuleTab(
+    'members'
+  );
 
   renderCampaignMembers();
-
-
-  setTimeout(
-    function () {
-
-      panel?.scrollIntoView({
-        behavior:
-          'smooth',
-
-        block:
-          'start'
-      });
-    },
-    0
-  );
 }
 
 function showDashboardCampaignSelectionNotice(
@@ -1713,7 +1659,7 @@ function renderCampaignMembers() {
 
     tbody.innerHTML =
       emptyRow(
-        13,
+        6,
         'No campaign members match the current search or filters.'
       );
 
@@ -1735,28 +1681,23 @@ function renderCampaignMembers() {
               member
             );
 
-
           const memberStatus =
             getCampaignMemberStatus(
               member
             );
 
-
           const firstName =
             user?.firstName ||
             '—';
-
 
           const emailAddress =
             user?.emailAddress ||
             member.emailAddress ||
             '—';
 
-
           const company =
             user?.company ||
             '';
-
 
           const nextStatus =
             memberStatus ===
@@ -1764,107 +1705,46 @@ function renderCampaignMembers() {
               ? 'INACTIVE'
               : 'ACTIVE';
 
-
           const actionLabel =
             memberStatus ===
             'ACTIVE'
               ? 'Deactivate'
               : 'Activate';
 
+          const precheckStatus =
+            String(
+              member.preDeliveryCheckStatus ||
+              ''
+            ).trim();
 
           return `
             <tr>
 
               <td class="user-name-cell">
-
-                <strong>
-                  ${escapeHtml(firstName)}
-                </strong>
-
-                <small>
-                  ${escapeHtml(company)}
-                </small>
-
+                <strong>${escapeHtml(firstName)}</strong>
+                <small>${escapeHtml(company)}</small>
               </td>
 
-              <td>
-                ${escapeHtml(emailAddress)}
-              </td>
+              <td>${escapeHtml(emailAddress)}</td>
 
-              <td>
-                ${escapeHtml(
-                  member.campaignName ||
-                  campaign?.campaignName ||
-                  member.campaignId ||
-                  '—'
-                )}
-              </td>
+              <td>${escapeHtml(
+                member.campaignName ||
+                getSelectedCampaignForMembers()?.campaignName ||
+                member.campaignId ||
+                '—'
+              )}</td>
 
-              <td>
-                ${statusBadge(memberStatus)}
-              </td>
+              <td>${statusBadge(memberStatus)}</td>
 
               <td>
                 ${
-                  member.preDeliveryCheckStatus
-                    ? statusBadge(member.preDeliveryCheckStatus)
+                  precheckStatus
+                    ? statusBadge(precheckStatus)
                     : '<span class="status-badge badge-muted">Not Checked</span>'
                 }
               </td>
 
               <td>
-                <span
-                  class="campaign-member-precheck-message"
-                  title="${escapeHtml(member.preDeliveryCheckMessage || '')}"
-                >
-                  ${escapeHtml(member.preDeliveryCheckMessage || '—')}
-                </span>
-              </td>
-
-              <td>
-                ${escapeHtml(
-                  formatCampaignDate(
-                    member.preDeliveryCheckAt
-                  )
-                )}
-              </td>
-
-              <td>
-                <span class="muted-id">
-                  ${escapeHtml(member.campaignMemberId || '')}
-                </span>
-              </td>
-
-              <td>
-                <span class="muted-id">
-                  ${escapeHtml(member.userId || '')}
-                </span>
-              </td>
-
-              <td>
-                <span class="muted-id">
-                  ${escapeHtml(member.contactId || '')}
-                </span>
-              </td>
-
-              <td>
-                ${escapeHtml(
-                  formatCampaignDate(
-                    member.createdAt
-                  )
-                )}
-              </td>
-
-              <td>
-                ${escapeHtml(
-                  formatCampaignDate(
-                    member.updatedAt
-                  )
-                )}
-              </td>
-
-              <td>
-
                 <div class="user-actions">
 
                   ${
@@ -1875,7 +1755,7 @@ function renderCampaignMembers() {
                           class="table-action-button"
                           data-campaign-member-precheck="${escapeHtml(member.campaignMemberId || '')}"
                         >
-                          Run Pre-check
+                          Check
                         </button>
                       `
                       : ''
@@ -1891,7 +1771,6 @@ function renderCampaignMembers() {
                   </button>
 
                 </div>
-
               </td>
 
             </tr>
@@ -2857,60 +2736,9 @@ async function setCampaignMemberStatus(
 
 function closeCampaignMembersPanel() {
 
-  selectedCampaignMembersCampaignId =
-    '';
-
-
-  const panel =
-    document.getElementById(
-      'campaignMembersPanel'
-    );
-
-
-  if (panel) {
-
-    panel.hidden =
-      true;
-  }
-
-
-  const selectedInput =
-    document.getElementById(
-      'campaignMembersSelectedCampaignId'
-    );
-
-
-  if (selectedInput) {
-
-    selectedInput.value =
-      '';
-  }
-
-
-  const search =
-    document.getElementById(
-      'campaignMemberSearchInput'
-    );
-
-
-  if (search) {
-
-    search.value =
-      '';
-  }
-
-
-  const status =
-    document.getElementById(
-      'campaignMemberStatusFilter'
-    );
-
-
-  if (status) {
-
-    status.value =
-      'all';
-  }
+  switchCampaignModuleTab(
+    'all'
+  );
 }
 
 
@@ -2936,20 +2764,6 @@ function attachCampaignMemberManagementListeners() {
   );
 
 
-  document.getElementById(
-    'runCampaignPrecheckButton'
-  )?.addEventListener(
-    'click',
-    runCampaignPrecheck
-  );
-
-
-  document.getElementById(
-    'closeCampaignMembersButton'
-  )?.addEventListener(
-    'click',
-    closeCampaignMembersPanel
-  );
 
 
   document.getElementById(
@@ -3054,6 +2868,1395 @@ function attachCampaignMemberManagementListeners() {
       setCampaignMemberStatus(
         statusButton.dataset.campaignMemberStatus,
         statusButton.dataset.nextMemberStatus
+      );
+    }
+  );
+}
+
+
+
+/* ============================================================
+   PROFESSIONAL MODULE TABS
+   ============================================================ */
+
+let moduleTabListenersAttached = false;
+
+
+function switchUserModuleTab(
+  tab
+) {
+
+  activeUserModuleTab =
+    tab || 'all';
+
+
+  document
+    .querySelectorAll(
+      '[data-user-tab]'
+    )
+    .forEach(
+      button =>
+        button.classList.toggle(
+          'active',
+          button.dataset.userTab ===
+            activeUserModuleTab
+        )
+    );
+
+
+  document
+    .querySelectorAll(
+      '[data-user-panel]'
+    )
+    .forEach(
+      panel => {
+
+        const active =
+          panel.dataset.userPanel ===
+          activeUserModuleTab;
+
+        panel.hidden =
+          !active;
+
+        panel.classList.toggle(
+          'active',
+          active
+        );
+      }
+    );
+
+
+  const addButton =
+    document.getElementById(
+      'addUserButton'
+    );
+
+  if (addButton) {
+
+    addButton.hidden =
+      activeUserModuleTab !==
+      'all';
+  }
+
+
+  renderUsersManagement();
+  renderUsersByCampaign();
+  renderSubscriptionManagement();
+}
+
+
+function switchCampaignModuleTab(
+  tab
+) {
+
+  activeCampaignModuleTab =
+    tab || 'all';
+
+
+  document
+    .querySelectorAll(
+      '[data-campaign-tab]'
+    )
+    .forEach(
+      button =>
+        button.classList.toggle(
+          'active',
+          button.dataset.campaignTab ===
+            activeCampaignModuleTab
+        )
+    );
+
+
+  document
+    .querySelectorAll(
+      '[data-campaign-panel]'
+    )
+    .forEach(
+      panel => {
+
+        const active =
+          panel.dataset.campaignPanel ===
+          activeCampaignModuleTab;
+
+        panel.hidden =
+          !active;
+
+        panel.classList.toggle(
+          'active',
+          active
+        );
+      }
+    );
+
+
+  const addButton =
+    document.getElementById(
+      'addCampaignButton'
+    );
+
+  if (addButton) {
+
+    addButton.hidden =
+      activeCampaignModuleTab !==
+      'all';
+  }
+
+
+  if (
+    activeCampaignModuleTab ===
+    'members'
+  ) {
+
+    renderCampaignMembers();
+  }
+
+
+  if (
+    activeCampaignModuleTab ===
+    'precheck'
+  ) {
+
+    renderPrecheckManagement();
+  }
+}
+
+
+function populateModuleCampaignSelectors() {
+
+  const campaigns =
+    DataEngine
+      .getNormalized()
+      .campaigns
+      .slice()
+      .sort(
+        (a, b) =>
+          String(
+            a.campaignName || ''
+          ).localeCompare(
+            String(
+              b.campaignName || ''
+            )
+          )
+      );
+
+
+  [
+    'userCampaignFilter',
+    'campaignMembersCampaignSelect',
+    'precheckCampaignSelect'
+  ].forEach(
+    id => {
+
+      const select =
+        document.getElementById(
+          id
+        );
+
+      if (!select) {
+        return;
+      }
+
+
+      const current =
+        select.value || '';
+
+
+      select.innerHTML =
+        '<option value="">Select campaign</option>' +
+        campaigns
+          .map(
+            campaign =>
+              `<option value="${escapeHtml(campaign.campaignId || '')}">${escapeHtml(campaign.campaignName || campaign.campaignId || '')}</option>`
+          )
+          .join('');
+
+
+      const exists =
+        campaigns.some(
+          campaign =>
+            String(
+              campaign.campaignId || ''
+            ) ===
+            String(
+              current
+            )
+        );
+
+
+      select.value =
+        exists
+          ? current
+          : '';
+    }
+  );
+
+
+  const memberSelect =
+    document.getElementById(
+      'campaignMembersCampaignSelect'
+    );
+
+  if (
+    memberSelect &&
+    selectedCampaignMembersCampaignId
+  ) {
+
+    memberSelect.value =
+      selectedCampaignMembersCampaignId;
+  }
+}
+
+
+function getUserCampaignCount(
+  userId
+) {
+
+  return DataEngine
+    .getNormalized()
+    .campaignMembers
+    .filter(
+      member =>
+        String(
+          member.userId || ''
+        ) ===
+        String(
+          userId || ''
+        ) &&
+        getCampaignMemberStatus(
+          member
+        ) ===
+        'ACTIVE'
+    )
+    .length;
+}
+
+
+function renderUsersByCampaign() {
+
+  const tbody =
+    document.getElementById(
+      'usersByCampaignTable'
+    );
+
+
+  if (!tbody) {
+    return;
+  }
+
+
+  const campaignId =
+    document.getElementById(
+      'userCampaignFilter'
+    )?.value || '';
+
+
+  const title =
+    document.getElementById(
+      'usersByCampaignTitle'
+    );
+
+
+  if (!campaignId) {
+
+    if (title) {
+      title.textContent =
+        'Campaign Users';
+    }
+
+    tbody.innerHTML =
+      emptyRow(
+        6,
+        'Select a campaign to view its users.'
+      );
+
+    return;
+  }
+
+
+  const campaign =
+    getCampaignById(
+      campaignId
+    );
+
+
+  if (title) {
+
+    title.textContent =
+      campaign?.campaignName
+        ? `${campaign.campaignName} Users`
+        : 'Campaign Users';
+  }
+
+
+  const query =
+    (
+      document.getElementById(
+        'userCampaignSearchInput'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const membershipFilter =
+    document.getElementById(
+      'userCampaignMembershipFilter'
+    )?.value || 'all';
+
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  const rows =
+    data.campaignMembers
+      .filter(
+        member =>
+          String(
+            member.campaignId || ''
+          ) ===
+          String(
+            campaignId
+          )
+      )
+      .map(
+        member => ({
+          member,
+          user:
+            data.users.find(
+              user =>
+                String(
+                  user.userId || ''
+                ) ===
+                String(
+                  member.userId || ''
+                )
+            ) || null
+        })
+      )
+      .filter(
+        item => {
+
+          const status =
+            getCampaignMemberStatus(
+              item.member
+            );
+
+
+          if (
+            membershipFilter !==
+              'all' &&
+            status !==
+              membershipFilter
+          ) {
+
+            return false;
+          }
+
+
+          if (!query) {
+            return true;
+          }
+
+
+          return [
+            item.user?.firstName,
+            item.user?.emailAddress,
+            item.user?.company,
+            item.member.emailAddress
+          ].some(
+            value =>
+              String(
+                value || ''
+              )
+                .toLowerCase()
+                .includes(
+                  query
+                )
+          );
+        }
+      );
+
+
+  if (!rows.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        6,
+        'No users match the selected campaign and filters.'
+      );
+
+    return;
+  }
+
+
+  tbody.innerHTML =
+    rows
+      .map(
+        item => {
+
+          const user =
+            item.user || {};
+
+          const member =
+            item.member;
+
+          return `
+            <tr>
+              <td class="user-name-cell">
+                <strong>${escapeHtml(user.firstName || '—')}</strong>
+                <small>${escapeHtml(user.company || '')}</small>
+              </td>
+              <td>${escapeHtml(user.emailAddress || member.emailAddress || '—')}</td>
+              <td>${escapeHtml(user.company || '—')}</td>
+              <td>${statusBadge(getCampaignMemberStatus(member))}</td>
+              <td>${user.unsubscribed
+                ? '<span class="status-badge badge-danger">Unsubscribed</span>'
+                : '<span class="status-badge badge-success">Subscribed</span>'}</td>
+              <td>${statusBadge(user.leadStatus || 'New')}</td>
+            </tr>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+function renderSubscriptionManagement() {
+
+  const tbody =
+    document.getElementById(
+      'subscriptionManagementTable'
+    );
+
+
+  if (!tbody) {
+    return;
+  }
+
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  const query =
+    (
+      document.getElementById(
+        'subscriptionSearchInput'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const state =
+    document.getElementById(
+      'subscriptionStateFilter'
+    )?.value || 'all';
+
+
+  const allUsers =
+    data.users;
+
+
+  const rows =
+    allUsers
+      .filter(
+        user => {
+
+          if (
+            state ===
+              'subscribed' &&
+            user.unsubscribed
+          ) {
+            return false;
+          }
+
+
+          if (
+            state ===
+              'unsubscribed' &&
+            !user.unsubscribed
+          ) {
+            return false;
+          }
+
+
+          if (!query) {
+            return true;
+          }
+
+
+          return [
+            user.firstName,
+            user.emailAddress,
+            user.company
+          ].some(
+            value =>
+              String(
+                value || ''
+              )
+                .toLowerCase()
+                .includes(
+                  query
+                )
+          );
+        }
+      )
+      .sort(
+        (a, b) =>
+          String(
+            a.emailAddress || ''
+          ).localeCompare(
+            String(
+              b.emailAddress || ''
+            )
+          )
+      );
+
+
+  setText(
+    'subscriptionSubscribedCount',
+    allUsers
+      .filter(
+        user =>
+          !user.unsubscribed
+      )
+      .length
+      .toLocaleString()
+  );
+
+
+  setText(
+    'subscriptionUnsubscribedCount',
+    allUsers
+      .filter(
+        user =>
+          user.unsubscribed
+      )
+      .length
+      .toLocaleString()
+  );
+
+
+  setText(
+    'subscriptionShowingCount',
+    rows.length.toLocaleString()
+  );
+
+
+  if (!rows.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        6,
+        'No users match the subscription filters.'
+      );
+
+    return;
+  }
+
+
+  tbody.innerHTML =
+    rows
+      .map(
+        user => `
+          <tr>
+            <td class="user-name-cell">
+              <strong>${escapeHtml(user.firstName || '—')}</strong>
+              <small>${escapeHtml(user.company || '')}</small>
+            </td>
+            <td>${escapeHtml(user.emailAddress || '—')}</td>
+            <td>${escapeHtml(user.company || '—')}</td>
+            <td>${getUserCampaignCount(user.userId).toLocaleString()}</td>
+            <td>${user.unsubscribed
+              ? '<span class="status-badge badge-danger">Unsubscribed</span>'
+              : '<span class="status-badge badge-success">Subscribed</span>'}</td>
+            <td>
+              <button
+                type="button"
+                class="table-action-button ${user.unsubscribed ? 'success' : 'danger'}"
+                data-user-unsubscribe="${escapeHtml(user.userId)}"
+                data-next-state="${user.unsubscribed ? 'N' : 'Y'}"
+              >
+                ${user.unsubscribed ? 'Resubscribe' : 'Unsubscribe'}
+              </button>
+            </td>
+          </tr>
+        `
+      )
+      .join('');
+}
+
+
+function getPrecheckDisplayStatus(
+  member
+) {
+
+  const value =
+    String(
+      member.preDeliveryCheckStatus ||
+      ''
+    )
+      .trim()
+      .toUpperCase();
+
+
+  return value ||
+    'NOT_CHECKED';
+}
+
+
+function showPrecheckNotice(
+  message,
+  type = 'success'
+) {
+
+  const notice =
+    document.getElementById(
+      'precheckActionNotice'
+    );
+
+
+  if (!notice) {
+    return;
+  }
+
+
+  notice.hidden =
+    !message;
+
+  notice.className =
+    `dashboard-notice ${type}`;
+
+  notice.textContent =
+    message || '';
+}
+
+
+function renderPrecheckManagement() {
+
+  const tbody =
+    document.getElementById(
+      'precheckResultsTable'
+    );
+
+
+  if (!tbody) {
+    return;
+  }
+
+
+  const campaignId =
+    document.getElementById(
+      'precheckCampaignSelect'
+    )?.value || '';
+
+
+  if (!campaignId) {
+
+    setText(
+      'precheckValidCount',
+      '0'
+    );
+
+    setText(
+      'precheckRiskyCount',
+      '0'
+    );
+
+    setText(
+      'precheckBlockedCount',
+      '0'
+    );
+
+    setText(
+      'precheckNotCheckedCount',
+      '0'
+    );
+
+    tbody.innerHTML =
+      emptyRow(
+        7,
+        'Select a campaign to review pre-check results.'
+      );
+
+    return;
+  }
+
+
+  const query =
+    (
+      document.getElementById(
+        'precheckSearchInput'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const filter =
+    document.getElementById(
+      'precheckStatusFilter'
+    )?.value || 'all';
+
+
+  const data =
+    DataEngine.getNormalized();
+
+
+  const allRows =
+    data.campaignMembers
+      .filter(
+        member =>
+          String(
+            member.campaignId || ''
+          ) ===
+          String(
+            campaignId
+          ) &&
+          getCampaignMemberStatus(
+            member
+          ) ===
+          'ACTIVE'
+      )
+      .map(
+        member => ({
+          member,
+          user:
+            data.users.find(
+              user =>
+                String(
+                  user.userId || ''
+                ) ===
+                String(
+                  member.userId || ''
+                )
+            ) || null
+        })
+      );
+
+
+  const valid =
+    allRows.filter(
+      item =>
+        getPrecheckDisplayStatus(
+          item.member
+        ) ===
+        'VALID'
+    ).length;
+
+
+  const risky =
+    allRows.filter(
+      item =>
+        getPrecheckDisplayStatus(
+          item.member
+        ) ===
+        'RISKY'
+    ).length;
+
+
+  const notChecked =
+    allRows.filter(
+      item =>
+        getPrecheckDisplayStatus(
+          item.member
+        ) ===
+        'NOT_CHECKED'
+    ).length;
+
+
+  const blocked =
+    allRows.length -
+    valid -
+    risky -
+    notChecked;
+
+
+  setText(
+    'precheckValidCount',
+    valid.toLocaleString()
+  );
+
+  setText(
+    'precheckRiskyCount',
+    risky.toLocaleString()
+  );
+
+  setText(
+    'precheckBlockedCount',
+    blocked.toLocaleString()
+  );
+
+  setText(
+    'precheckNotCheckedCount',
+    notChecked.toLocaleString()
+  );
+
+
+  const rows =
+    allRows.filter(
+      item => {
+
+        const status =
+          getPrecheckDisplayStatus(
+            item.member
+          );
+
+
+        if (
+          filter !==
+            'all' &&
+          status !==
+            filter
+        ) {
+
+          return false;
+        }
+
+
+        if (!query) {
+          return true;
+        }
+
+
+        return [
+          item.user?.firstName,
+          item.user?.emailAddress,
+          item.member.emailAddress
+        ].some(
+          value =>
+            String(
+              value || ''
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+        );
+      }
+    );
+
+
+  if (!rows.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        7,
+        'No members match the pre-check filters.'
+      );
+
+    return;
+  }
+
+
+  const campaign =
+    getCampaignById(
+      campaignId
+    );
+
+
+  tbody.innerHTML =
+    rows
+      .map(
+        item => {
+
+          const member =
+            item.member;
+
+          const user =
+            item.user || {};
+
+          const status =
+            getPrecheckDisplayStatus(
+              member
+            );
+
+          return `
+            <tr>
+              <td class="user-name-cell">
+                <strong>${escapeHtml(user.firstName || '—')}</strong>
+                <small>${escapeHtml(user.company || '')}</small>
+              </td>
+              <td>${escapeHtml(user.emailAddress || member.emailAddress || '—')}</td>
+              <td>${escapeHtml(campaign?.campaignName || member.campaignName || '—')}</td>
+              <td>${
+                status === 'NOT_CHECKED'
+                  ? '<span class="status-badge badge-muted">Not Checked</span>'
+                  : statusBadge(status)
+              }</td>
+              <td>
+                <span class="precheck-message-cell" title="${escapeHtml(member.preDeliveryCheckMessage || '')}">
+                  ${escapeHtml(member.preDeliveryCheckMessage || '—')}
+                </span>
+              </td>
+              <td>${escapeHtml(formatCampaignDate(member.preDeliveryCheckAt))}</td>
+              <td>
+                <button
+                  type="button"
+                  class="table-action-button"
+                  data-precheck-member="${escapeHtml(member.campaignMemberId || '')}"
+                >
+                  Run Check
+                </button>
+              </td>
+            </tr>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+async function runPrecheckModuleMember(
+  campaignMemberId
+) {
+
+  const campaignId =
+    document.getElementById(
+      'precheckCampaignSelect'
+    )?.value || '';
+
+
+  if (
+    !campaignId ||
+    !campaignMemberId
+  ) {
+
+    showPrecheckNotice(
+      'Select a campaign and campaign member first.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  try {
+
+    showPrecheckNotice(
+      'Running mailbox pre-check…',
+      'warning'
+    );
+
+
+    const result =
+      await DashboardApi.runPrecheckCampaignMember(
+        campaignId,
+        campaignMemberId
+      );
+
+
+    await initDashboard(
+      true
+    );
+
+
+    const select =
+      document.getElementById(
+        'precheckCampaignSelect'
+      );
+
+
+    if (select) {
+      select.value =
+        campaignId;
+    }
+
+
+    switchView(
+      'campaignsView'
+    );
+
+    switchCampaignModuleTab(
+      'precheck'
+    );
+
+    renderPrecheckManagement();
+
+
+    showPrecheckNotice(
+      result?.result ||
+      'Pre-check completed successfully.',
+      'success'
+    );
+
+
+  } catch (error) {
+
+    showPrecheckNotice(
+      error?.message ||
+      String(error),
+      'error'
+    );
+  }
+}
+
+
+async function runPrecheckModuleCampaign() {
+
+  const campaignId =
+    document.getElementById(
+      'precheckCampaignSelect'
+    )?.value || '';
+
+
+  if (!campaignId) {
+
+    showPrecheckNotice(
+      'Select a campaign first.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const campaign =
+    getCampaignById(
+      campaignId
+    );
+
+
+  if (
+    String(
+      campaign?.campaignStatus ||
+      campaign?.status ||
+      ''
+    )
+      .toUpperCase() !==
+      'ACTIVE'
+  ) {
+
+    showPrecheckNotice(
+      'Campaign must be ACTIVE before running pre-check.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const activeCount =
+    DataEngine
+      .getNormalized()
+      .campaignMembers
+      .filter(
+        member =>
+          String(
+            member.campaignId || ''
+          ) ===
+          String(
+            campaignId
+          ) &&
+          getCampaignMemberStatus(
+            member
+          ) ===
+          'ACTIVE'
+      )
+      .length;
+
+
+  if (!activeCount) {
+
+    showPrecheckNotice(
+      'No ACTIVE Campaign Members found.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if (
+    !window.confirm(
+      `Run pre-check for all ${activeCount} ACTIVE member(s) in ${campaign?.campaignName || campaignId}?`
+    )
+  ) {
+
+    return;
+  }
+
+
+  const button =
+    document.getElementById(
+      'precheckRunAllButton'
+    );
+
+
+  try {
+
+    if (button) {
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        'Running…';
+    }
+
+
+    showPrecheckNotice(
+      `Running pre-check for ${activeCount} ACTIVE member(s)…`,
+      'warning'
+    );
+
+
+    const result =
+      await DashboardApi.runPrecheckCampaign(
+        campaignId
+      );
+
+
+    await initDashboard(
+      true
+    );
+
+
+    const select =
+      document.getElementById(
+        'precheckCampaignSelect'
+      );
+
+
+    if (select) {
+      select.value =
+        campaignId;
+    }
+
+
+    switchView(
+      'campaignsView'
+    );
+
+    switchCampaignModuleTab(
+      'precheck'
+    );
+
+    renderPrecheckManagement();
+
+
+    showPrecheckNotice(
+      result?.result ||
+      'Campaign pre-check completed successfully.',
+      'success'
+    );
+
+
+  } catch (error) {
+
+    showPrecheckNotice(
+      error?.message ||
+      String(error),
+      'error'
+    );
+
+  } finally {
+
+    if (button) {
+
+      button.disabled =
+        false;
+
+      button.textContent =
+        'Run Pre-check for All';
+    }
+  }
+}
+
+
+function attachModuleTabListeners() {
+
+  if (
+    moduleTabListenersAttached
+  ) {
+
+    return;
+  }
+
+
+  moduleTabListenersAttached =
+    true;
+
+
+  document
+    .querySelectorAll(
+      '[data-user-tab]'
+    )
+    .forEach(
+      button =>
+        button.addEventListener(
+          'click',
+          () =>
+            switchUserModuleTab(
+              button.dataset.userTab
+            )
+        )
+    );
+
+
+  document
+    .querySelectorAll(
+      '[data-campaign-tab]'
+    )
+    .forEach(
+      button =>
+        button.addEventListener(
+          'click',
+          () =>
+            switchCampaignModuleTab(
+              button.dataset.campaignTab
+            )
+        )
+    );
+
+
+  document.getElementById(
+    'userCampaignFilter'
+  )?.addEventListener(
+    'change',
+    renderUsersByCampaign
+  );
+
+
+  document.getElementById(
+    'userCampaignSearchInput'
+  )?.addEventListener(
+    'input',
+    renderUsersByCampaign
+  );
+
+
+  document.getElementById(
+    'userCampaignMembershipFilter'
+  )?.addEventListener(
+    'change',
+    renderUsersByCampaign
+  );
+
+
+  document.getElementById(
+    'subscriptionSearchInput'
+  )?.addEventListener(
+    'input',
+    renderSubscriptionManagement
+  );
+
+
+  document.getElementById(
+    'subscriptionStateFilter'
+  )?.addEventListener(
+    'change',
+    renderSubscriptionManagement
+  );
+
+
+  document.getElementById(
+    'campaignMembersCampaignSelect'
+  )?.addEventListener(
+    'change',
+    event => {
+
+      selectedCampaignMembersCampaignId =
+        event.target.value || '';
+
+
+      const hidden =
+        document.getElementById(
+          'campaignMembersSelectedCampaignId'
+        );
+
+
+      if (hidden) {
+
+        hidden.value =
+          selectedCampaignMembersCampaignId;
+      }
+
+
+      renderCampaignMembers();
+    }
+  );
+
+
+  document.getElementById(
+    'precheckCampaignSelect'
+  )?.addEventListener(
+    'change',
+    renderPrecheckManagement
+  );
+
+
+  document.getElementById(
+    'precheckSearchInput'
+  )?.addEventListener(
+    'input',
+    renderPrecheckManagement
+  );
+
+
+  document.getElementById(
+    'precheckStatusFilter'
+  )?.addEventListener(
+    'change',
+    renderPrecheckManagement
+  );
+
+
+  document.getElementById(
+    'precheckRunAllButton'
+  )?.addEventListener(
+    'click',
+    runPrecheckModuleCampaign
+  );
+
+
+  document.getElementById(
+    'precheckResultsTable'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      const button =
+        event.target.closest(
+          '[data-precheck-member]'
+        );
+
+
+      if (!button) {
+        return;
+      }
+
+
+      runPrecheckModuleMember(
+        button.dataset.precheckMember
+      );
+    }
+  );
+
+
+  document.getElementById(
+    'subscriptionManagementTable'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      const button =
+        event.target.closest(
+          '[data-user-unsubscribe]'
+        );
+
+
+      if (!button) {
+        return;
+      }
+
+
+      setUserUnsubscribed(
+        button.dataset.userUnsubscribe,
+        button.dataset.nextState ===
+          'Y'
       );
     }
   );
