@@ -1,0 +1,181 @@
+
+/* ============================================================
+   PROFESSIONAL MODULE / TAB ARCHITECTURE
+   Additive CSS loaded after style.css
+   ============================================================ */
+
+.module-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+}
+
+.module-header h2 {
+  margin: 4px 0 8px;
+}
+
+.module-header p {
+  margin: 0;
+  max-width: 760px;
+}
+
+.module-eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #b91c1c;
+}
+
+.module-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  margin-bottom: 22px;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.module-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 10px 15px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #596579;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.module-tab:hover {
+  background: #f7f8fa;
+  color: #111827;
+}
+
+.module-tab.active {
+  background: #202340;
+  color: #ffffff;
+}
+
+.module-tab-panel[hidden] {
+  display: none !important;
+}
+
+.module-tab-panel.active {
+  display: block;
+}
+
+.module-context-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+
+.module-context-bar > div:first-child {
+  min-width: 0;
+}
+
+.module-context-bar strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #111827;
+  font-size: 15px;
+}
+
+.module-context-bar span {
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.context-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.compact-toolbar {
+  margin-bottom: 16px;
+}
+
+.module-summary-grid {
+  margin-bottom: 18px;
+}
+
+.wide-select {
+  min-width: 230px;
+}
+
+.precheck-message-cell {
+  display: inline-block;
+  max-width: 360px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.campaign-members-panel {
+  margin-top: 0 !important;
+}
+
+#campaignTabMembers .campaign-members-panel > .module-context-bar {
+  margin-top: 0;
+}
+
+#campaignTabMembers .campaign-members-panel > .section-heading {
+  display: none;
+}
+
+/* Hide old non-primary views from navigation while keeping DOM compatibility. */
+#sequencesView,
+#recipientsView {
+  /* They remain available to existing render functions but are not navigable. */
+}
+
+/* Reduce visual noise in focused module tables. */
+#usersManagementTable .muted-id,
+#campaignManagementTable .muted-id {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .module-header,
+  .module-context-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .context-actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .context-actions .management-filter,
+  .context-actions .primary-action-button,
+  .context-actions .secondary-action-button {
+    width: 100%;
+  }
+
+  .wide-select {
+    min-width: 0;
+  }
+
+  .module-tabs {
+    width: 100%;
+  }
+}
