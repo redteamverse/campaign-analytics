@@ -33,58 +33,38 @@ const DashboardApi = (function () {
   // ============================================================
 
   function getToken() {
-
-    return sessionStorage.getItem(
-      TOKEN_STORAGE_KEY
-    );
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY);
   }
-
 
   function getExpiry() {
-
-    return sessionStorage.getItem(
-      EXPIRY_STORAGE_KEY
-    );
+    return sessionStorage.getItem(EXPIRY_STORAGE_KEY);
   }
 
-
-  function saveSession(
-    token,
-    expiresAt
-  ) {
-
+  function saveSession(token, expiresAt) {
     if (!token) {
-
       throw new Error(
         'Login response did not contain a session token.'
       );
     }
-
 
     sessionStorage.setItem(
       TOKEN_STORAGE_KEY,
       token
     );
 
-
     if (expiresAt) {
-
       sessionStorage.setItem(
         EXPIRY_STORAGE_KEY,
         expiresAt
       );
-
     } else {
-
       sessionStorage.removeItem(
         EXPIRY_STORAGE_KEY
       );
     }
   }
 
-
   function clearSession() {
-
     sessionStorage.removeItem(
       TOKEN_STORAGE_KEY
     );
@@ -100,61 +80,33 @@ const DashboardApi = (function () {
   // ============================================================
 
   function isSessionExpired() {
-
-    const expiresAt =
-      getExpiry();
-
+    const expiresAt = getExpiry();
 
     if (!expiresAt) {
-
       return false;
     }
 
-
     const expiryTime =
-      new Date(
-        expiresAt
-      ).getTime();
+      new Date(expiresAt).getTime();
 
-
-    if (
-      Number.isNaN(
-        expiryTime
-      )
-    ) {
-
+    if (Number.isNaN(expiryTime)) {
       return true;
     }
 
-
-    return (
-      Date.now() >=
-      expiryTime
-    );
+    return Date.now() >= expiryTime;
   }
 
-
   function isAuthenticated() {
-
-    const token =
-      getToken();
-
+    const token = getToken();
 
     if (!token) {
-
       return false;
     }
 
-
-    if (
-      isSessionExpired()
-    ) {
-
+    if (isSessionExpired()) {
       clearSession();
-
       return false;
     }
-
 
     return true;
   }
@@ -164,31 +116,22 @@ const DashboardApi = (function () {
   // RESPONSE PARSER
   // ============================================================
 
-  async function parseResponse(
-    response
-  ) {
-
+  async function parseResponse(response) {
     const text =
       await response.text();
 
-
     let data = {};
 
-
     try {
-
       data =
         text
           ? JSON.parse(text)
           : {};
-
     } catch (error) {
-
       throw new Error(
         `Admin API returned a non-JSON response (HTTP ${response.status}).`
       );
     }
-
 
     return data;
   }
@@ -198,89 +141,58 @@ const DashboardApi = (function () {
   // LOGIN
   // ============================================================
 
-  async function login(
-    username,
-    password
-  ) {
-
+  async function login(username, password) {
     const cleanUsername =
-      String(
-        username || ''
-      ).trim();
-
+      String(username || '').trim();
 
     const cleanPassword =
-      String(
-        password || ''
-      );
+      String(password || '');
 
-
-    if (
-      !cleanUsername ||
-      !cleanPassword
-    ) {
-
+    if (!cleanUsername || !cleanPassword) {
       throw new Error(
         'Username and password are required.'
       );
     }
 
-
     let response;
 
-
     try {
-
       response =
         await fetch(
           WORKER_URL,
           {
-            method:
-              'POST',
-
+            method: 'POST',
             headers: {
               'Content-Type':
                 'application/json'
             },
-
             cache:
               'no-store',
-
             body:
               JSON.stringify({
                 action:
                   'login',
-
                 username:
                   cleanUsername,
-
                 password:
                   cleanPassword
               })
           }
         );
-
     } catch (error) {
-
       throw new Error(
         'Unable to connect to the admin API.'
       );
     }
 
-
     const data =
-      await parseResponse(
-        response
-      );
-
+      await parseResponse(response);
 
     if (
       !response.ok ||
       data.success === false
     ) {
-
       clearSession();
-
 
       throw new Error(
         data.error ||
@@ -288,25 +200,18 @@ const DashboardApi = (function () {
       );
     }
 
-
-    if (
-      !data.token
-    ) {
-
+    if (!data.token) {
       clearSession();
-
 
       throw new Error(
         'Login succeeded but no session token was returned.'
       );
     }
 
-
     saveSession(
       data.token,
       data.expiresAt || ''
     );
-
 
     return data;
   }
@@ -316,17 +221,11 @@ const DashboardApi = (function () {
   // PROTECTED ADMIN REQUEST
   // ============================================================
 
-  async function post(
-    action,
-    payload = {}
-  ) {
-
+  async function post(action, payload = {}) {
     const token =
       getToken();
 
-
     if (!token) {
-
       const error =
         new Error(
           'Administrator login required.'
@@ -338,20 +237,14 @@ const DashboardApi = (function () {
       throw error;
     }
 
-
-    if (
-      isSessionExpired()
-    ) {
-
+    if (isSessionExpired()) {
       clearSession();
-
 
       window.dispatchEvent(
         new CustomEvent(
           'admin-auth-required'
         )
       );
-
 
       const error =
         new Error(
@@ -364,30 +257,23 @@ const DashboardApi = (function () {
       throw error;
     }
 
-
     let response;
 
-
     try {
-
       response =
         await fetch(
           WORKER_URL,
           {
             method:
               'POST',
-
             headers: {
               'Content-Type':
                 'application/json',
-
               'Authorization':
                 `Bearer ${token}`
             },
-
             cache:
               'no-store',
-
             body:
               JSON.stringify({
                 action,
@@ -395,20 +281,14 @@ const DashboardApi = (function () {
               })
           }
         );
-
     } catch (error) {
-
       throw new Error(
         'Unable to connect to the admin API.'
       );
     }
 
-
     const data =
-      await parseResponse(
-        response
-      );
-
+      await parseResponse(response);
 
     // ==========================================================
     // AUTH FAILURE
@@ -417,16 +297,13 @@ const DashboardApi = (function () {
     if (
       response.status === 401
     ) {
-
       clearSession();
-
 
       window.dispatchEvent(
         new CustomEvent(
           'admin-auth-required'
         )
       );
-
 
       const error =
         new Error(
@@ -440,7 +317,6 @@ const DashboardApi = (function () {
       throw error;
     }
 
-
     // ==========================================================
     // OTHER API FAILURE
     // ==========================================================
@@ -449,13 +325,11 @@ const DashboardApi = (function () {
       !response.ok ||
       data.success === false
     ) {
-
       throw new Error(
         data.error ||
         `Admin API HTTP ${response.status}`
       );
     }
-
 
     return data;
   }
@@ -471,40 +345,27 @@ const DashboardApi = (function () {
     // AUTH
     // ----------------------------------------------------------
 
-    login(
-      username,
-      password
-    ) {
-
+    login(username, password) {
       return login(
         username,
         password
       );
     },
 
-
     logout() {
-
       clearSession();
-
       return true;
     },
 
-
     isAuthenticated() {
-
       return isAuthenticated();
     },
 
-
     getSessionToken() {
-
       return getToken();
     },
 
-
     getSessionExpiry() {
-
       return getExpiry();
     },
 
@@ -513,33 +374,24 @@ const DashboardApi = (function () {
     // USERS
     // ----------------------------------------------------------
 
-    createUser(
-      payload
-    ) {
-
+    createUser(payload) {
       return post(
         'create_user',
         payload
       );
     },
 
-
-    updateUser(
-      payload
-    ) {
-
+    updateUser(payload) {
       return post(
         'update_user',
         payload
       );
     },
 
-
     setUserUnsubscribed(
       userId,
       unsubscribed
     ) {
-
       return post(
         'set_user_unsubscribed',
         {
@@ -554,24 +406,42 @@ const DashboardApi = (function () {
     // CAMPAIGNS
     // ----------------------------------------------------------
 
-    createCampaign(
-      payload
-    ) {
-
+    createCampaign(payload) {
       return post(
         'create_campaign',
         payload
       );
     },
 
-
-    updateCampaign(
-      payload
-    ) {
-
+    updateCampaign(payload) {
       return post(
         'update_campaign',
         payload
+      );
+    },
+
+
+    // ----------------------------------------------------------
+    // CAMPAIGN MEMBERS
+    // ----------------------------------------------------------
+
+    addCampaignMember(payload) {
+      return post(
+        'add_campaign_member',
+        payload
+      );
+    },
+
+    setCampaignMemberStatus(
+      campaignMemberId,
+      membershipStatus
+    ) {
+      return post(
+        'set_campaign_member_status',
+        {
+          campaignMemberId,
+          membershipStatus
+        }
       );
     },
 
@@ -581,7 +451,6 @@ const DashboardApi = (function () {
     // ----------------------------------------------------------
 
     getWorkerUrl() {
-
       return WORKER_URL;
     }
 
