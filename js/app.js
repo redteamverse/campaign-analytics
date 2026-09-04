@@ -40,6 +40,7 @@ async function initDashboard(forceRefresh = true) {
     populateFilterDropdowns(current);
     if (!listenersAttached) attachEventListeners();
     attachUserManagementListeners();
+    attachCampaignManagementListeners();
     populateUserLeadStatusFilter();
     renderDashboard();
     updateLastUpdated(rawStore.lastUpdated);
@@ -126,6 +127,7 @@ function renderDashboard() {
   renderSequenceTable(AnalyticsEngine.groupBySequence(filters));
   renderRecipientTable(AnalyticsEngine.getRecipientRows(filters));
   renderUsersManagement();
+  renderCampaignManagement();
 }
 
 function resetFilters() {
@@ -383,6 +385,899 @@ function attachUserManagementListeners() {
     if (unsubButton) toggleUserSubscription(unsubButton.dataset.userUnsubscribe, unsubButton.dataset.nextState);
   });
 }
+/* ============================================================
+   CAMPAIGN MANAGEMENT
+   ============================================================ */
+
+let campaignManagementAttached = false;
+let editingCampaignId = '';
+
+
+function formatCampaignDate(value) {
+
+  if (!value) {
+    return '—';
+  }
+
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(value);
+
+  return Number.isNaN(date.getTime())
+    ? String(value || '—')
+    : date.toLocaleString();
+}
+
+
+function getCampaignById(campaignId) {
+
+  const data =
+    DataEngine.getNormalized();
+
+  return data.campaigns.find(
+    campaign =>
+      String(campaign.campaignId || '') ===
+      String(campaignId || '')
+  ) || null;
+}
+
+
+function getCampaignManagementRows() {
+
+  const data =
+    DataEngine.getNormalized();
+
+  const query =
+    (
+      document.getElementById(
+        'campaignSearchInput'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  const status =
+    document.getElementById(
+      'campaignStatusFilter'
+    )?.value || 'all';
+
+
+  return data.campaigns
+    .filter(campaign => {
+
+      const campaignStatus =
+        String(
+          campaign.campaignStatus ||
+          campaign.status ||
+          ''
+        )
+          .trim()
+          .toUpperCase();
+
+
+      if (
+        status !== 'all' &&
+        campaignStatus !== status
+      ) {
+
+        return false;
+      }
+
+
+      if (!query) {
+        return true;
+      }
+
+
+      return [
+        campaign.campaignName,
+        campaign.campaignId,
+        campaignStatus
+      ].some(
+        value =>
+          String(value || '')
+            .toLowerCase()
+            .includes(query)
+      );
+    })
+    .sort(
+      (a, b) =>
+        String(a.campaignName || '')
+          .localeCompare(
+            String(b.campaignName || '')
+          )
+    );
+}
+
+
+function renderCampaignManagement() {
+
+  const tbody =
+    document.getElementById(
+      'campaignManagementTable'
+    );
+
+  if (!tbody) {
+    return;
+  }
+
+
+  const allCampaigns =
+    DataEngine.getNormalized().campaigns;
+
+  const rows =
+    getCampaignManagementRows();
+
+
+  const campaignStatusOf =
+    campaign =>
+      String(
+        campaign.campaignStatus ||
+        campaign.status ||
+        ''
+      )
+        .trim()
+        .toUpperCase();
+
+
+  setText(
+    'campaignsTotalCount',
+    allCampaigns.length.toLocaleString()
+  );
+
+  setText(
+    'campaignsActiveCount',
+    allCampaigns.filter(
+      campaign =>
+        campaignStatusOf(campaign) ===
+        'ACTIVE'
+    ).length.toLocaleString()
+  );
+
+  setText(
+    'campaignsPausedCount',
+    allCampaigns.filter(
+      campaign =>
+        campaignStatusOf(campaign) ===
+        'PAUSED'
+    ).length.toLocaleString()
+  );
+
+  setText(
+    'campaignsCompletedCount',
+    allCampaigns.filter(
+      campaign =>
+        campaignStatusOf(campaign) ===
+        'COMPLETED'
+    ).length.toLocaleString()
+  );
+
+  setText(
+    'campaignsShowingCount',
+    rows.length.toLocaleString()
+  );
+
+
+  if (!rows.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        8,
+        'No campaigns match the current search or filters.'
+      );
+
+    return;
+  }
+
+
+  tbody.innerHTML =
+    rows
+      .slice(0, 1000)
+      .map(campaign => {
+
+        const campaignId =
+          String(
+            campaign.campaignId || ''
+          );
+
+        const campaignName =
+          String(
+            campaign.campaignName ||
+            campaignId ||
+            '—'
+          );
+
+        const campaignStatus =
+          String(
+            campaign.campaignStatus ||
+            campaign.status ||
+            'ACTIVE'
+          )
+            .trim()
+            .toUpperCase();
+
+        const totalContacts =
+          Number(
+            campaign.totalContacts || 0
+          );
+
+        const totalEmailEvents =
+          Number(
+            campaign.totalEmailEvents || 0
+          );
+
+
+        return `
+          <tr>
+
+            <td class="user-name-cell">
+              <strong>
+                ${escapeHtml(campaignName)}
+              </strong>
+              <small>
+                ${escapeHtml(campaignId)}
+              </small>
+            </td>
+
+            <td>
+              ${statusBadge(campaignStatus)}
+            </td>
+
+            <td>
+              ${totalContacts.toLocaleString()}
+            </td>
+
+            <td>
+              ${totalEmailEvents.toLocaleString()}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                formatCampaignDate(
+                  campaign.createdAt
+                )
+              )}
+            </td>
+
+            <td>
+              ${escapeHtml(
+                formatCampaignDate(
+                  campaign.updatedAt
+                )
+              )}
+            </td>
+
+            <td>
+              <span class="muted-id">
+                ${escapeHtml(campaignId)}
+              </span>
+            </td>
+
+            <td>
+
+              <div class="user-actions">
+
+                <button
+                  type="button"
+                  class="table-action-button"
+                  data-campaign-edit="${escapeHtml(campaignId)}"
+                >
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  class="table-action-button"
+                  data-campaign-open="${escapeHtml(campaignId)}"
+                >
+                  Open
+                </button>
+
+              </div>
+
+            </td>
+
+          </tr>
+        `;
+      })
+      .join('');
+}
+
+
+function showCampaignsNotice(
+  message,
+  type = 'success'
+) {
+
+  const notice =
+    document.getElementById(
+      'campaignsActionNotice'
+    );
+
+  if (!notice) {
+    return;
+  }
+
+
+  notice.hidden =
+    !message;
+
+  notice.className =
+    `dashboard-notice ${type}`;
+
+  notice.textContent =
+    message || '';
+}
+
+
+function openCampaignModal(
+  campaignId = ''
+) {
+
+  editingCampaignId =
+    campaignId || '';
+
+
+  const campaign =
+    editingCampaignId
+      ? getCampaignById(
+          editingCampaignId
+        )
+      : null;
+
+
+  const title =
+    document.getElementById(
+      'campaignModalTitle'
+    );
+
+  const idInput =
+    document.getElementById(
+      'campaignFormCampaignId'
+    );
+
+  const nameInput =
+    document.getElementById(
+      'campaignFormName'
+    );
+
+  const statusSelect =
+    document.getElementById(
+      'campaignFormStatus'
+    );
+
+  const submit =
+    document.getElementById(
+      'campaignFormSubmit'
+    );
+
+  const errorBox =
+    document.getElementById(
+      'campaignFormError'
+    );
+
+  const backdrop =
+    document.getElementById(
+      'campaignModalBackdrop'
+    );
+
+
+  if (
+    !title ||
+    !idInput ||
+    !nameInput ||
+    !statusSelect ||
+    !submit ||
+    !errorBox ||
+    !backdrop
+  ) {
+
+    console.warn(
+      'Campaign management modal elements were not found.'
+    );
+
+    return;
+  }
+
+
+  title.textContent =
+    campaign
+      ? 'Edit Campaign'
+      : 'Add Campaign';
+
+
+  idInput.value =
+    campaign?.campaignId || '';
+
+
+  nameInput.value =
+    campaign?.campaignName || '';
+
+
+  statusSelect.value =
+    String(
+      campaign?.campaignStatus ||
+      campaign?.status ||
+      'ACTIVE'
+    )
+      .trim()
+      .toUpperCase();
+
+
+  submit.textContent =
+    campaign
+      ? 'Save Changes'
+      : 'Create Campaign';
+
+
+  errorBox.hidden =
+    true;
+
+  errorBox.textContent =
+    '';
+
+
+  backdrop.hidden =
+    false;
+
+
+  setTimeout(
+    () =>
+      nameInput.focus(),
+    0
+  );
+}
+
+
+function closeCampaignModal() {
+
+  const backdrop =
+    document.getElementById(
+      'campaignModalBackdrop'
+    );
+
+  const form =
+    document.getElementById(
+      'campaignForm'
+    );
+
+  const errorBox =
+    document.getElementById(
+      'campaignFormError'
+    );
+
+
+  if (backdrop) {
+    backdrop.hidden = true;
+  }
+
+  if (form) {
+    form.reset();
+  }
+
+  if (errorBox) {
+    errorBox.hidden = true;
+    errorBox.textContent = '';
+  }
+
+
+  editingCampaignId =
+    '';
+}
+
+
+function setCampaignFormBusy(
+  busy
+) {
+
+  const submit =
+    document.getElementById(
+      'campaignFormSubmit'
+    );
+
+  const cancel =
+    document.getElementById(
+      'campaignFormCancel'
+    );
+
+
+  if (submit) {
+
+    submit.disabled =
+      busy;
+
+    submit.textContent =
+      busy
+        ? 'Saving…'
+        : (
+            editingCampaignId
+              ? 'Save Changes'
+              : 'Create Campaign'
+          );
+  }
+
+
+  if (cancel) {
+
+    cancel.disabled =
+      busy;
+  }
+}
+
+
+async function submitCampaignForm(
+  event
+) {
+
+  event.preventDefault();
+
+
+  const errorBox =
+    document.getElementById(
+      'campaignFormError'
+    );
+
+  const nameInput =
+    document.getElementById(
+      'campaignFormName'
+    );
+
+  const statusSelect =
+    document.getElementById(
+      'campaignFormStatus'
+    );
+
+
+  if (
+    !errorBox ||
+    !nameInput ||
+    !statusSelect
+  ) {
+
+    return;
+  }
+
+
+  errorBox.hidden =
+    true;
+
+  errorBox.textContent =
+    '';
+
+
+  const payload = {
+
+    campaignName:
+      nameInput.value.trim(),
+
+    campaignStatus:
+      statusSelect.value
+
+  };
+
+
+  if (
+    !payload.campaignName
+  ) {
+
+    errorBox.textContent =
+      'Campaign Name is required.';
+
+    errorBox.hidden =
+      false;
+
+    return;
+  }
+
+
+  const wasEditing =
+    Boolean(
+      editingCampaignId
+    );
+
+
+  if (
+    wasEditing
+  ) {
+
+    payload.campaignId =
+      editingCampaignId;
+  }
+
+
+  try {
+
+    setCampaignFormBusy(
+      true
+    );
+
+
+    const result =
+      wasEditing
+        ? await DashboardApi.updateCampaign(
+            payload
+          )
+        : await DashboardApi.createCampaign(
+            payload
+          );
+
+
+    closeCampaignModal();
+
+
+    showCampaignsNotice(
+      wasEditing
+        ? (
+            result?.result?.message ||
+            'Campaign updated successfully.'
+          )
+        : (
+            result?.result?.message ||
+            'Campaign created successfully.'
+          ),
+      'success'
+    );
+
+
+    await initDashboard(
+      true
+    );
+
+
+    switchView(
+      'campaignsView'
+    );
+
+
+    showCampaignsNotice(
+      wasEditing
+        ? 'Campaign updated successfully.'
+        : (
+            result?.result?.message ||
+            'Campaign created successfully.'
+          ),
+      'success'
+    );
+
+
+  } catch (error) {
+
+    errorBox.textContent =
+      error?.message ||
+      String(error);
+
+    errorBox.hidden =
+      false;
+
+  } finally {
+
+    setCampaignFormBusy(
+      false
+    );
+  }
+}
+
+
+function openCampaign(
+  campaignId
+) {
+
+  const campaign =
+    getCampaignById(
+      campaignId
+    );
+
+
+  if (!campaign) {
+
+    showCampaignsNotice(
+      'Campaign could not be found.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  /*
+   * Campaign Members management is the next module.
+   *
+   * For now, Open selects this campaign in the global
+   * analytics filter so the existing dashboard can
+   * immediately show campaign-specific performance.
+   */
+
+  const campaignFilter =
+    document.getElementById(
+      'campaignFilter'
+    );
+
+
+  if (
+    campaignFilter &&
+    Array.from(
+      campaignFilter.options
+    ).some(
+      option =>
+        option.value ===
+        campaignId
+    )
+  ) {
+
+    campaignFilter.value =
+      campaignId;
+
+    renderDashboard();
+
+    switchView(
+      'overviewView'
+    );
+
+    showDashboardCampaignSelectionNotice(
+      campaign
+    );
+
+    return;
+  }
+
+
+  showCampaignsNotice(
+    `Campaign "${campaign.campaignName || campaignId}" is ready. Campaign Members management will be added next.`,
+    'success'
+  );
+}
+
+
+function showDashboardCampaignSelectionNotice(
+  campaign
+) {
+
+  const notice =
+    document.getElementById(
+      'dashboardNotice'
+    );
+
+
+  if (!notice) {
+    return;
+  }
+
+
+  notice.hidden =
+    false;
+
+  notice.className =
+    'dashboard-notice success';
+
+  notice.textContent =
+    `Showing analytics for campaign: ${campaign.campaignName || campaign.campaignId}`;
+}
+
+
+function attachCampaignManagementListeners() {
+
+  if (
+    campaignManagementAttached
+  ) {
+
+    return;
+  }
+
+
+  campaignManagementAttached =
+    true;
+
+
+  document.getElementById(
+    'addCampaignButton'
+  )?.addEventListener(
+    'click',
+    () =>
+      openCampaignModal()
+  );
+
+
+  document.getElementById(
+    'campaignModalClose'
+  )?.addEventListener(
+    'click',
+    closeCampaignModal
+  );
+
+
+  document.getElementById(
+    'campaignFormCancel'
+  )?.addEventListener(
+    'click',
+    closeCampaignModal
+  );
+
+
+  document.getElementById(
+    'campaignForm'
+  )?.addEventListener(
+    'submit',
+    submitCampaignForm
+  );
+
+
+  document.getElementById(
+    'campaignModalBackdrop'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      if (
+        event.target.id ===
+        'campaignModalBackdrop'
+      ) {
+
+        closeCampaignModal();
+      }
+    }
+  );
+
+
+  document.getElementById(
+    'campaignSearchInput'
+  )?.addEventListener(
+    'input',
+    renderCampaignManagement
+  );
+
+
+  document.getElementById(
+    'campaignStatusFilter'
+  )?.addEventListener(
+    'change',
+    renderCampaignManagement
+  );
+
+
+  document.getElementById(
+    'campaignManagementTable'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      const editButton =
+        event.target.closest(
+          '[data-campaign-edit]'
+        );
+
+
+      if (
+        editButton
+      ) {
+
+        openCampaignModal(
+          editButton.dataset.campaignEdit
+        );
+
+        return;
+      }
+
+
+      const openButton =
+        event.target.closest(
+          '[data-campaign-open]'
+        );
+
+
+      if (
+        openButton
+      ) {
+
+        openCampaign(
+          openButton.dataset.campaignOpen
+        );
+      }
+    }
+  );
+}
+
+
 /* ============================================================
    ADMIN AUTHENTICATION UI
    ============================================================ */
