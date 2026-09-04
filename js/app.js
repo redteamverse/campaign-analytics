@@ -1552,7 +1552,9 @@ function getFilteredCampaignMembers() {
           member.emailAddress,
           member.campaignMemberId,
           member.userId,
-          member.contactId
+          member.contactId,
+          member.preDeliveryCheckStatus,
+          member.preDeliveryCheckMessage
         ].some(
           value =>
             String(
@@ -1711,7 +1713,7 @@ function renderCampaignMembers() {
 
     tbody.innerHTML =
       emptyRow(
-        10,
+        13,
         'No campaign members match the current search or filters.'
       );
 
@@ -1800,6 +1802,31 @@ function renderCampaignMembers() {
 
               <td>
                 ${statusBadge(memberStatus)}
+              </td>
+
+              <td>
+                ${
+                  member.preDeliveryCheckStatus
+                    ? statusBadge(member.preDeliveryCheckStatus)
+                    : '<span class="status-badge badge-muted">Not Checked</span>'
+                }
+              </td>
+
+              <td>
+                <span
+                  class="campaign-member-precheck-message"
+                  title="${escapeHtml(member.preDeliveryCheckMessage || '')}"
+                >
+                  ${escapeHtml(member.preDeliveryCheckMessage || '—')}
+                </span>
+              </td>
+
+              <td>
+                ${escapeHtml(
+                  formatCampaignDate(
+                    member.preDeliveryCheckAt
+                  )
+                )}
               </td>
 
               <td>
