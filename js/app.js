@@ -55,6 +55,7 @@ async function initDashboard(forceRefresh = true) {
     if (!listenersAttached) attachEventListeners();
     attachUserManagementListeners();
     attachCampaignManagementListeners();
+  attachCampaignBuilderListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -1228,6 +1229,10 @@ function attachUserManagementListeners() {
 let campaignManagementAttached = false;
 let editingCampaignId = '';
 let activeCampaignLifecycleFilter = 'all';
+let campaignBuilderCampaignId = '';
+let campaignBuilderActiveStep = 'details';
+let campaignBuilderRecipientSource = 'all';
+let campaignBuilderSelectedUserIds = new Set();
 
 
 function formatCampaignDate(value) {
@@ -1546,6 +1551,12 @@ function getCampaignLifecycleActions(
         'edit',
       label:
         'Edit campaign'
+    },
+    {
+      key:
+        'builder',
+      label:
+        'Build campaign'
     },
     {
       key:
@@ -2653,6 +2664,19 @@ async function handleCampaignRowAction(
 
   if (
     action ===
+    'builder'
+  ) {
+
+    closeAllCampaignMenus();
+    await openCampaignBuilder(
+      campaignId
+    );
+    return;
+  }
+
+
+  if (
+    action ===
     'members'
   ) {
 
@@ -2880,6 +2904,333 @@ function attachCampaignManagementListeners() {
   );
 }
 
+
+
+/* ============================================================
+   CAMPAIGN BUILDER V10 — DETAILS + RECIPIENTS
+   ============================================================ */
+
+function campaignBuilderUserIsSuppressed(user) {
+  return Boolean(user?.unsubscribed);
+}
+
+function getCampaignBuilderCampaign() {
+  return getCampaignById(campaignBuilderCampaignId);
+}
+
+function getCampaignBuilderMembers() {
+  const data = DataEngine.getNormalized();
+  return (data.campaignMembers || []).filter(member =>
+    String(member.campaignId || '') === String(campaignBuilderCampaignId || '') &&
+    getCampaignMemberStatus(member) === 'ACTIVE'
+  );
+}
+
+function getCampaignBuilderMemberUserIds() {
+  return new Set(getCampaignBuilderMembers().map(member => String(member.userId || '')));
+}
+
+function showCampaignBuilderNotice(message, type = 'success') {
+  const notice = document.getElementById('campaignBuilderNotice');
+  if (!notice) return;
+  notice.hidden = !message;
+  notice.className = `dashboard-notice ${type}`;
+  notice.textContent = message || '';
+}
+
+function switchCampaignBuilderStep(step) {
+  campaignBuilderActiveStep = step;
+  document.querySelectorAll('[data-builder-step]').forEach(button =>
+    button.classList.toggle('active', button.dataset.builderStep === step)
+  );
+  document.querySelectorAll('[data-builder-panel]').forEach(panel =>
+    panel.classList.toggle('active', panel.dataset.builderPanel === step)
+  );
+  if (step === 'recipients') renderCampaignBuilderRecipients();
+}
+
+function closeCampaignBuilder() {
+  const workspace = document.getElementById('campaignBuilderWorkspace');
+  if (workspace) workspace.hidden = true;
+  document.body.classList.remove('campaign-builder-open');
+  campaignBuilderCampaignId = '';
+  campaignBuilderSelectedUserIds.clear();
+}
+
+async function openCampaignBuilder(campaignId) {
+  campaignBuilderCampaignId = String(campaignId || '');
+  campaignBuilderSelectedUserIds.clear();
+  const campaign = getCampaignBuilderCampaign();
+  if (!campaign) {
+    showCampaignsNotice('Campaign could not be found.', 'error');
+    return;
+  }
+
+  const workspace = document.getElementById('campaignBuilderWorkspace');
+  if (!workspace) return;
+
+  setText('campaignBuilderCampaignName', campaign.campaignName || 'Campaign');
+  setText('campaignBuilderCampaignMeta', `${campaignLifecycleLabel(getCampaignLifecycleStatus(campaign))} · ${campaign.campaignId}`);
+  setText('campaignBuilderIdValue', campaign.campaignId || '—');
+  setText('campaignBuilderStatusValue', campaignLifecycleLabel(getCampaignLifecycleStatus(campaign)));
+
+  const input = document.getElementById('campaignBuilderNameInput');
+  if (input) input.value = campaign.campaignName || '';
+
+  workspace.hidden = false;
+  document.body.classList.add('campaign-builder-open');
+  switchCampaignBuilderStep('details');
+
+  try {
+    await ensureContactAudiencesLoaded();
+  } catch (error) {
+    // All Contacts remains usable even if saved audiences fail to load.
+  }
+}
+
+async function saveCampaignBuilderDetails() {
+  const campaign = getCampaignBuilderCampaign();
+  const input = document.getElementById('campaignBuilderNameInput');
+  const button = document.getElementById('campaignBuilderSaveDetails');
+  const name = input?.value.trim() || '';
+  if (!campaign || !name) return;
+
+  await withActionButtonBusy(button, 'Saving…', async () => {
+    try {
+      setText('campaignBuilderSaveState', 'Saving…');
+      await DashboardApi.updateCampaign({
+        campaignId: campaign.campaignId,
+        campaignName: name,
+        campaignStatus: getRawCampaignStatus(campaign)
+      });
+      await initDashboard(true);
+      campaignBuilderCampaignId = campaign.campaignId;
+      const updated = getCampaignBuilderCampaign();
+      setText('campaignBuilderCampaignName', updated?.campaignName || name);
+      setText('campaignBuilderSaveState', 'Saved');
+      switchCampaignBuilderStep('recipients');
+    } catch (error) {
+      setText('campaignBuilderSaveState', 'Not saved');
+      showCampaignBuilderNotice(error?.message || 'Could not save campaign details.', 'error');
+    }
+  });
+}
+
+function switchCampaignBuilderRecipientSource(source) {
+  campaignBuilderRecipientSource = source;
+  document.querySelectorAll('[data-recipient-source]').forEach(button =>
+    button.classList.toggle('active', button.dataset.recipientSource === source)
+  );
+  document.querySelectorAll('[data-recipient-source-panel]').forEach(panel =>
+    panel.classList.toggle('active', panel.dataset.recipientSourcePanel === source)
+  );
+  renderCampaignBuilderRecipients();
+}
+
+function getCampaignBuilderFilteredUsers() {
+  const data = DataEngine.getNormalized();
+  const query = (document.getElementById('campaignBuilderContactSearch')?.value || '').trim().toLowerCase();
+  return (data.users || []).filter(user => {
+    if (!query) return true;
+    return [user.firstName, user.emailAddress, user.company, user.leadStatus].some(value =>
+      String(value || '').toLowerCase().includes(query)
+    );
+  });
+}
+
+function renderCampaignBuilderAllContacts() {
+  const tbody = document.getElementById('campaignBuilderContactsTable');
+  if (!tbody) return;
+  const existing = getCampaignBuilderMemberUserIds();
+  const rows = getCampaignBuilderFilteredUsers();
+  setText('campaignBuilderSelectedCount', campaignBuilderSelectedUserIds.size.toLocaleString());
+
+  if (!rows.length) {
+    tbody.innerHTML = emptyRow(5, 'No contacts match this search.');
+    return;
+  }
+
+  tbody.innerHTML = rows.slice(0, 500).map(user => {
+    const userId = String(user.userId || '');
+    const suppressed = campaignBuilderUserIsSuppressed(user);
+    const alreadyAdded = existing.has(userId);
+    const disabled = suppressed || alreadyAdded;
+    const eligibility = suppressed
+      ? '<span class="status-badge badge-danger">Suppressed</span>'
+      : alreadyAdded
+        ? '<span class="status-badge badge-neutral">Already added</span>'
+        : '<span class="status-badge badge-success">Eligible</span>';
+    return `<tr>
+      <td class="checkbox-column"><input type="checkbox" data-builder-user-select="${escapeHtml(userId)}" ${campaignBuilderSelectedUserIds.has(userId) ? 'checked' : ''} ${disabled ? 'disabled' : ''}></td>
+      <td><strong>${escapeHtml(user.firstName || '—')}</strong></td>
+      <td>${escapeHtml(user.emailAddress || '—')}</td>
+      <td>${escapeHtml(user.company || '—')}</td>
+      <td>${eligibility}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCampaignBuilderLists() {
+  const grid = document.getElementById('campaignBuilderListsGrid');
+  if (!grid) return;
+  const lists = contactAudienceState.lists || [];
+  if (!lists.length) {
+    grid.innerHTML = '<div class="audience-empty-state full-span"><strong>No contact lists yet</strong><span>Create lists in Contacts → Lists first.</span></div>';
+    return;
+  }
+  const data = DataEngine.getNormalized();
+  const existing = getCampaignBuilderMemberUserIds();
+  grid.innerHTML = lists.map(list => {
+    const memberIds = new Set((contactAudienceState.listMembers || []).filter(m => m.listId === list.listId).map(m => String(m.userId || '')));
+    const users = (data.users || []).filter(u => memberIds.has(String(u.userId || '')));
+    const eligible = users.filter(u => !campaignBuilderUserIsSuppressed(u) && !existing.has(String(u.userId || '')));
+    const suppressed = users.filter(campaignBuilderUserIsSuppressed).length;
+    return `<article class="builder-audience-card">
+      <div><span class="detail-eyebrow">Static List</span><h4>${escapeHtml(list.name || 'Untitled List')}</h4><p>${escapeHtml(list.description || 'Saved contact list')}</p></div>
+      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> contacts</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> suppressed</span>` : ''}</div>
+      <button type="button" class="secondary-action-button" data-builder-add-list="${escapeHtml(list.listId || '')}" ${eligible.length ? '' : 'disabled'}>Add Eligible Contacts</button>
+    </article>`;
+  }).join('');
+}
+
+function renderCampaignBuilderSegments() {
+  const grid = document.getElementById('campaignBuilderSegmentsGrid');
+  if (!grid) return;
+  const segments = contactAudienceState.segments || [];
+  if (!segments.length) {
+    grid.innerHTML = '<div class="audience-empty-state full-span"><strong>No dynamic segments yet</strong><span>Create segments in Contacts → Segments first.</span></div>';
+    return;
+  }
+  const existing = getCampaignBuilderMemberUserIds();
+  grid.innerHTML = segments.map(segment => {
+    const users = getSegmentMatchingUsers(segment);
+    const eligible = users.filter(u => !campaignBuilderUserIsSuppressed(u) && !existing.has(String(u.userId || '')));
+    const suppressed = users.filter(campaignBuilderUserIsSuppressed).length;
+    return `<article class="builder-audience-card">
+      <div><span class="detail-eyebrow">Dynamic Segment</span><h4>${escapeHtml(segment.name || 'Untitled Segment')}</h4><p>${escapeHtml(segmentRuleLabel(segment))}</p></div>
+      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> matches</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> suppressed</span>` : ''}</div>
+      <button type="button" class="secondary-action-button" data-builder-add-segment="${escapeHtml(segment.segmentId || '')}" ${eligible.length ? '' : 'disabled'}>Add Eligible Contacts</button>
+    </article>`;
+  }).join('');
+}
+
+function renderCampaignBuilderCurrentAudience() {
+  const tbody = document.getElementById('campaignBuilderCurrentAudienceTable');
+  if (!tbody) return;
+  const members = getCampaignBuilderMembers();
+  setText('campaignBuilderRecipientCount', members.length.toLocaleString());
+  setText('campaignBuilderCurrentAudienceCount', members.length.toLocaleString());
+  if (!members.length) {
+    tbody.innerHTML = emptyRow(4, 'No recipients have been added yet.');
+    return;
+  }
+  tbody.innerHTML = members.map(member => {
+    const user = getCampaignMemberUser(member);
+    return `<tr><td><strong>${escapeHtml(user?.firstName || '—')}</strong></td><td>${escapeHtml(user?.emailAddress || member.emailAddress || '—')}</td><td>${escapeHtml(user?.company || '—')}</td><td><span class="status-badge badge-success">Included</span></td></tr>`;
+  }).join('');
+}
+
+function renderCampaignBuilderRecipients() {
+  renderCampaignBuilderAllContacts();
+  renderCampaignBuilderLists();
+  renderCampaignBuilderSegments();
+  renderCampaignBuilderCurrentAudience();
+}
+
+async function addUsersToCampaignBuilder(userIds, button, label = 'Adding…') {
+  const campaign = getCampaignBuilderCampaign();
+  if (!campaign || !userIds.length) return;
+  const existing = getCampaignBuilderMemberUserIds();
+  const data = DataEngine.getNormalized();
+  const uniqueIds = [...new Set(userIds.map(String))].filter(userId => {
+    const user = (data.users || []).find(u => String(u.userId || '') === userId);
+    return user && !campaignBuilderUserIsSuppressed(user) && !existing.has(userId);
+  });
+  if (!uniqueIds.length) {
+    showCampaignBuilderNotice('No new eligible contacts to add.', 'warning');
+    return;
+  }
+
+  await withActionButtonBusy(button, label, async () => {
+    let added = 0;
+    let failed = 0;
+    for (const userId of uniqueIds) {
+      try {
+        await DashboardApi.addCampaignMember({ userId, campaignId: campaign.campaignId });
+        added++;
+      } catch (error) {
+        failed++;
+      }
+    }
+    await initDashboard(true);
+    campaignBuilderCampaignId = campaign.campaignId;
+    campaignBuilderSelectedUserIds.clear();
+    renderCampaignBuilderRecipients();
+    showCampaignBuilderNotice(
+      failed ? `${added} contact(s) added; ${failed} could not be added.` : `${added} contact(s) added to the campaign.`,
+      failed ? 'warning' : 'success'
+    );
+  });
+}
+
+function getEligibleUsersForList(listId) {
+  const data = DataEngine.getNormalized();
+  const ids = new Set((contactAudienceState.listMembers || []).filter(m => m.listId === listId).map(m => String(m.userId || '')));
+  return (data.users || []).filter(u => ids.has(String(u.userId || '')) && !campaignBuilderUserIsSuppressed(u));
+}
+
+function getEligibleUsersForSegment(segmentId) {
+  const segment = (contactAudienceState.segments || []).find(item => item.segmentId === segmentId);
+  return segment ? getSegmentMatchingUsers(segment).filter(u => !campaignBuilderUserIsSuppressed(u)) : [];
+}
+
+function attachCampaignBuilderListeners() {
+  document.getElementById('campaignBuilderClose')?.addEventListener('click', closeCampaignBuilder);
+  document.getElementById('campaignBuilderExit')?.addEventListener('click', closeCampaignBuilder);
+  document.getElementById('campaignBuilderSaveDetails')?.addEventListener('click', saveCampaignBuilderDetails);
+
+  document.querySelectorAll('[data-builder-step]').forEach(button => button.addEventListener('click', () => switchCampaignBuilderStep(button.dataset.builderStep)));
+  document.querySelectorAll('[data-recipient-source]').forEach(button => button.addEventListener('click', () => switchCampaignBuilderRecipientSource(button.dataset.recipientSource)));
+
+  document.getElementById('campaignBuilderContactSearch')?.addEventListener('input', renderCampaignBuilderAllContacts);
+
+  document.getElementById('campaignBuilderContactsTable')?.addEventListener('change', event => {
+    const checkbox = event.target.closest('[data-builder-user-select]');
+    if (!checkbox) return;
+    const userId = checkbox.dataset.builderUserSelect;
+    if (checkbox.checked) campaignBuilderSelectedUserIds.add(userId);
+    else campaignBuilderSelectedUserIds.delete(userId);
+    setText('campaignBuilderSelectedCount', campaignBuilderSelectedUserIds.size.toLocaleString());
+  });
+
+  document.getElementById('campaignBuilderSelectAll')?.addEventListener('change', event => {
+    const checked = event.target.checked;
+    getCampaignBuilderFilteredUsers().forEach(user => {
+      const userId = String(user.userId || '');
+      if (campaignBuilderUserIsSuppressed(user) || getCampaignBuilderMemberUserIds().has(userId)) return;
+      if (checked) campaignBuilderSelectedUserIds.add(userId); else campaignBuilderSelectedUserIds.delete(userId);
+    });
+    renderCampaignBuilderAllContacts();
+  });
+
+  document.getElementById('campaignBuilderAddSelected')?.addEventListener('click', event =>
+    addUsersToCampaignBuilder([...campaignBuilderSelectedUserIds], event.currentTarget, 'Adding…')
+  );
+
+  document.getElementById('campaignBuilderListsGrid')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-builder-add-list]');
+    if (!button) return;
+    const ids = getEligibleUsersForList(button.dataset.builderAddList).map(user => user.userId);
+    addUsersToCampaignBuilder(ids, button, 'Adding list…');
+  });
+
+  document.getElementById('campaignBuilderSegmentsGrid')?.addEventListener('click', event => {
+    const button = event.target.closest('[data-builder-add-segment]');
+    if (!button) return;
+    const ids = getEligibleUsersForSegment(button.dataset.builderAddSegment).map(user => user.userId);
+    addUsersToCampaignBuilder(ids, button, 'Adding segment…');
+  });
+}
 
 
 /* ============================================================

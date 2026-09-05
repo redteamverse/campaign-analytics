@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=9"
+    href="css/dashboard-modules.css?v=10"
   >
 </head>
 
@@ -2278,6 +2278,137 @@
 
 
   <!-- =========================================================
+       CAMPAIGN BUILDER V10 — DETAILS + RECIPIENTS
+       ========================================================= -->
+
+  <div class="campaign-builder-workspace" id="campaignBuilderWorkspace" hidden>
+
+    <div class="campaign-builder-workspace-shell">
+
+      <header class="campaign-builder-workspace-header">
+        <div class="campaign-builder-workspace-title">
+          <button type="button" class="builder-back-button" id="campaignBuilderClose">←</button>
+          <div>
+            <span class="detail-eyebrow">Campaign Builder</span>
+            <h2 id="campaignBuilderCampaignName">Campaign</h2>
+            <p id="campaignBuilderCampaignMeta">Draft campaign</p>
+          </div>
+        </div>
+        <div class="campaign-builder-header-actions">
+          <span class="campaign-builder-save-state" id="campaignBuilderSaveState">Saved</span>
+          <button type="button" class="secondary-action-button" id="campaignBuilderExit">Exit Builder</button>
+        </div>
+      </header>
+
+      <div class="campaign-builder-workspace-body">
+
+        <aside class="campaign-builder-steps" aria-label="Campaign builder steps">
+          <button type="button" class="campaign-builder-step active" data-builder-step="details">
+            <span class="builder-step-number">1</span>
+            <span><strong>Details</strong><small>Campaign identity</small></span>
+          </button>
+          <button type="button" class="campaign-builder-step" data-builder-step="recipients">
+            <span class="builder-step-number">2</span>
+            <span><strong>Recipients</strong><small>Build the audience</small></span>
+          </button>
+          <div class="campaign-builder-step disabled">
+            <span class="builder-step-number">3</span>
+            <span><strong>Compose</strong><small>Coming in V11</small></span>
+          </div>
+          <div class="campaign-builder-step disabled">
+            <span class="builder-step-number">4</span>
+            <span><strong>Follow-ups</strong><small>Sequence engine later</small></span>
+          </div>
+          <div class="campaign-builder-step disabled">
+            <span class="builder-step-number">5</span>
+            <span><strong>Settings</strong><small>Sending controls later</small></span>
+          </div>
+          <div class="campaign-builder-step disabled">
+            <span class="builder-step-number">6</span>
+            <span><strong>Schedule</strong><small>Queue required first</small></span>
+          </div>
+          <div class="campaign-builder-step disabled">
+            <span class="builder-step-number">7</span>
+            <span><strong>Review</strong><small>Launch later</small></span>
+          </div>
+        </aside>
+
+        <main class="campaign-builder-stage">
+
+          <section class="campaign-builder-stage-panel active" data-builder-panel="details">
+            <div class="builder-stage-heading">
+              <div><span class="detail-eyebrow">Step 1</span><h3>Campaign Details</h3><p>Set the internal campaign identity before choosing recipients.</p></div>
+            </div>
+            <div class="builder-content-card">
+              <label class="form-field form-field-strong">
+                <span>Campaign name <strong>*</strong></span>
+                <input type="text" id="campaignBuilderNameInput" maxlength="160" autocomplete="off">
+              </label>
+              <div class="builder-readonly-grid">
+                <div><span>Campaign ID</span><strong id="campaignBuilderIdValue">—</strong></div>
+                <div><span>Lifecycle</span><strong id="campaignBuilderStatusValue">Draft</strong></div>
+              </div>
+            </div>
+            <div class="builder-stage-footer">
+              <span></span>
+              <button type="button" class="primary-action-button" id="campaignBuilderSaveDetails">Save & Continue</button>
+            </div>
+          </section>
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="recipients">
+            <div class="builder-stage-heading builder-stage-heading-row">
+              <div><span class="detail-eyebrow">Step 2</span><h3>Recipients</h3><p>Select individual contacts, a saved list, or a dynamic segment.</p></div>
+              <div class="recipient-total-pill"><strong id="campaignBuilderRecipientCount">0</strong><span>campaign recipients</span></div>
+            </div>
+
+            <div id="campaignBuilderNotice" class="dashboard-notice" hidden></div>
+
+            <div class="recipient-source-tabs">
+              <button type="button" class="recipient-source-tab active" data-recipient-source="all">All Contacts</button>
+              <button type="button" class="recipient-source-tab" data-recipient-source="lists">Lists</button>
+              <button type="button" class="recipient-source-tab" data-recipient-source="segments">Segments</button>
+            </div>
+
+            <div class="recipient-source-panel active" data-recipient-source-panel="all">
+              <div class="recipient-command-bar">
+                <input type="search" id="campaignBuilderContactSearch" class="management-search" placeholder="Search contacts, email or company">
+                <div class="recipient-selection-meta"><strong id="campaignBuilderSelectedCount">0</strong><span>selected</span></div>
+              </div>
+              <div class="table-card recipient-picker-table-card">
+                <div class="table-container">
+                  <table class="recipient-picker-table">
+                    <thead><tr><th class="checkbox-column"><input type="checkbox" id="campaignBuilderSelectAll"></th><th>Contact</th><th>Email</th><th>Company</th><th>Eligibility</th></tr></thead>
+                    <tbody id="campaignBuilderContactsTable"></tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="recipient-action-footer">
+                <span id="campaignBuilderEligibilitySummary">Suppressed contacts are automatically excluded.</span>
+                <button type="button" class="primary-action-button" id="campaignBuilderAddSelected">Add Selected</button>
+              </div>
+            </div>
+
+            <div class="recipient-source-panel" data-recipient-source-panel="lists">
+              <div class="audience-source-grid" id="campaignBuilderListsGrid"></div>
+            </div>
+
+            <div class="recipient-source-panel" data-recipient-source-panel="segments">
+              <div class="audience-source-grid" id="campaignBuilderSegmentsGrid"></div>
+            </div>
+
+            <div class="builder-current-audience">
+              <div class="builder-current-audience-heading"><div><strong>Current campaign audience</strong><span>Recipients already attached to this campaign.</span></div><strong id="campaignBuilderCurrentAudienceCount">0</strong></div>
+              <div class="table-card"><div class="table-container"><table><thead><tr><th>Contact</th><th>Email</th><th>Company</th><th>Status</th></tr></thead><tbody id="campaignBuilderCurrentAudienceTable"></tbody></table></div></div>
+            </div>
+          </section>
+
+        </main>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- =========================================================
        CAMPAIGN MODAL
        ========================================================= -->
 
@@ -2596,9 +2727,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=9"></script>
+  <script src="js/dashboard-api.js?v=10"></script>
 
-  <script src="js/app.js?v=9"></script>
+  <script src="js/app.js?v=10"></script>
 
 </body>
 
