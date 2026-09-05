@@ -3260,7 +3260,8 @@ function normalizeEmailTemplateRecord(row) {
     subject: row.Subject || row.subject || '',
     plainBody: row['Plain Body'] || row.plainBody || '',
     htmlBody: row['HTML Body'] || row.htmlBody || '',
-    status: String(row['Template Status'] || row.status || 'ACTIVE').toUpperCase()
+    status: String(row['Template Status'] || row.status || 'ACTIVE').toUpperCase(),
+    updatedAt: row['Updated At'] || row.updatedAt || ''
   };
 }
 async function ensureCampaignContentLoaded(force=false) {
@@ -3335,6 +3336,16 @@ function renderCampaignComposePreview() {
     body.innerHTML=`<div class="compose-plain-preview">${escapeHtml(renderPersonalizedText(plain,user,campaign)).replace(/\n/g,'<br>')}</div>`;
   }
 }
+function formatComposeTemplateDate(value) { if (!value) return 'Recently saved'; const d=new Date(value); return Number.isNaN(d.getTime())?String(value):d.toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }
+function renderComposeSavedTemplates() {
+ const c=document.getElementById('campaignComposeSavedTemplates'); if(!c)return;
+ const ts=(campaignContentState.templates||[]).filter(t=>t.status!=='ARCHIVED'); setText('campaignComposeTemplateCount',`${ts.length} ${ts.length===1?'template':'templates'}`);
+ if(!ts.length){c.innerHTML='<div class="compose-template-empty"><strong>No saved templates yet</strong><span>Write an email and choose <b>Save as Template</b> to reuse it in future campaigns.</span></div>';return;}
+ c.innerHTML=ts.map(t=>`<article class="compose-saved-template-card"><div class="compose-saved-template-main"><strong>${escapeHtml(t.name||'Untitled template')}</strong><span class="compose-template-subject">${escapeHtml(t.subject||'No subject')}</span><small>${escapeHtml(formatComposeTemplateDate(t.updatedAt))}</small></div><div class="compose-saved-template-actions"><button type="button" class="secondary-action-button" data-compose-use-template="${escapeHtml(t.templateId)}">Use Template</button><button type="button" class="icon-action-button" title="Archive template" data-compose-archive-template="${escapeHtml(t.templateId)}">•••</button></div></article>`).join('');
+}
+function applyComposeTemplateById(id,ask=true){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t){showCampaignComposeNotice('Template could not be found.','error');return false;}if(ask&&!window.confirm(`Use "${t.name}"? This will replace the current subject and email body in the editor.`))return false;const s=document.getElementById('campaignComposeTemplateSelect');if(s)s.value=t.templateId;document.getElementById('campaignComposeSubject').value=t.subject||'';document.getElementById('campaignComposePlainBody').value=t.plainBody||'';document.getElementById('campaignComposeHtmlBody').value=t.htmlBody||'';renderCampaignComposePreview();showCampaignComposeNotice(`Template "${t.name}" is now in the editor. Choose Save Compose to save it to this campaign.`,'success');return true;}
+async function archiveComposeTemplate(id,button){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t||!window.confirm(`Archive "${t.name}"? It will no longer appear in your saved templates.`))return;await withActionButtonBusy(button,'…',async()=>{try{await DashboardApi.archiveEmailTemplate(id);await ensureCampaignContentLoaded(true);populateComposeTemplates();renderComposeSavedTemplates();showCampaignComposeNotice(`Template "${t.name}" archived.`,'success');}catch(e){showCampaignComposeNotice(e?.message||'Could not archive the template.','error');}});}
+
 function populateComposePreviewRecipients() {
   const select=document.getElementById('campaignComposePreviewRecipient');
   if(!select)return;
@@ -3363,6 +3374,7 @@ async function loadCampaignCompose() {
     if(plain) plain.value=content?.plainBody || '';
     if(html) html.value=content?.htmlBody || '';
     populateComposeTemplates();
+    renderComposeSavedTemplates();
     populateComposePreviewRecipients();
     renderCampaignComposePreview();
     setText('campaignBuilderSaveState','Saved');
@@ -3388,17 +3400,7 @@ function insertComposeVariable(variable) {
   editor.focus(); editor.setSelectionRange(start+variable.length,start+variable.length);
   renderCampaignComposePreview();
 }
-function applySelectedComposeTemplate() {
-  const id=document.getElementById('campaignComposeTemplateSelect')?.value || '';
-  const template=(campaignContentState.templates||[]).find(t=>t.templateId===id);
-  if(!template){showCampaignComposeNotice('Select a template first.','warning');return;}
-  if(!window.confirm(`Replace the current compose fields with template "${template.name}"?`))return;
-  document.getElementById('campaignComposeSubject').value=template.subject||'';
-  document.getElementById('campaignComposePlainBody').value=template.plainBody||'';
-  document.getElementById('campaignComposeHtmlBody').value=template.htmlBody||'';
-  renderCampaignComposePreview();
-  showCampaignComposeNotice('Template applied. Save Compose to persist it to this campaign.','success');
-}
+function applySelectedComposeTemplate() { const id=document.getElementById('campaignComposeTemplateSelect')?.value||''; if(!id){showCampaignComposeNotice('Choose a saved template first.','warning');return;} applyComposeTemplateById(id,true); }
 async function saveCampaignCompose() {
   const validation=validateCampaignCompose(); if(!validation.valid)return;
   const button=document.getElementById('campaignComposeSave');
@@ -3425,8 +3427,10 @@ async function saveComposeAsTemplate() {
   await withActionButtonBusy(button,'Saving template…',async()=>{
     try {
       await DashboardApi.createEmailTemplate({templateName:name.trim(),subject:document.getElementById('campaignComposeSubject')?.value||'',plainBody:document.getElementById('campaignComposePlainBody')?.value||'',htmlBody:document.getElementById('campaignComposeHtmlBody')?.value||''});
-      await ensureCampaignContentLoaded(true); populateComposeTemplates();
-      showCampaignComposeNotice(`Template "${name.trim()}" saved.`,'success');
+      await ensureCampaignContentLoaded(true);
+      populateComposeTemplates();
+      renderComposeSavedTemplates();
+      showCampaignComposeNotice(`Template "${name.trim()}" saved and is ready to reuse.`,'success');
     } catch(error){showCampaignComposeNotice(error?.message||'Could not save template.','error');}
   });
 }
@@ -3435,6 +3439,7 @@ function attachCampaignComposeListeners() {
   document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
   document.getElementById('campaignComposeSaveTemplate')?.addEventListener('click',saveComposeAsTemplate);
   document.getElementById('campaignComposeApplyTemplate')?.addEventListener('click',applySelectedComposeTemplate);
+  document.getElementById('campaignComposeSavedTemplates')?.addEventListener('click', event => { const use=event.target.closest('[data-compose-use-template]'); if(use){applyComposeTemplateById(use.dataset.composeUseTemplate,true);return;} const archive=event.target.closest('[data-compose-archive-template]'); if(archive) archiveComposeTemplate(archive.dataset.composeArchiveTemplate,archive); });
   document.getElementById('campaignComposePreviewRecipient')?.addEventListener('change',renderCampaignComposePreview);
   ['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].forEach(id=>{
     const el=document.getElementById(id); if(!el)return;

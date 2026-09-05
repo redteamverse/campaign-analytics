@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=11"
+    href="css/dashboard-modules.css?v=11.1"
   >
 </head>
 
@@ -2414,9 +2414,14 @@
               <div class="compose-editor-column">
                 <div class="builder-content-card compose-card">
                   <div class="compose-template-row">
-                    <label class="form-field"><span>Start from template</span><select id="campaignComposeTemplateSelect"><option value="">Blank / Current campaign content</option></select></label>
-                    <button type="button" class="secondary-action-button" id="campaignComposeApplyTemplate">Apply</button>
+                    <label class="form-field"><span>Start from a template</span><select id="campaignComposeTemplateSelect"><option value="">Blank / Current campaign content</option></select></label>
+                    <button type="button" class="secondary-action-button" id="campaignComposeApplyTemplate">Use Template</button>
                   </div>
+
+                  <section class="compose-saved-templates">
+                    <div class="compose-saved-templates-heading"><div><strong>Saved Templates</strong><span>Reuse an email you have already saved.</span></div><span id="campaignComposeTemplateCount">0 templates</span></div>
+                    <div class="compose-saved-template-list" id="campaignComposeSavedTemplates"></div>
+                  </section>
 
                   <label class="form-field form-field-strong"><span>Subject <strong>*</strong></span><input type="text" id="campaignComposeSubject" maxlength="240" placeholder='e.g. A quick note for {{firstName | "there"}}'></label>
 
@@ -2785,9 +2790,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=11"></script>
+  <script src="js/dashboard-api.js?v=11.1"></script>
 
-  <script src="js/app.js?v=11"></script>
+  <script src="js/app.js?v=11.1"></script>
 
 </body>
 
