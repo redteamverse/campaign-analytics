@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=10"
+    href="css/dashboard-modules.css?v=11"
   >
 </head>
 
@@ -2311,10 +2311,10 @@
             <span class="builder-step-number">2</span>
             <span><strong>Recipients</strong><small>Build the audience</small></span>
           </button>
-          <div class="campaign-builder-step disabled">
+          <button type="button" class="campaign-builder-step" data-builder-step="compose">
             <span class="builder-step-number">3</span>
-            <span><strong>Compose</strong><small>Coming in V11</small></span>
-          </div>
+            <span><strong>Compose</strong><small>Message & personalization</small></span>
+          </button>
           <div class="campaign-builder-step disabled">
             <span class="builder-step-number">4</span>
             <span><strong>Follow-ups</strong><small>Sequence engine later</small></span>
@@ -2401,6 +2401,64 @@
               <div class="table-card"><div class="table-container"><table><thead><tr><th>Contact</th><th>Email</th><th>Company</th><th>Status</th></tr></thead><tbody id="campaignBuilderCurrentAudienceTable"></tbody></table></div></div>
             </div>
           </section>
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="compose">
+            <div class="builder-stage-heading builder-stage-heading-row">
+              <div><span class="detail-eyebrow">Step 3</span><h3>Compose Email</h3><p>Write the first outreach email, personalize it, and preview it against a real campaign recipient.</p></div>
+              <button type="button" class="secondary-action-button" id="campaignComposeSaveTemplate">Save as Template</button>
+            </div>
+
+            <div id="campaignComposeNotice" class="dashboard-notice" hidden></div>
+
+            <div class="compose-layout">
+              <div class="compose-editor-column">
+                <div class="builder-content-card compose-card">
+                  <div class="compose-template-row">
+                    <label class="form-field"><span>Start from template</span><select id="campaignComposeTemplateSelect"><option value="">Blank / Current campaign content</option></select></label>
+                    <button type="button" class="secondary-action-button" id="campaignComposeApplyTemplate">Apply</button>
+                  </div>
+
+                  <label class="form-field form-field-strong"><span>Subject <strong>*</strong></span><input type="text" id="campaignComposeSubject" maxlength="240" placeholder='e.g. A quick note for {{firstName | "there"}}'></label>
+
+                  <div class="personalization-toolbar" id="campaignPersonalizationToolbar">
+                    <span>Insert personalization</span>
+                    <button type="button" data-insert-variable='{{firstName | "there"}}'>First name</button>
+                    <button type="button" data-insert-variable='{{company | "your team"}}'>Company</button>
+                    <button type="button" data-insert-variable='{{email}}'>Email</button>
+                    <button type="button" data-insert-variable='{{campaignName}}'>Campaign</button>
+                  </div>
+
+                  <div class="compose-mode-tabs">
+                    <button type="button" class="compose-mode-tab active" data-compose-mode="plain">Plain Text</button>
+                    <button type="button" class="compose-mode-tab" data-compose-mode="html">HTML</button>
+                  </div>
+
+                  <div class="compose-mode-panel active" data-compose-mode-panel="plain">
+                    <textarea id="campaignComposePlainBody" class="compose-body-editor" rows="15" placeholder="Write your email…"></textarea>
+                  </div>
+                  <div class="compose-mode-panel" data-compose-mode-panel="html">
+                    <textarea id="campaignComposeHtmlBody" class="compose-body-editor code-editor" rows="15" placeholder="Optional HTML email body…"></textarea>
+                  </div>
+
+                  <div class="compose-validation" id="campaignComposeValidation"></div>
+                </div>
+
+                <div class="builder-stage-footer">
+                  <button type="button" class="secondary-action-button" id="campaignComposeBack">Back to Recipients</button>
+                  <button type="button" class="primary-action-button" id="campaignComposeSave">Save Compose</button>
+                </div>
+              </div>
+
+              <aside class="compose-preview-column">
+                <div class="compose-preview-card">
+                  <div class="compose-preview-header"><div><span class="detail-eyebrow">Recipient Preview</span><strong>Personalized email</strong></div><select id="campaignComposePreviewRecipient"></select></div>
+                  <div class="compose-preview-subject"><span>Subject</span><strong id="campaignComposePreviewSubject">—</strong></div>
+                  <div class="compose-preview-body" id="campaignComposePreviewBody">Start writing to preview your message.</div>
+                </div>
+              </aside>
+            </div>
+          </section>
+
 
         </main>
       </div>
@@ -2727,9 +2785,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=10"></script>
+  <script src="js/dashboard-api.js?v=11"></script>
 
-  <script src="js/app.js?v=10"></script>
+  <script src="js/app.js?v=11"></script>
 
 </body>
 

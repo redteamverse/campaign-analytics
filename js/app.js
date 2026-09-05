@@ -56,6 +56,7 @@ async function initDashboard(forceRefresh = true) {
     attachUserManagementListeners();
     attachCampaignManagementListeners();
   attachCampaignBuilderListeners();
+  attachCampaignComposeListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -1233,6 +1234,9 @@ let campaignBuilderCampaignId = '';
 let campaignBuilderActiveStep = 'details';
 let campaignBuilderRecipientSource = 'all';
 let campaignBuilderSelectedUserIds = new Set();
+let campaignContentState = {loaded:false,campaignContent:[],templates:[]};
+let campaignComposeActiveMode = 'plain';
+let campaignComposeLastFocusedEditor = 'campaignComposePlainBody';
 
 
 function formatCampaignDate(value) {
@@ -2947,6 +2951,7 @@ function switchCampaignBuilderStep(step) {
     panel.classList.toggle('active', panel.dataset.builderPanel === step)
   );
   if (step === 'recipients') renderCampaignBuilderRecipients();
+  if (step === 'compose') loadCampaignCompose();
 }
 
 function closeCampaignBuilder() {
@@ -3232,6 +3237,213 @@ function attachCampaignBuilderListeners() {
   });
 }
 
+
+
+/* ============================================================
+   CAMPAIGN COMPOSE V11 — CONTENT, PERSONALIZATION, TEMPLATES
+   ============================================================ */
+function normalizeCampaignContentRecord(row) {
+  return {
+    campaignContentId: row['Campaign Content ID'] || row.campaignContentId || '',
+    campaignId: row['Campaign ID'] || row.campaignId || '',
+    templateId: row['Template ID'] || row.templateId || '',
+    subject: row.Subject || row.subject || '',
+    plainBody: row['Plain Body'] || row.plainBody || '',
+    htmlBody: row['HTML Body'] || row.htmlBody || '',
+    updatedAt: row['Updated At'] || row.updatedAt || ''
+  };
+}
+function normalizeEmailTemplateRecord(row) {
+  return {
+    templateId: row['Template ID'] || row.templateId || '',
+    name: row['Template Name'] || row.templateName || row.name || '',
+    subject: row.Subject || row.subject || '',
+    plainBody: row['Plain Body'] || row.plainBody || '',
+    htmlBody: row['HTML Body'] || row.htmlBody || '',
+    status: String(row['Template Status'] || row.status || 'ACTIVE').toUpperCase()
+  };
+}
+async function ensureCampaignContentLoaded(force=false) {
+  if (campaignContentState.loaded && !force) return campaignContentState;
+  const response = await DashboardApi.getCampaignContent();
+  const result = response?.result || {};
+  campaignContentState = {
+    loaded:true,
+    campaignContent:(result.campaignContent || []).map(normalizeCampaignContentRecord),
+    templates:(result.templates || []).map(normalizeEmailTemplateRecord)
+  };
+  return campaignContentState;
+}
+function getCurrentCampaignComposeContent() {
+  return campaignContentState.campaignContent.find(item => String(item.campaignId) === String(campaignBuilderCampaignId)) || null;
+}
+function getComposePreviewUser() {
+  const select=document.getElementById('campaignComposePreviewRecipient');
+  const userId=select?.value || '';
+  const data=DataEngine.getNormalized();
+  return (data.users || []).find(user => String(user.userId || '') === String(userId)) || null;
+}
+function personalizationValue(key,user,campaign) {
+  const map={firstname:user?.firstName||'',first_name:user?.firstName||'',email:user?.emailAddress||'',company:user?.company||'',campaignname:campaign?.campaignName||'',campaign_name:campaign?.campaignName||''};
+  return map[String(key||'').toLowerCase()] || '';
+}
+function renderPersonalizedText(text,user,campaign) {
+  return String(text||'').replace(/\{\{\s*([a-zA-Z0-9_]+)(?:\s*\|\s*(["'])(.*?)\2)?\s*\}\}/g,(full,key,quote,fallback) => {
+    const value=personalizationValue(key,user,campaign);
+    return value || (fallback !== undefined ? fallback : full);
+  });
+}
+function getComposeUnknownVariables() {
+  const allowed=new Set(['firstname','first_name','email','company','campaignname','campaign_name']);
+  const text=[document.getElementById('campaignComposeSubject')?.value,document.getElementById('campaignComposePlainBody')?.value,document.getElementById('campaignComposeHtmlBody')?.value].join('\n');
+  const unknown=new Set();
+  for(const match of text.matchAll(/\{\{\s*([a-zA-Z0-9_]+)/g)) if(!allowed.has(String(match[1]).toLowerCase())) unknown.add(match[1]);
+  return [...unknown];
+}
+function validateCampaignCompose() {
+  const subject=document.getElementById('campaignComposeSubject')?.value.trim() || '';
+  const plain=document.getElementById('campaignComposePlainBody')?.value.trim() || '';
+  const html=document.getElementById('campaignComposeHtmlBody')?.value.trim() || '';
+  const unknown=getComposeUnknownVariables();
+  const issues=[];
+  if(!subject) issues.push('Add a subject line.');
+  if(!plain && !html) issues.push('Add an email body.');
+  if(unknown.length) issues.push(`Unknown variable${unknown.length>1?'s':''}: ${unknown.join(', ')}.`);
+  const box=document.getElementById('campaignComposeValidation');
+  if(box) {
+    box.className=`compose-validation ${issues.length?'has-issues':'is-valid'}`;
+    box.innerHTML=issues.length ? issues.map(issue=>`<span>⚠ ${escapeHtml(issue)}</span>`).join('') : '<span>✓ Compose content is ready to save.</span>';
+  }
+  return {valid:!issues.length,issues};
+}
+function renderCampaignComposePreview() {
+  validateCampaignCompose();
+  const user=getComposePreviewUser();
+  const campaign=getCampaignBuilderCampaign();
+  const subject=document.getElementById('campaignComposeSubject')?.value || '';
+  const plain=document.getElementById('campaignComposePlainBody')?.value || '';
+  const html=document.getElementById('campaignComposeHtmlBody')?.value || '';
+  setText('campaignComposePreviewSubject',renderPersonalizedText(subject,user,campaign) || '—');
+  const body=document.getElementById('campaignComposePreviewBody');
+  if(!body)return;
+  if(html.trim()) {
+    const rendered=renderPersonalizedText(html,user,campaign);
+    body.innerHTML=`<iframe class="compose-preview-frame" title="Email preview" sandbox="allow-popups"></iframe>`;
+    const frame=body.querySelector('iframe');
+    if(frame) frame.srcdoc=rendered;
+  } else {
+    body.innerHTML=`<div class="compose-plain-preview">${escapeHtml(renderPersonalizedText(plain,user,campaign)).replace(/\n/g,'<br>')}</div>`;
+  }
+}
+function populateComposePreviewRecipients() {
+  const select=document.getElementById('campaignComposePreviewRecipient');
+  if(!select)return;
+  const members=getCampaignBuilderMembers();
+  const options=members.map(member=>{
+    const user=getCampaignMemberUser(member);
+    return user ? `<option value="${escapeHtml(user.userId||'')}">${escapeHtml((user.firstName||user.emailAddress||'Recipient')+' — '+(user.emailAddress||''))}</option>` : '';
+  }).join('');
+  select.innerHTML=options || '<option value="">No campaign recipients yet</option>';
+}
+function populateComposeTemplates() {
+  const select=document.getElementById('campaignComposeTemplateSelect');
+  if(!select)return;
+  const active=(campaignContentState.templates||[]).filter(t=>t.status!=='ARCHIVED');
+  select.innerHTML='<option value="">Blank / Current campaign content</option>'+active.map(t=>`<option value="${escapeHtml(t.templateId)}">${escapeHtml(t.name)}</option>`).join('');
+}
+async function loadCampaignCompose() {
+  try {
+    setText('campaignBuilderSaveState','Loading compose…');
+    await ensureCampaignContentLoaded();
+    const content=getCurrentCampaignComposeContent();
+    const subject=document.getElementById('campaignComposeSubject');
+    const plain=document.getElementById('campaignComposePlainBody');
+    const html=document.getElementById('campaignComposeHtmlBody');
+    if(subject) subject.value=content?.subject || '';
+    if(plain) plain.value=content?.plainBody || '';
+    if(html) html.value=content?.htmlBody || '';
+    populateComposeTemplates();
+    populateComposePreviewRecipients();
+    renderCampaignComposePreview();
+    setText('campaignBuilderSaveState','Saved');
+  } catch(error) {
+    showCampaignComposeNotice(error?.message || 'Could not load campaign content.','error');
+    setText('campaignBuilderSaveState','Load failed');
+  }
+}
+function showCampaignComposeNotice(message,type='success') {
+  const notice=document.getElementById('campaignComposeNotice'); if(!notice)return;
+  notice.hidden=!message; notice.className=`dashboard-notice ${type}`; notice.textContent=message||'';
+}
+function switchComposeMode(mode) {
+  campaignComposeActiveMode=mode;
+  document.querySelectorAll('[data-compose-mode]').forEach(b=>b.classList.toggle('active',b.dataset.composeMode===mode));
+  document.querySelectorAll('[data-compose-mode-panel]').forEach(p=>p.classList.toggle('active',p.dataset.composeModePanel===mode));
+}
+function insertComposeVariable(variable) {
+  const editor=document.getElementById(campaignComposeLastFocusedEditor) || document.getElementById('campaignComposePlainBody');
+  if(!editor)return;
+  const start=editor.selectionStart ?? editor.value.length, end=editor.selectionEnd ?? start;
+  editor.value=editor.value.slice(0,start)+variable+editor.value.slice(end);
+  editor.focus(); editor.setSelectionRange(start+variable.length,start+variable.length);
+  renderCampaignComposePreview();
+}
+function applySelectedComposeTemplate() {
+  const id=document.getElementById('campaignComposeTemplateSelect')?.value || '';
+  const template=(campaignContentState.templates||[]).find(t=>t.templateId===id);
+  if(!template){showCampaignComposeNotice('Select a template first.','warning');return;}
+  if(!window.confirm(`Replace the current compose fields with template "${template.name}"?`))return;
+  document.getElementById('campaignComposeSubject').value=template.subject||'';
+  document.getElementById('campaignComposePlainBody').value=template.plainBody||'';
+  document.getElementById('campaignComposeHtmlBody').value=template.htmlBody||'';
+  renderCampaignComposePreview();
+  showCampaignComposeNotice('Template applied. Save Compose to persist it to this campaign.','success');
+}
+async function saveCampaignCompose() {
+  const validation=validateCampaignCompose(); if(!validation.valid)return;
+  const button=document.getElementById('campaignComposeSave');
+  await withActionButtonBusy(button,'Saving…',async()=>{
+    try {
+      setText('campaignBuilderSaveState','Saving…');
+      await DashboardApi.saveCampaignContent({
+        campaignId:campaignBuilderCampaignId,
+        templateId:document.getElementById('campaignComposeTemplateSelect')?.value||'',
+        subject:document.getElementById('campaignComposeSubject')?.value||'',
+        plainBody:document.getElementById('campaignComposePlainBody')?.value||'',
+        htmlBody:document.getElementById('campaignComposeHtmlBody')?.value||''
+      });
+      await ensureCampaignContentLoaded(true);
+      setText('campaignBuilderSaveState','Saved');
+      showCampaignComposeNotice('Compose content saved to this campaign.','success');
+    } catch(error){setText('campaignBuilderSaveState','Not saved');showCampaignComposeNotice(error?.message||'Could not save compose content.','error');}
+  });
+}
+async function saveComposeAsTemplate() {
+  const validation=validateCampaignCompose(); if(!validation.valid)return;
+  const name=window.prompt('Template name'); if(!name?.trim())return;
+  const button=document.getElementById('campaignComposeSaveTemplate');
+  await withActionButtonBusy(button,'Saving template…',async()=>{
+    try {
+      await DashboardApi.createEmailTemplate({templateName:name.trim(),subject:document.getElementById('campaignComposeSubject')?.value||'',plainBody:document.getElementById('campaignComposePlainBody')?.value||'',htmlBody:document.getElementById('campaignComposeHtmlBody')?.value||''});
+      await ensureCampaignContentLoaded(true); populateComposeTemplates();
+      showCampaignComposeNotice(`Template "${name.trim()}" saved.`,'success');
+    } catch(error){showCampaignComposeNotice(error?.message||'Could not save template.','error');}
+  });
+}
+function attachCampaignComposeListeners() {
+  document.getElementById('campaignComposeBack')?.addEventListener('click',()=>switchCampaignBuilderStep('recipients'));
+  document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
+  document.getElementById('campaignComposeSaveTemplate')?.addEventListener('click',saveComposeAsTemplate);
+  document.getElementById('campaignComposeApplyTemplate')?.addEventListener('click',applySelectedComposeTemplate);
+  document.getElementById('campaignComposePreviewRecipient')?.addEventListener('change',renderCampaignComposePreview);
+  ['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].forEach(id=>{
+    const el=document.getElementById(id); if(!el)return;
+    el.addEventListener('input',renderCampaignComposePreview);
+    el.addEventListener('focus',()=>{if(id!=='campaignComposeSubject')campaignComposeLastFocusedEditor=id;});
+  });
+  document.querySelectorAll('[data-compose-mode]').forEach(button=>button.addEventListener('click',()=>switchComposeMode(button.dataset.composeMode)));
+  document.getElementById('campaignPersonalizationToolbar')?.addEventListener('click',event=>{const b=event.target.closest('[data-insert-variable]');if(b)insertComposeVariable(b.dataset.insertVariable);});
+}
 
 /* ============================================================
    CAMPAIGN MEMBER MANAGEMENT
