@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=5"
+    href="css/dashboard-modules.css?v=6"
   >
 </head>
 
@@ -631,27 +631,39 @@
               </button>
 
               <button type="button" class="module-tab" data-user-tab="campaign">
-                By Campaign
+                Campaign Membership
               </button>
 
               <button type="button" class="module-tab" data-user-tab="subscription">
-                Subscription
+                Suppression
               </button>
 
             </div>
 
-            <button
-              type="button"
-              class="primary-action-button"
-              id="addUserButton"
-            >
-              + Add Contact
-            </button>
+            <div class="command-actions">
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="exportContactsButton"
+              >
+                Export CSV
+              </button>
+
+              <button
+                type="button"
+                class="primary-action-button"
+                id="addUserButton"
+              >
+                + Add Contact
+              </button>
+
+            </div>
 
           </div>
 
 
-          <!-- USERS / ALL USERS -->
+          <!-- CONTACTS / ALL -->
 
           <div
             class="module-tab-panel active"
@@ -659,7 +671,7 @@
             data-user-panel="all"
           >
 
-            <div class="management-toolbar compact-toolbar">
+            <div class="management-toolbar compact-toolbar contacts-toolbar">
 
               <div class="search-field-wrap">
 
@@ -667,7 +679,7 @@
                   type="search"
                   id="userSearchInput"
                   class="management-search"
-                  placeholder="Search name, email or company"
+                  placeholder="Search contacts"
                 >
 
               </div>
@@ -685,27 +697,32 @@
             </div>
 
 
-            <div class="users-summary-grid module-summary-grid">
+            <div class="contacts-summary-line">
 
-              <div class="mini-stat">
-                <span>Total Contacts</span>
+              <span>
                 <strong id="usersTotalCount">0</strong>
-              </div>
+                Contacts
+              </span>
 
-              <div class="mini-stat">
-                <span>Subscribed</span>
+              <span class="summary-separator">•</span>
+
+              <span>
                 <strong id="usersSubscribedCount">0</strong>
-              </div>
+                Subscribed
+              </span>
 
-              <div class="mini-stat">
-                <span>Unsubscribed</span>
+              <span class="summary-separator">•</span>
+
+              <span>
                 <strong id="usersUnsubscribedCount">0</strong>
-              </div>
+                Suppressed
+              </span>
 
-              <div class="mini-stat">
-                <span>Showing</span>
+              <span id="contactsShowingWrap">
+                <span class="summary-separator">•</span>
                 <strong id="usersShowingCount">0</strong>
-              </div>
+                Showing
+              </span>
 
             </div>
 
@@ -731,7 +748,7 @@
                       <th>Lead Status</th>
                       <th>Campaigns</th>
                       <th>Subscription</th>
-                      <th>Actions</th>
+                      <th class="actions-column">Actions</th>
                     </tr>
                   </thead>
 
@@ -758,8 +775,8 @@
             <div class="module-context-bar">
 
               <div>
-                <strong>Contacts by Campaign</strong>
-                <span>Review campaign membership for one contact set at a time.</span>
+                <strong>Campaign membership</strong>
+                <span>Review which contacts belong to a selected campaign.</span>
               </div>
 
               <select
@@ -829,7 +846,7 @@
           </div>
 
 
-          <!-- USERS / SUBSCRIPTION -->
+          <!-- CONTACTS / SUPPRESSION -->
 
           <div
             class="module-tab-panel"
@@ -837,6 +854,21 @@
             data-user-panel="subscription"
             hidden
           >
+
+            <div class="suppression-intro">
+
+              <div>
+                <strong>Suppression list</strong>
+                <span>Contacts here are blocked from campaign sending until they are explicitly resubscribed.</span>
+              </div>
+
+              <span class="suppression-count">
+                <strong id="subscriptionUnsubscribedCount">0</strong>
+                suppressed
+              </span>
+
+            </div>
+
 
             <div class="management-toolbar compact-toolbar">
 
@@ -846,7 +878,7 @@
                   type="search"
                   id="subscriptionSearchInput"
                   class="management-search"
-                  placeholder="Search contact, email or company"
+                  placeholder="Search suppressed contacts"
                 >
 
               </div>
@@ -854,52 +886,31 @@
               <select
                 id="subscriptionStateFilter"
                 class="management-filter"
+                hidden
               >
-                <option value="all">All subscription states</option>
-                <option value="subscribed">Subscribed</option>
-                <option value="unsubscribed">Unsubscribed</option>
+                <option value="unsubscribed" selected>Unsubscribed</option>
               </select>
 
             </div>
 
 
-            <div class="users-summary-grid module-summary-grid">
-
-              <div class="mini-stat">
-                <span>Subscribed</span>
-                <strong id="subscriptionSubscribedCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Unsubscribed</span>
-                <strong id="subscriptionUnsubscribedCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Showing</span>
-                <strong id="subscriptionShowingCount">0</strong>
-              </div>
-
-            </div>
+            <span id="subscriptionSubscribedCount" hidden>0</span>
+            <span id="subscriptionShowingCount" hidden>0</span>
 
 
             <div class="table-card">
 
-              <div class="table-header">
-                <h3>Subscription Management</h3>
-              </div>
-
               <div class="table-container">
 
-                <table>
+                <table class="suppression-table">
                   <thead>
                     <tr>
                       <th>Contact</th>
                       <th>Email</th>
                       <th>Company</th>
                       <th>Campaigns</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+                      <th>Reason</th>
+                      <th class="actions-column">Actions</th>
                     </tr>
                   </thead>
                   <tbody id="subscriptionManagementTable"></tbody>
@@ -912,6 +923,123 @@
           </div>
 
         </section>
+
+
+        <!-- ===================================================
+             CONTACT DETAIL DRAWER
+             =================================================== -->
+
+        <div
+          class="detail-drawer-backdrop"
+          id="contactDetailBackdrop"
+          hidden
+        >
+
+          <aside
+            class="detail-drawer"
+            id="contactDetailDrawer"
+            aria-label="Contact details"
+          >
+
+            <div class="detail-drawer-header">
+
+              <div>
+                <span class="detail-eyebrow">Contact</span>
+                <h2 id="contactDetailName">Contact details</h2>
+                <p id="contactDetailEmail">—</p>
+              </div>
+
+              <button
+                type="button"
+                class="drawer-close-button"
+                id="contactDetailClose"
+                aria-label="Close contact details"
+              >
+                ×
+              </button>
+
+            </div>
+
+
+            <div class="detail-drawer-body">
+
+              <div class="detail-status-row">
+                <span id="contactDetailSubscription"></span>
+                <span id="contactDetailLeadStatus"></span>
+              </div>
+
+
+              <section class="detail-section">
+
+                <h3>Contact information</h3>
+
+                <dl class="detail-list">
+
+                  <div>
+                    <dt>Company</dt>
+                    <dd id="contactDetailCompany">—</dd>
+                  </div>
+
+                  <div>
+                    <dt>Active campaigns</dt>
+                    <dd id="contactDetailCampaignCount">0</dd>
+                  </div>
+
+                </dl>
+
+              </section>
+
+
+              <section class="detail-section">
+
+                <h3>Campaign membership</h3>
+
+                <div
+                  id="contactDetailCampaigns"
+                  class="contact-detail-campaigns"
+                ></div>
+
+              </section>
+
+
+              <section class="detail-section detail-technical">
+
+                <h3>System references</h3>
+
+                <dl class="detail-list">
+
+                  <div>
+                    <dt>User ID</dt>
+                    <dd id="contactDetailUserId">—</dd>
+                  </div>
+
+                  <div>
+                    <dt>Contact ID</dt>
+                    <dd id="contactDetailContactId">—</dd>
+                  </div>
+
+                </dl>
+
+              </section>
+
+            </div>
+
+
+            <div class="detail-drawer-footer">
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="contactDetailEdit"
+              >
+                Edit Contact
+              </button>
+
+            </div>
+
+          </aside>
+
+        </div>
 
 
         <!-- ===================================================
@@ -1955,9 +2083,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=5"></script>
+  <script src="js/dashboard-api.js?v=6"></script>
 
-  <script src="js/app.js?v=5"></script>
+  <script src="js/app.js?v=6"></script>
 
 </body>
 

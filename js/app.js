@@ -287,19 +287,30 @@ function renderUsersManagement() {
   const tbody = document.getElementById('usersManagementTable');
   if (!tbody) return;
 
-  const allUsers = DataEngine.getNormalized().users;
+  const data = DataEngine.getNormalized();
+  const allUsers = data.users;
   const rows = getUserManagementRows();
+
   setText('usersTotalCount', allUsers.length.toLocaleString());
   setText('usersSubscribedCount', allUsers.filter(user => !user.unsubscribed).length.toLocaleString());
   setText('usersUnsubscribedCount', allUsers.filter(user => user.unsubscribed).length.toLocaleString());
   setText('usersShowingCount', rows.length.toLocaleString());
 
-  if (!rows.length) {
-    tbody.innerHTML = emptyRow(7, 'No users match the current search or filters.');
-    return;
+  const showingWrap =
+    document.getElementById(
+      'contactsShowingWrap'
+    );
+
+  if (showingWrap) {
+    showingWrap.hidden =
+      rows.length ===
+      allUsers.length;
   }
 
-  const data = DataEngine.getNormalized();
+  if (!rows.length) {
+    tbody.innerHTML = emptyRow(7, 'No contacts match the current search or filters.');
+    return;
+  }
 
   tbody.innerHTML = rows.slice(0, 1000).map(user => {
     const campaignCount = data.campaignMembers.filter(
@@ -307,22 +318,37 @@ function renderUsersManagement() {
         String(member.membershipStatus || member.status || 'ACTIVE').toUpperCase() === 'ACTIVE'
     ).length;
 
+    const userId = escapeHtml(user.userId || '');
+
     return `
       <tr>
         <td class="user-name-cell">
-          <strong>${escapeHtml(user.firstName || '—')}</strong>
-          <small>${escapeHtml(user.company || '')}</small>
+          <button
+            type="button"
+            class="contact-name-button"
+            data-user-view="${userId}"
+          >
+            ${escapeHtml(user.firstName || '—')}
+          </button>
         </td>
-        <td>${escapeHtml(user.emailAddress)}</td>
+        <td>${escapeHtml(user.emailAddress || '—')}</td>
         <td>${escapeHtml(user.company || '—')}</td>
         <td>${statusBadge(user.leadStatus || 'New')}</td>
         <td>${campaignCount.toLocaleString()}</td>
         <td>${user.unsubscribed
-          ? '<span class="status-badge badge-danger">Unsubscribed</span>'
+          ? '<span class="status-badge badge-danger">Suppressed</span>'
           : '<span class="status-badge badge-success">Subscribed</span>'}</td>
-        <td>
-          <div class="user-actions">
-            <button type="button" class="table-action-button" data-user-edit="${escapeHtml(user.userId)}">Edit</button>
+        <td class="actions-column">
+          <div class="contact-row-actions">
+            <button
+              type="button"
+              class="row-menu-trigger contact-view-trigger"
+              data-user-view="${userId}"
+              aria-label="View contact details"
+              title="View contact details"
+            >
+              •••
+            </button>
           </div>
         </td>
       </tr>
@@ -456,6 +482,390 @@ function renderUserCampaignMemberships(
 }
 
 
+
+let activeContactDetailUserId = '';
+
+
+function getContactCampaignMemberships(
+  userId
+) {
+
+  const data =
+    DataEngine.getNormalized();
+
+  const campaignsById =
+    new Map(
+      data.campaigns.map(
+        campaign => [
+          String(
+            campaign.campaignId || ''
+          ),
+          campaign
+        ]
+      )
+    );
+
+  return data.campaignMembers
+    .filter(
+      member =>
+        String(
+          member.userId || ''
+        ) ===
+        String(
+          userId || ''
+        )
+    )
+    .map(
+      member => {
+
+        const campaign =
+          campaignsById.get(
+            String(
+              member.campaignId || ''
+            )
+          );
+
+        return {
+          member,
+          campaign,
+          name:
+            campaign?.campaignName ||
+            member.campaignName ||
+            member.campaignId ||
+            'Unknown Campaign',
+          status:
+            String(
+              member.membershipStatus ||
+              member.status ||
+              'ACTIVE'
+            )
+              .trim()
+              .toUpperCase()
+        };
+      }
+    )
+    .sort(
+      (a, b) =>
+        String(
+          a.name || ''
+        ).localeCompare(
+          String(
+            b.name || ''
+          )
+        )
+    );
+}
+
+
+function openContactDetail(
+  userId
+) {
+
+  const user =
+    DataEngine.getUserById(
+      userId
+    );
+
+  if (!user) {
+    return;
+  }
+
+  activeContactDetailUserId =
+    user.userId || '';
+
+  const memberships =
+    getContactCampaignMemberships(
+      user.userId
+    );
+
+  const activeMemberships =
+    memberships.filter(
+      item =>
+        item.status ===
+        'ACTIVE'
+    );
+
+  setText(
+    'contactDetailName',
+    user.firstName ||
+    user.emailAddress ||
+    'Contact'
+  );
+
+  setText(
+    'contactDetailEmail',
+    user.emailAddress ||
+    '—'
+  );
+
+  setText(
+    'contactDetailCompany',
+    user.company ||
+    '—'
+  );
+
+  setText(
+    'contactDetailCampaignCount',
+    activeMemberships.length.toLocaleString()
+  );
+
+  setText(
+    'contactDetailUserId',
+    user.userId ||
+    '—'
+  );
+
+  setText(
+    'contactDetailContactId',
+    user.contactId ||
+    '—'
+  );
+
+  const subscription =
+    document.getElementById(
+      'contactDetailSubscription'
+    );
+
+  if (subscription) {
+    subscription.innerHTML =
+      user.unsubscribed
+        ? '<span class="status-badge badge-danger">Suppressed</span>'
+        : '<span class="status-badge badge-success">Subscribed</span>';
+  }
+
+  const lead =
+    document.getElementById(
+      'contactDetailLeadStatus'
+    );
+
+  if (lead) {
+    lead.innerHTML =
+      statusBadge(
+        user.leadStatus ||
+        'New'
+      );
+  }
+
+  const campaigns =
+    document.getElementById(
+      'contactDetailCampaigns'
+    );
+
+  if (campaigns) {
+
+    if (!memberships.length) {
+
+      campaigns.innerHTML =
+        '<div class="drawer-empty-state">No campaign memberships yet.</div>';
+
+    } else {
+
+      campaigns.innerHTML =
+        memberships
+          .map(
+            item => `
+              <div class="contact-detail-campaign-item">
+                <div>
+                  <strong>${escapeHtml(item.name)}</strong>
+                  ${
+                    item.campaign?.campaignStatus
+                      ? `<small>${escapeHtml(item.campaign.campaignStatus)}</small>`
+                      : ''
+                  }
+                </div>
+                ${
+                  item.status === 'ACTIVE'
+                    ? '<span class="status-badge badge-success">Active</span>'
+                    : '<span class="status-badge badge-muted">Inactive</span>'
+                }
+              </div>
+            `
+          )
+          .join('');
+    }
+  }
+
+  const backdrop =
+    document.getElementById(
+      'contactDetailBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      false;
+  }
+
+  document.body.classList.add(
+    'drawer-open'
+  );
+}
+
+
+function closeContactDetail() {
+
+  const backdrop =
+    document.getElementById(
+      'contactDetailBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      true;
+  }
+
+  activeContactDetailUserId =
+    '';
+
+  document.body.classList.remove(
+    'drawer-open'
+  );
+}
+
+
+function escapeCsvValue(
+  value
+) {
+
+  const text =
+    String(
+      value ?? ''
+    );
+
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+
+function exportContactsCsv() {
+
+  const data =
+    DataEngine.getNormalized();
+
+  const rows =
+    getUserManagementRows();
+
+  if (!rows.length) {
+
+    showUsersNotice(
+      'There are no contacts to export for the current filters.',
+      'warning'
+    );
+
+    return;
+  }
+
+  const header = [
+    'First Name',
+    'Email Address',
+    'Company',
+    'Lead Status',
+    'Subscription',
+    'Active Campaigns',
+    'User ID',
+    'Contact ID'
+  ];
+
+  const csvRows = [
+    header.map(
+      escapeCsvValue
+    ).join(',')
+  ];
+
+  rows.forEach(
+    user => {
+
+      const activeCampaigns =
+        data.campaignMembers.filter(
+          member =>
+            String(
+              member.userId || ''
+            ) ===
+            String(
+              user.userId || ''
+            ) &&
+            String(
+              member.membershipStatus ||
+              member.status ||
+              'ACTIVE'
+            )
+              .toUpperCase() ===
+              'ACTIVE'
+        ).length;
+
+      csvRows.push(
+        [
+          user.firstName || '',
+          user.emailAddress || '',
+          user.company || '',
+          user.leadStatus || 'New',
+          user.unsubscribed
+            ? 'Suppressed'
+            : 'Subscribed',
+          activeCampaigns,
+          user.userId || '',
+          user.contactId || ''
+        ]
+          .map(
+            escapeCsvValue
+          )
+          .join(',')
+      );
+    }
+  );
+
+  const blob =
+    new Blob(
+      [
+        '\uFEFF' +
+        csvRows.join('\r\n')
+      ],
+      {
+        type:
+          'text/csv;charset=utf-8;'
+      }
+    );
+
+  const url =
+    URL.createObjectURL(
+      blob
+    );
+
+  const link =
+    document.createElement(
+      'a'
+    );
+
+  const stamp =
+    new Date()
+      .toISOString()
+      .slice(
+        0,
+        10
+      );
+
+  link.href =
+    url;
+
+  link.download =
+    `altsec-outreach-contacts-${stamp}.csv`;
+
+  document.body.appendChild(
+    link
+  );
+
+  link.click();
+  link.remove();
+
+  URL.revokeObjectURL(
+    url
+  );
+
+  showUsersNotice(
+    `${rows.length.toLocaleString()} contact${rows.length === 1 ? '' : 's'} exported.`,
+    'success'
+  );
+}
+
+
 function showUsersNotice(message, type = 'success') {
   const notice = document.getElementById('usersActionNotice');
   if (!notice) return;
@@ -528,8 +938,8 @@ async function submitUserForm(event) {
     closeUserModal();
     showUsersNotice(
       wasEditing
-        ? 'User updated successfully.'
-        : (result?.result?.message || 'User created successfully.'),
+        ? 'Contact updated successfully.'
+        : (result?.result?.message || 'Contact created successfully.'),
       'success'
     );
     await initDashboard(true);
@@ -565,23 +975,79 @@ function attachUserManagementListeners() {
   userManagementAttached = true;
 
   document.getElementById('addUserButton')?.addEventListener('click', () => openUserModal());
+  document.getElementById('exportContactsButton')?.addEventListener('click', exportContactsCsv);
+
   document.getElementById('userModalClose')?.addEventListener('click', closeUserModal);
   document.getElementById('userFormCancel')?.addEventListener('click', closeUserModal);
   document.getElementById('userForm')?.addEventListener('submit', submitUserForm);
+
   document.getElementById('userModalBackdrop')?.addEventListener('click', event => {
     if (event.target.id === 'userModalBackdrop') closeUserModal();
   });
+
   document.getElementById('userSearchInput')?.addEventListener('input', renderUsersManagement);
   document.getElementById('userLeadStatusFilter')?.addEventListener('change', renderUsersManagement);
   document.getElementById('userSubscriptionFilter')?.addEventListener('change', renderUsersManagement);
+
   document.getElementById('usersManagementTable')?.addEventListener('click', event => {
+
+    const viewButton =
+      event.target.closest(
+        '[data-user-view]'
+      );
+
+    if (viewButton) {
+      openContactDetail(
+        viewButton.dataset.userView
+      );
+      return;
+    }
+
     const editButton = event.target.closest('[data-user-edit]');
     if (editButton) {
       openUserModal(editButton.dataset.userEdit);
       return;
     }
+
     const unsubButton = event.target.closest('[data-user-unsubscribe]');
-    if (unsubButton) toggleUserSubscription(unsubButton.dataset.userUnsubscribe, unsubButton.dataset.nextState);
+    if (unsubButton) {
+      toggleUserSubscription(
+        unsubButton.dataset.userUnsubscribe,
+        unsubButton.dataset.nextState
+      );
+    }
+  });
+
+  document.getElementById('contactDetailClose')?.addEventListener('click', closeContactDetail);
+
+  document.getElementById('contactDetailBackdrop')?.addEventListener('click', event => {
+    if (event.target.id === 'contactDetailBackdrop') {
+      closeContactDetail();
+    }
+  });
+
+  document.getElementById('contactDetailEdit')?.addEventListener('click', () => {
+
+    if (!activeContactDetailUserId) {
+      return;
+    }
+
+    const userId =
+      activeContactDetailUserId;
+
+    closeContactDetail();
+    openUserModal(
+      userId
+    );
+  });
+
+  document.addEventListener('keydown', event => {
+    if (
+      event.key === 'Escape' &&
+      !document.getElementById('contactDetailBackdrop')?.hidden
+    ) {
+      closeContactDetail();
+    }
   });
 }
 /* ============================================================
@@ -3164,6 +3630,18 @@ function switchUserModuleTab(
   }
 
 
+  const exportButton =
+    document.getElementById(
+      'exportContactsButton'
+    );
+
+  if (exportButton) {
+    exportButton.hidden =
+      activeUserModuleTab !==
+      'all';
+  }
+
+
   renderUsersManagement();
   renderUsersByCampaign();
   renderSubscriptionManagement();
@@ -3719,15 +4197,12 @@ function renderSubscriptionManagement() {
       'subscriptionManagementTable'
     );
 
-
   if (!tbody) {
     return;
   }
 
-
   const data =
     DataEngine.getNormalized();
-
 
   const query =
     (
@@ -3738,44 +4213,26 @@ function renderSubscriptionManagement() {
       .trim()
       .toLowerCase();
 
-
-  const state =
-    document.getElementById(
-      'subscriptionStateFilter'
-    )?.value || 'all';
-
-
   const allUsers =
     data.users;
 
-
-  const rows =
+  const suppressed =
     allUsers
       .filter(
-        user => {
-
-          if (
-            state ===
-              'subscribed' &&
+        user =>
+          Boolean(
             user.unsubscribed
-          ) {
-            return false;
-          }
+          )
+      );
 
-
-          if (
-            state ===
-              'unsubscribed' &&
-            !user.unsubscribed
-          ) {
-            return false;
-          }
-
+  const rows =
+    suppressed
+      .filter(
+        user => {
 
           if (!query) {
             return true;
           }
-
 
           return [
             user.firstName,
@@ -3804,7 +4261,6 @@ function renderSubscriptionManagement() {
           )
       );
 
-
   setText(
     'subscriptionSubscribedCount',
     allUsers
@@ -3816,36 +4272,28 @@ function renderSubscriptionManagement() {
       .toLocaleString()
   );
 
-
   setText(
     'subscriptionUnsubscribedCount',
-    allUsers
-      .filter(
-        user =>
-          user.unsubscribed
-      )
-      .length
-      .toLocaleString()
+    suppressed.length.toLocaleString()
   );
-
 
   setText(
     'subscriptionShowingCount',
     rows.length.toLocaleString()
   );
 
-
   if (!rows.length) {
 
     tbody.innerHTML =
       emptyRow(
         6,
-        'No users match the subscription filters.'
+        query
+          ? 'No suppressed contacts match this search.'
+          : 'No contacts are currently suppressed.'
       );
 
     return;
   }
-
 
   tbody.innerHTML =
     rows
@@ -3853,23 +4301,26 @@ function renderSubscriptionManagement() {
         user => `
           <tr>
             <td class="user-name-cell">
-              <strong>${escapeHtml(user.firstName || '—')}</strong>
-              <small>${escapeHtml(user.company || '')}</small>
+              <button
+                type="button"
+                class="contact-name-button"
+                data-user-view="${escapeHtml(user.userId || '')}"
+              >
+                ${escapeHtml(user.firstName || '—')}
+              </button>
             </td>
             <td>${escapeHtml(user.emailAddress || '—')}</td>
             <td>${escapeHtml(user.company || '—')}</td>
             <td>${getUserCampaignCount(user.userId).toLocaleString()}</td>
-            <td>${user.unsubscribed
-              ? '<span class="status-badge badge-danger">Unsubscribed</span>'
-              : '<span class="status-badge badge-success">Subscribed</span>'}</td>
-            <td>
+            <td><span class="status-badge badge-danger">Unsubscribed</span></td>
+            <td class="actions-column">
               <button
                 type="button"
-                class="table-action-button ${user.unsubscribed ? 'success' : 'danger'}"
+                class="secondary-action-button compact-row-button"
                 data-user-unsubscribe="${escapeHtml(user.userId)}"
-                data-next-state="${user.unsubscribed ? 'N' : 'Y'}"
+                data-next-state="N"
               >
-                ${user.unsubscribed ? 'Resubscribe' : 'Unsubscribe'}
+                Resubscribe
               </button>
             </td>
           </tr>
@@ -4539,6 +4990,38 @@ function attachModuleTabListeners() {
   )?.addEventListener(
     'change',
     renderSubscriptionManagement
+  );
+
+  document.getElementById(
+    'subscriptionManagementTable'
+  )?.addEventListener(
+    'click',
+    event => {
+
+      const viewButton =
+        event.target.closest(
+          '[data-user-view]'
+        );
+
+      if (viewButton) {
+        openContactDetail(
+          viewButton.dataset.userView
+        );
+        return;
+      }
+
+      const unsubButton =
+        event.target.closest(
+          '[data-user-unsubscribe]'
+        );
+
+      if (unsubButton) {
+        toggleUserSubscription(
+          unsubButton.dataset.userUnsubscribe,
+          unsubButton.dataset.nextState
+        );
+      }
+    }
   );
 
 
