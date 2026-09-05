@@ -183,7 +183,7 @@ function switchView(viewId) {
       subtitle: 'Campaign delivery and engagement at a glance'
     },
     usersView: {
-      title: 'Users',
+      title: 'Contacts',
       subtitle: 'Manage contacts, campaign membership and subscription status'
     },
     campaignsView: {
@@ -467,14 +467,14 @@ function showUsersNotice(message, type = 'success') {
 function openUserModal(userId = '') {
   editingUserId = userId || '';
   const user = editingUserId ? DataEngine.getUserById(editingUserId) : null;
-  document.getElementById('userModalTitle').textContent = user ? 'Edit User' : 'Add User';
+  document.getElementById('userModalTitle').textContent = user ? 'Edit Contact' : 'Add Contact';
   document.getElementById('userFormUserId').value = user?.userId || '';
   document.getElementById('userFormFirstName').value = user?.firstName || '';
   document.getElementById('userFormEmail').value = user?.emailAddress || '';
   document.getElementById('userFormEmail').disabled = Boolean(user);
   document.getElementById('userFormCompany').value = user?.company || '';
   document.getElementById('userFormLeadStatus').value = user?.leadStatus || 'New';
-  document.getElementById('userFormSubmit').textContent = user ? 'Save Changes' : 'Create User';
+  document.getElementById('userFormSubmit').textContent = user ? 'Save Changes' : 'Create Contact';
   document.getElementById('userFormError').hidden = true;
   document.getElementById('userModalBackdrop').hidden = false;
   setTimeout(() => document.getElementById(user ? 'userFormFirstName' : 'userFormEmail')?.focus(), 0);
@@ -493,7 +493,7 @@ function setUserFormBusy(busy) {
   const cancel = document.getElementById('userFormCancel');
   if (submit) submit.disabled = busy;
   if (cancel) cancel.disabled = busy;
-  if (submit) submit.textContent = busy ? 'Saving…' : (editingUserId ? 'Save Changes' : 'Create User');
+  if (submit) submit.textContent = busy ? 'Saving…' : (editingUserId ? 'Save Changes' : 'Create Contact');
 }
 
 async function submitUserForm(event) {
@@ -3550,7 +3550,7 @@ function renderUsersByCampaign() {
 
     if (title) {
       title.textContent =
-        'Campaign Users';
+        'Campaign Contacts';
     }
 
     tbody.innerHTML =
@@ -3573,8 +3573,8 @@ function renderUsersByCampaign() {
 
     title.textContent =
       campaign?.campaignName
-        ? `${campaign.campaignName} Users`
-        : 'Campaign Users';
+        ? `${campaign.campaignName} Contacts`
+        : 'Campaign Contacts';
   }
 
 
