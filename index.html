@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=4"
+    href="css/dashboard-modules.css?v=5"
   >
 </head>
 
@@ -202,7 +202,7 @@
 
 
         <a
-          href="#users"
+          href="#contacts"
           class="nav-item"
           data-view="usersView"
         >
@@ -220,7 +220,7 @@
           </svg>
 
           <span>
-            Users
+            Contacts
           </span>
 
         </a>
@@ -623,11 +623,11 @@
             <div
               class="module-tabs"
               role="tablist"
-              aria-label="User management"
+              aria-label="Contact management"
             >
 
               <button type="button" class="module-tab active" data-user-tab="all">
-                All Users
+                All Contacts
               </button>
 
               <button type="button" class="module-tab" data-user-tab="campaign">
@@ -645,7 +645,7 @@
               class="primary-action-button"
               id="addUserButton"
             >
-              + Add User
+              + Add Contact
             </button>
 
           </div>
@@ -688,7 +688,7 @@
             <div class="users-summary-grid module-summary-grid">
 
               <div class="mini-stat">
-                <span>Total Users</span>
+                <span>Total Contacts</span>
                 <strong id="usersTotalCount">0</strong>
               </div>
 
@@ -725,7 +725,7 @@
 
                   <thead>
                     <tr>
-                      <th>User</th>
+                      <th>Contact</th>
                       <th>Email</th>
                       <th>Company</th>
                       <th>Lead Status</th>
@@ -758,8 +758,8 @@
             <div class="module-context-bar">
 
               <div>
-                <strong>Users by Campaign</strong>
-                <span>Review membership for one campaign at a time.</span>
+                <strong>Contacts by Campaign</strong>
+                <span>Review campaign membership for one contact set at a time.</span>
               </div>
 
               <select
@@ -783,7 +783,7 @@
                   type="search"
                   id="userCampaignSearchInput"
                   class="management-search"
-                  placeholder="Search user, email or company"
+                  placeholder="Search contact, email or company"
                 >
 
               </div>
@@ -803,7 +803,7 @@
             <div class="table-card">
 
               <div class="table-header">
-                <h3 id="usersByCampaignTitle">Campaign Users</h3>
+                <h3 id="usersByCampaignTitle">Campaign Contacts</h3>
               </div>
 
               <div class="table-container">
@@ -811,7 +811,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>User</th>
+                      <th>Contact</th>
                       <th>Email</th>
                       <th>Company</th>
                       <th>Membership</th>
@@ -846,7 +846,7 @@
                   type="search"
                   id="subscriptionSearchInput"
                   class="management-search"
-                  placeholder="Search user, email or company"
+                  placeholder="Search contact, email or company"
                 >
 
               </div>
@@ -894,7 +894,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>User</th>
+                      <th>Contact</th>
                       <th>Email</th>
                       <th>Company</th>
                       <th>Campaigns</th>
@@ -1165,7 +1165,7 @@
 
                     <thead>
                       <tr>
-                        <th>User</th>
+                        <th>Contact</th>
                         <th>Email</th>
                         <th>Membership</th>
                         <th>Pre-check</th>
@@ -1293,7 +1293,7 @@
                 <table>
                   <thead>
                     <tr>
-                      <th>User</th>
+                      <th>Contact</th>
                       <th>Email</th>
                       <th>Campaign</th>
                       <th>Status</th>
@@ -1501,11 +1501,11 @@
         <div>
 
           <div class="modal-eyebrow">
-            User Management
+            Contact Management
           </div>
 
           <h3 id="userModalTitle">
-            Add User
+            Add Contact
           </h3>
 
         </div>
@@ -1563,7 +1563,7 @@
           >
 
           <small id="userEmailHelp">
-            Email becomes the user's relational identity and cannot be edited later.
+            Email is the contact's relational identity and cannot be edited later.
           </small>
 
         </label>
@@ -1644,7 +1644,7 @@
             class="primary-action-button"
             id="userFormSubmit"
           >
-            Create User
+            Create Contact
           </button>
 
         </div>
@@ -1866,7 +1866,7 @@
         <label>
 
           <span>
-            Select Existing User <strong>*</strong>
+            Select Existing Contact <strong>*</strong>
           </span>
 
           <select
@@ -1875,13 +1875,13 @@
           >
 
             <option value="">
-              Select a user
+              Select a contact
             </option>
 
           </select>
 
           <small>
-            Only existing users are assigned. User records are not duplicated.
+            Only existing contacts are assigned. Contact records are not duplicated.
           </small>
 
         </label>
@@ -1955,9 +1955,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=3"></script>
+  <script src="js/dashboard-api.js?v=5"></script>
 
-  <script src="js/app.js?v=3"></script>
+  <script src="js/app.js?v=5"></script>
 
 </body>
 
