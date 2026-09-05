@@ -57,6 +57,7 @@ async function initDashboard(forceRefresh = true) {
     attachCampaignManagementListeners();
   attachCampaignBuilderListeners();
   attachCampaignComposeListeners();
+  attachCampaignFollowupListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -1237,6 +1238,9 @@ let campaignBuilderSelectedUserIds = new Set();
 let campaignContentState = {loaded:false,campaignContent:[],templates:[]};
 let campaignComposeActiveMode = 'plain';
 let campaignComposeLastFocusedEditor = 'campaignComposePlainBody';
+let campaignSequenceState = { loaded:false, steps:[] };
+let editingCampaignFollowupId = '';
+let campaignFollowupLastFocusedEditor = 'campaignFollowupPlainBody';
 
 
 function formatCampaignDate(value) {
@@ -2952,6 +2956,7 @@ function switchCampaignBuilderStep(step) {
   );
   if (step === 'recipients') renderCampaignBuilderRecipients();
   if (step === 'compose') loadCampaignCompose();
+  if (step === 'followups') loadCampaignFollowups();
 }
 
 function closeCampaignBuilder() {
@@ -3449,6 +3454,1211 @@ function attachCampaignComposeListeners() {
   document.querySelectorAll('[data-compose-mode]').forEach(button=>button.addEventListener('click',()=>switchComposeMode(button.dataset.composeMode)));
   document.getElementById('campaignPersonalizationToolbar')?.addEventListener('click',event=>{const b=event.target.closest('[data-insert-variable]');if(b)insertComposeVariable(b.dataset.insertVariable);});
 }
+
+
+/* ============================================================
+   CAMPAIGN FOLLOW-UPS V12
+   ============================================================ */
+
+function normalizeCampaignSequenceStep(
+  row
+) {
+
+  return {
+    sequenceStepId:
+      row[
+        'Sequence Step ID'
+      ] ||
+      row.sequenceStepId ||
+      '',
+
+    campaignId:
+      row[
+        'Campaign ID'
+      ] ||
+      row.campaignId ||
+      '',
+
+    stepNumber:
+      Number(
+        row[
+          'Step Number'
+        ] ||
+        row.stepNumber ||
+        0
+      ),
+
+    delayValue:
+      Number(
+        row[
+          'Delay Value'
+        ] ||
+        row.delayValue ||
+        0
+      ),
+
+    delayUnit:
+      String(
+        row[
+          'Delay Unit'
+        ] ||
+        row.delayUnit ||
+        'DAYS'
+      ).toUpperCase(),
+
+    condition:
+      String(
+        row.Condition ||
+        row.condition ||
+        'NO_REPLY'
+      ).toUpperCase(),
+
+    subject:
+      row.Subject ||
+      row.subject ||
+      '',
+
+    plainBody:
+      row[
+        'Plain Body'
+      ] ||
+      row.plainBody ||
+      '',
+
+    htmlBody:
+      row[
+        'HTML Body'
+      ] ||
+      row.htmlBody ||
+      '',
+
+    status:
+      String(
+        row[
+          'Step Status'
+        ] ||
+        row.status ||
+        'ACTIVE'
+      ).toUpperCase(),
+
+    updatedAt:
+      row[
+        'Updated At'
+      ] ||
+      row.updatedAt ||
+      ''
+  };
+}
+
+
+async function ensureCampaignSequencesLoaded(
+  force = false
+) {
+
+  if (
+    campaignSequenceState.loaded &&
+    !force
+  ) {
+    return campaignSequenceState;
+  }
+
+
+  const response =
+    await DashboardApi
+      .getCampaignSequences();
+
+
+  const result =
+    response?.result ||
+    {};
+
+
+  campaignSequenceState = {
+    loaded:
+      true,
+
+    steps:
+      (
+        result.steps ||
+        []
+      ).map(
+        normalizeCampaignSequenceStep
+      )
+  };
+
+
+  return campaignSequenceState;
+}
+
+
+function getCampaignFollowups() {
+
+  return (
+    campaignSequenceState.steps ||
+    []
+  )
+    .filter(
+      step =>
+        String(
+          step.campaignId ||
+          ''
+        ) ===
+        String(
+          campaignBuilderCampaignId ||
+          ''
+        ) &&
+        step.status !==
+        'ARCHIVED'
+    )
+    .sort(
+      (a, b) =>
+        a.stepNumber -
+        b.stepNumber
+    );
+}
+
+
+function followupConditionLabel(
+  condition
+) {
+
+  const labels = {
+    NO_REPLY:
+      'No reply',
+
+    NOT_OPENED:
+      'Email not opened',
+
+    NOT_CLICKED:
+      'No link clicked',
+
+    ALWAYS:
+      'Always continue'
+  };
+
+
+  return (
+    labels[
+      String(
+        condition ||
+        ''
+      ).toUpperCase()
+    ] ||
+    condition ||
+    'No reply'
+  );
+}
+
+
+function followupConditionHelp(
+  condition
+) {
+
+  const messages = {
+    NO_REPLY:
+      'Send this follow-up only if the recipient has not replied.',
+
+    NOT_OPENED:
+      'Send this follow-up only if the previous email has not been opened.',
+
+    NOT_CLICKED:
+      'Send this follow-up only if no tracked link has been clicked.',
+
+    ALWAYS:
+      'Continue to this follow-up regardless of engagement.'
+  };
+
+
+  return (
+    messages[
+      String(
+        condition ||
+        ''
+      ).toUpperCase()
+    ] ||
+    ''
+  );
+}
+
+
+function followupDelayLabel(
+  step
+) {
+
+  const value =
+    Number(
+      step.delayValue ||
+      0
+    );
+
+  const unit =
+    String(
+      step.delayUnit ||
+      'DAYS'
+    ).toLowerCase();
+
+
+  if (
+    value ===
+    1
+  ) {
+
+    return (
+      'Wait 1 ' +
+      unit.replace(
+        /s$/,
+        ''
+      )
+    );
+  }
+
+
+  return (
+    `Wait ${value} ${unit}`
+  );
+}
+
+
+function getSequenceInitialCompose() {
+
+  return (
+    getCurrentCampaignComposeContent() ||
+    null
+  );
+}
+
+
+function renderSequenceInitialEmail() {
+
+  const container =
+    document.getElementById(
+      'campaignSequenceFirstEmail'
+    );
+
+
+  if (!container) {
+    return;
+  }
+
+
+  const compose =
+    getSequenceInitialCompose();
+
+
+  if (!compose) {
+
+    container.innerHTML = `
+      <div class="sequence-step-badge">1</div>
+
+      <div class="sequence-step-main">
+        <span class="detail-eyebrow">Initial Email</span>
+        <strong>Compose your first email first</strong>
+        <p>The sequence begins with the message saved in Step 3 — Compose.</p>
+      </div>
+
+      <button
+        type="button"
+        class="secondary-action-button"
+        data-sequence-open-compose
+      >
+        Go to Compose
+      </button>
+    `;
+
+    return;
+  }
+
+
+  container.innerHTML = `
+    <div class="sequence-step-badge">1</div>
+
+    <div class="sequence-step-main">
+      <span class="detail-eyebrow">Initial Email</span>
+      <strong>${escapeHtml(compose.subject || 'No subject')}</strong>
+      <p>${escapeHtml(
+        String(
+          compose.plainBody ||
+          compose.htmlBody ||
+          ''
+        )
+          .replace(
+            /<[^>]*>/g,
+            ' '
+          )
+          .replace(
+            /\s+/g,
+            ' '
+          )
+          .trim()
+          .slice(
+            0,
+            135
+          )
+      )}${String(compose.plainBody || compose.htmlBody || '').length > 135 ? '…' : ''}</p>
+    </div>
+
+    <button
+      type="button"
+      class="secondary-action-button"
+      data-sequence-open-compose
+    >
+      Edit
+    </button>
+  `;
+}
+
+
+function renderCampaignFollowups() {
+
+  renderSequenceInitialEmail();
+
+
+  const list =
+    document.getElementById(
+      'campaignFollowupList'
+    );
+
+  const empty =
+    document.getElementById(
+      'campaignFollowupEmptyState'
+    );
+
+
+  if (
+    !list ||
+    !empty
+  ) {
+    return;
+  }
+
+
+  const rows =
+    getCampaignFollowups();
+
+
+  empty.hidden =
+    rows.length >
+    0;
+
+
+  if (
+    !rows.length
+  ) {
+
+    list.innerHTML =
+      '';
+
+    return;
+  }
+
+
+  list.innerHTML =
+    rows
+      .map(
+        (step, index) => `
+          <div class="sequence-followup-wrap">
+
+            <div class="sequence-connector">
+              <span>${escapeHtml(followupDelayLabel(step))}</span>
+            </div>
+
+            <article class="sequence-followup-card">
+
+              <div class="sequence-step-badge">
+                ${index + 2}
+              </div>
+
+              <div class="sequence-step-main">
+
+                <div class="sequence-step-meta">
+                  <span class="detail-eyebrow">
+                    Follow-up ${index + 1}
+                  </span>
+
+                  <span class="sequence-condition-pill">
+                    ${escapeHtml(followupConditionLabel(step.condition))}
+                  </span>
+                </div>
+
+                <strong>
+                  ${escapeHtml(step.subject || 'No subject')}
+                </strong>
+
+                <p>
+                  ${escapeHtml(
+                    String(
+                      step.plainBody ||
+                      step.htmlBody ||
+                      ''
+                    )
+                      .replace(
+                        /<[^>]*>/g,
+                        ' '
+                      )
+                      .replace(
+                        /\s+/g,
+                        ' '
+                      )
+                      .trim()
+                      .slice(
+                        0,
+                        135
+                      )
+                  )}${String(step.plainBody || step.htmlBody || '').length > 135 ? '…' : ''}
+                </p>
+
+              </div>
+
+
+              <div class="sequence-step-actions">
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  data-followup-edit="${escapeHtml(step.sequenceStepId)}"
+                >
+                  Edit
+                </button>
+
+                <button
+                  type="button"
+                  class="icon-action-button"
+                  aria-label="Remove follow-up"
+                  title="Remove follow-up"
+                  data-followup-delete="${escapeHtml(step.sequenceStepId)}"
+                >
+                  ×
+                </button>
+
+              </div>
+
+            </article>
+
+          </div>
+        `
+      )
+      .join('');
+}
+
+
+async function loadCampaignFollowups() {
+
+  try {
+
+    setText(
+      'campaignBuilderSaveState',
+      'Loading sequence…'
+    );
+
+
+    await ensureCampaignContentLoaded();
+
+    await ensureCampaignSequencesLoaded();
+
+
+    renderCampaignFollowups();
+
+
+    setText(
+      'campaignBuilderSaveState',
+      'Saved'
+    );
+
+  } catch (error) {
+
+    showCampaignFollowupNotice(
+      error?.message ||
+      'Could not load the campaign sequence.',
+      'error'
+    );
+
+
+    setText(
+      'campaignBuilderSaveState',
+      'Load failed'
+    );
+  }
+}
+
+
+function showCampaignFollowupNotice(
+  message,
+  type = 'success'
+) {
+
+  const notice =
+    document.getElementById(
+      'campaignFollowupNotice'
+    );
+
+
+  if (!notice) {
+    return;
+  }
+
+
+  notice.hidden =
+    !message;
+
+  notice.className =
+    `dashboard-notice ${type}`;
+
+  notice.textContent =
+    message ||
+    '';
+}
+
+
+function getCampaignFollowupById(
+  sequenceStepId
+) {
+
+  return (
+    campaignSequenceState.steps ||
+    []
+  ).find(
+    step =>
+      String(
+        step.sequenceStepId ||
+        ''
+      ) ===
+      String(
+        sequenceStepId ||
+        ''
+      )
+  ) || null;
+}
+
+
+function openCampaignFollowupModal(
+  sequenceStepId = ''
+) {
+
+  editingCampaignFollowupId =
+    sequenceStepId ||
+    '';
+
+
+  const step =
+    editingCampaignFollowupId
+      ? getCampaignFollowupById(
+          editingCampaignFollowupId
+        )
+      : null;
+
+
+  const backdrop =
+    document.getElementById(
+      'campaignFollowupModalBackdrop'
+    );
+
+
+  if (!backdrop) {
+    return;
+  }
+
+
+  setText(
+    'campaignFollowupModalTitle',
+    step
+      ? 'Edit Follow-up'
+      : 'Add Follow-up'
+  );
+
+
+  document.getElementById(
+    'campaignFollowupStepId'
+  ).value =
+    step?.sequenceStepId ||
+    '';
+
+
+  document.getElementById(
+    'campaignFollowupDelayValue'
+  ).value =
+    step?.delayValue ||
+    3;
+
+
+  document.getElementById(
+    'campaignFollowupDelayUnit'
+  ).value =
+    step?.delayUnit ||
+    'DAYS';
+
+
+  document.getElementById(
+    'campaignFollowupCondition'
+  ).value =
+    step?.condition ||
+    'NO_REPLY';
+
+
+  document.getElementById(
+    'campaignFollowupSubject'
+  ).value =
+    step?.subject ||
+    'Re: ' +
+    (
+      getSequenceInitialCompose()?.subject ||
+      ''
+    );
+
+
+  document.getElementById(
+    'campaignFollowupPlainBody'
+  ).value =
+    step?.plainBody ||
+    'Hi {{firstName | "there"}},\n\nI wanted to follow up on my previous email.\n\nBest regards,\nAltered Security';
+
+
+  document.getElementById(
+    'campaignFollowupHtmlBody'
+  ).value =
+    step?.htmlBody ||
+    '';
+
+
+  const error =
+    document.getElementById(
+      'campaignFollowupFormError'
+    );
+
+
+  if (error) {
+    error.hidden =
+      true;
+
+    error.textContent =
+      '';
+  }
+
+
+  setText(
+    'campaignFollowupRuleHelp',
+    followupConditionHelp(
+      step?.condition ||
+      'NO_REPLY'
+    )
+  );
+
+
+  const submit =
+    document.getElementById(
+      'campaignFollowupSaveButton'
+    );
+
+
+  if (submit) {
+
+    submit.textContent =
+      step
+        ? 'Save Changes'
+        : 'Save Follow-up';
+  }
+
+
+  backdrop.hidden =
+    false;
+}
+
+
+function closeCampaignFollowupModal() {
+
+  const backdrop =
+    document.getElementById(
+      'campaignFollowupModalBackdrop'
+    );
+
+
+  if (backdrop) {
+    backdrop.hidden =
+      true;
+  }
+
+
+  editingCampaignFollowupId =
+    '';
+}
+
+
+function insertFollowupVariable(
+  variable
+) {
+
+  const editor =
+    document.getElementById(
+      campaignFollowupLastFocusedEditor
+    ) ||
+    document.getElementById(
+      'campaignFollowupPlainBody'
+    );
+
+
+  if (!editor) {
+    return;
+  }
+
+
+  const start =
+    editor.selectionStart ??
+    editor.value.length;
+
+  const end =
+    editor.selectionEnd ??
+    start;
+
+
+  editor.value =
+    editor.value.slice(
+      0,
+      start
+    ) +
+    variable +
+    editor.value.slice(
+      end
+    );
+
+
+  editor.focus();
+
+  editor.setSelectionRange(
+    start +
+    variable.length,
+    start +
+    variable.length
+  );
+}
+
+
+async function submitCampaignFollowup(
+  event
+) {
+
+  event.preventDefault();
+
+
+  const error =
+    document.getElementById(
+      'campaignFollowupFormError'
+    );
+
+
+  const payload = {
+    campaignId:
+      campaignBuilderCampaignId,
+
+    sequenceStepId:
+      editingCampaignFollowupId,
+
+    delayValue:
+      Number(
+        document.getElementById(
+          'campaignFollowupDelayValue'
+        )?.value ||
+        0
+      ),
+
+    delayUnit:
+      document.getElementById(
+        'campaignFollowupDelayUnit'
+      )?.value ||
+      'DAYS',
+
+    condition:
+      document.getElementById(
+        'campaignFollowupCondition'
+      )?.value ||
+      'NO_REPLY',
+
+    subject:
+      document.getElementById(
+        'campaignFollowupSubject'
+      )?.value ||
+      '',
+
+    plainBody:
+      document.getElementById(
+        'campaignFollowupPlainBody'
+      )?.value ||
+      '',
+
+    htmlBody:
+      document.getElementById(
+        'campaignFollowupHtmlBody'
+      )?.value ||
+      ''
+  };
+
+
+  if (
+    !payload.subject.trim() ||
+    (
+      !payload.plainBody.trim() &&
+      !payload.htmlBody.trim()
+    )
+  ) {
+
+    if (error) {
+      error.textContent =
+        'Add a subject and email body before saving.';
+
+      error.hidden =
+        false;
+    }
+
+    return;
+  }
+
+
+  const button =
+    document.getElementById(
+      'campaignFollowupSaveButton'
+    );
+
+
+  await withActionButtonBusy(
+    button,
+    'Saving…',
+    async () => {
+
+      try {
+
+        await DashboardApi
+          .saveCampaignFollowUp(
+            payload
+          );
+
+
+        await ensureCampaignSequencesLoaded(
+          true
+        );
+
+
+        closeCampaignFollowupModal();
+
+        renderCampaignFollowups();
+
+
+        showCampaignFollowupNotice(
+          editingCampaignFollowupId
+            ? 'Follow-up updated.'
+            : 'Follow-up added to the campaign sequence.',
+          'success'
+        );
+
+      } catch (saveError) {
+
+        if (error) {
+          error.textContent =
+            saveError?.message ||
+            'Could not save the follow-up.';
+
+          error.hidden =
+            false;
+        }
+      }
+    }
+  );
+}
+
+
+async function deleteCampaignFollowup(
+  sequenceStepId,
+  button
+) {
+
+  const step =
+    getCampaignFollowupById(
+      sequenceStepId
+    );
+
+
+  if (!step) {
+    return;
+  }
+
+
+  if (
+    !window.confirm(
+      `Remove this follow-up?\n\n${step.subject}`
+    )
+  ) {
+    return;
+  }
+
+
+  await withActionButtonBusy(
+    button,
+    '…',
+    async () => {
+
+      try {
+
+        await DashboardApi
+          .deleteCampaignFollowUp(
+            campaignBuilderCampaignId,
+            sequenceStepId
+          );
+
+
+        await ensureCampaignSequencesLoaded(
+          true
+        );
+
+
+        renderCampaignFollowups();
+
+
+        showCampaignFollowupNotice(
+          'Follow-up removed from the sequence.',
+          'success'
+        );
+
+      } catch (error) {
+
+        showCampaignFollowupNotice(
+          error?.message ||
+          'Could not remove the follow-up.',
+          'error'
+        );
+      }
+    }
+  );
+}
+
+
+function attachCampaignFollowupListeners() {
+
+  document
+    .getElementById(
+      'campaignFollowupAddButton'
+    )
+    ?.addEventListener(
+      'click',
+      () =>
+        openCampaignFollowupModal()
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupEmptyAddButton'
+    )
+    ?.addEventListener(
+      'click',
+      () =>
+        openCampaignFollowupModal()
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupBack'
+    )
+    ?.addEventListener(
+      'click',
+      () =>
+        switchCampaignBuilderStep(
+          'compose'
+        )
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupContinue'
+    )
+    ?.addEventListener(
+      'click',
+      () => {
+
+        showCampaignFollowupNotice(
+          'Settings is the next builder step. It will be enabled in the next release.',
+          'warning'
+        );
+      }
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupModalClose'
+    )
+    ?.addEventListener(
+      'click',
+      closeCampaignFollowupModal
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupCancel'
+    )
+    ?.addEventListener(
+      'click',
+      closeCampaignFollowupModal
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupModalBackdrop'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        if (
+          event.target.id ===
+          'campaignFollowupModalBackdrop'
+        ) {
+
+          closeCampaignFollowupModal();
+        }
+      }
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupCondition'
+    )
+    ?.addEventListener(
+      'change',
+      event => {
+
+        setText(
+          'campaignFollowupRuleHelp',
+          followupConditionHelp(
+            event.target.value
+          )
+        );
+      }
+    );
+
+
+  [
+    'campaignFollowupPlainBody',
+    'campaignFollowupHtmlBody'
+  ].forEach(
+    id => {
+
+      document
+        .getElementById(
+          id
+        )
+        ?.addEventListener(
+          'focus',
+          () => {
+
+            campaignFollowupLastFocusedEditor =
+              id;
+          }
+        );
+    }
+  );
+
+
+  document
+    .getElementById(
+      'campaignFollowupPersonalizationToolbar'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        const button =
+          event.target.closest(
+            '[data-followup-variable]'
+          );
+
+
+        if (!button) {
+          return;
+        }
+
+
+        insertFollowupVariable(
+          button.dataset.followupVariable
+        );
+      }
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupForm'
+    )
+    ?.addEventListener(
+      'submit',
+      submitCampaignFollowup
+    );
+
+
+  document
+    .getElementById(
+      'campaignFollowupList'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        const edit =
+          event.target.closest(
+            '[data-followup-edit]'
+          );
+
+
+        if (edit) {
+
+          openCampaignFollowupModal(
+            edit.dataset.followupEdit
+          );
+
+          return;
+        }
+
+
+        const remove =
+          event.target.closest(
+            '[data-followup-delete]'
+          );
+
+
+        if (remove) {
+
+          deleteCampaignFollowup(
+            remove.dataset.followupDelete,
+            remove
+          );
+        }
+      }
+    );
+
+
+  document
+    .getElementById(
+      'campaignSequenceFirstEmail'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        if (
+          event.target.closest(
+            '[data-sequence-open-compose]'
+          )
+        ) {
+
+          switchCampaignBuilderStep(
+            'compose'
+          );
+        }
+      }
+    );
+}
+
 
 /* ============================================================
    CAMPAIGN MEMBER MANAGEMENT

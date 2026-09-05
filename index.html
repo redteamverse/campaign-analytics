@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=11.1"
+    href="css/dashboard-modules.css?v=12"
   >
 </head>
 
@@ -2315,10 +2315,10 @@
             <span class="builder-step-number">3</span>
             <span><strong>Compose</strong><small>Message & personalization</small></span>
           </button>
-          <div class="campaign-builder-step disabled">
+          <button type="button" class="campaign-builder-step" data-builder-step="followups">
             <span class="builder-step-number">4</span>
-            <span><strong>Follow-ups</strong><small>Sequence engine later</small></span>
-          </div>
+            <span><strong>Follow-ups</strong><small>Build your sequence</small></span>
+          </button>
           <div class="campaign-builder-step disabled">
             <span class="builder-step-number">5</span>
             <span><strong>Settings</strong><small>Sending controls later</small></span>
@@ -2465,9 +2465,291 @@
           </section>
 
 
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="followups">
+
+            <div class="builder-stage-heading builder-stage-heading-row">
+
+              <div>
+                <span class="detail-eyebrow">Step 4</span>
+                <h3>Follow-ups</h3>
+                <p>Build a simple email sequence without losing sight of what happens next.</p>
+              </div>
+
+              <button
+                type="button"
+                class="primary-action-button"
+                id="campaignFollowupAddButton"
+              >
+                + Add Follow-up
+              </button>
+
+            </div>
+
+
+            <div
+              id="campaignFollowupNotice"
+              class="dashboard-notice"
+              hidden
+            ></div>
+
+
+            <div class="sequence-explainer">
+
+              <div class="sequence-explainer-icon">
+                1
+              </div>
+
+              <div>
+                <strong>Your first email comes from Compose</strong>
+                <span>
+                  Follow-ups below continue the same campaign sequence. Nothing is sent from this screen.
+                </span>
+              </div>
+
+            </div>
+
+
+            <div
+              class="sequence-first-email-card"
+              id="campaignSequenceFirstEmail"
+            ></div>
+
+
+            <div class="sequence-connector">
+              <span>Then</span>
+            </div>
+
+
+            <div
+              class="campaign-followup-list"
+              id="campaignFollowupList"
+            ></div>
+
+
+            <div class="sequence-empty-state" id="campaignFollowupEmptyState">
+
+              <strong>No follow-ups yet</strong>
+
+              <span>
+                Add a follow-up if you want another email to be sent later when its rule is met.
+              </span>
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="campaignFollowupEmptyAddButton"
+              >
+                Add your first follow-up
+              </button>
+
+            </div>
+
+
+            <div class="sequence-safety-note">
+              <strong>Sequence configuration only</strong>
+              <span>
+                V12 saves these follow-up rules. Automated scheduling and sending will be connected later through the Send Queue, so this step cannot accidentally send email.
+              </span>
+            </div>
+
+
+            <div class="builder-stage-footer">
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="campaignFollowupBack"
+              >
+                Back to Compose
+              </button>
+
+              <button
+                type="button"
+                class="primary-action-button"
+                id="campaignFollowupContinue"
+              >
+                Continue to Settings
+              </button>
+
+            </div>
+
+          </section>
+
         </main>
       </div>
     </div>
+  </div>
+
+
+
+
+  <!-- =========================================================
+       FOLLOW-UP EDITOR MODAL — V12
+       ========================================================= -->
+
+  <div
+    class="modal-backdrop"
+    id="campaignFollowupModalBackdrop"
+    hidden
+  >
+
+    <div
+      class="modal-card campaign-followup-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="campaignFollowupModalTitle"
+    >
+
+      <form id="campaignFollowupForm">
+
+        <div class="campaign-builder-header">
+
+          <div>
+            <div class="modal-eyebrow">Campaign Sequence</div>
+            <h3 id="campaignFollowupModalTitle">Add Follow-up</h3>
+            <p id="campaignFollowupModalDescription">
+              Choose when this email should happen and what it should say.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="campaignFollowupModalClose"
+            aria-label="Close"
+          >
+            ×
+          </button>
+
+        </div>
+
+
+        <div class="campaign-builder-body">
+
+          <input
+            type="hidden"
+            id="campaignFollowupStepId"
+          >
+
+
+          <div class="followup-rule-builder">
+
+            <div class="followup-rule-number">
+              <span>Wait</span>
+
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value="3"
+                id="campaignFollowupDelayValue"
+                required
+              >
+
+              <select id="campaignFollowupDelayUnit">
+                <option value="DAYS">days</option>
+                <option value="HOURS">hours</option>
+              </select>
+            </div>
+
+
+            <label class="form-field">
+              <span>Send when</span>
+
+              <select id="campaignFollowupCondition">
+                <option value="NO_REPLY">No reply</option>
+                <option value="NOT_OPENED">Email not opened</option>
+                <option value="NOT_CLICKED">No link clicked</option>
+                <option value="ALWAYS">Always continue</option>
+              </select>
+            </label>
+
+          </div>
+
+
+          <div class="followup-rule-help" id="campaignFollowupRuleHelp">
+            Send this follow-up only if the recipient has not replied.
+          </div>
+
+
+          <label class="form-field form-field-strong">
+            <span>Subject <strong>*</strong></span>
+
+            <input
+              type="text"
+              id="campaignFollowupSubject"
+              maxlength="240"
+              required
+            >
+          </label>
+
+
+          <div class="personalization-toolbar" id="campaignFollowupPersonalizationToolbar">
+            <span>Insert personalization</span>
+            <button type="button" data-followup-variable='{{firstName | "there"}}'>First name</button>
+            <button type="button" data-followup-variable='{{company | "your team"}}'>Company</button>
+            <button type="button" data-followup-variable='{{email}}'>Email</button>
+            <button type="button" data-followup-variable='{{campaignName}}'>Campaign</button>
+          </div>
+
+
+          <label class="form-field">
+            <span>Email body <strong>*</strong></span>
+
+            <textarea
+              id="campaignFollowupPlainBody"
+              class="compose-body-editor followup-body-editor"
+              rows="12"
+              required
+            ></textarea>
+          </label>
+
+
+          <label class="form-field">
+            <span>HTML body <small>Optional</small></span>
+
+            <textarea
+              id="campaignFollowupHtmlBody"
+              class="compose-body-editor code-editor followup-html-editor"
+              rows="7"
+            ></textarea>
+          </label>
+
+
+          <div
+            id="campaignFollowupFormError"
+            class="form-error"
+            hidden
+          ></div>
+
+        </div>
+
+
+        <div class="campaign-builder-footer">
+
+          <button
+            type="button"
+            class="secondary-action-button"
+            id="campaignFollowupCancel"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            class="primary-action-button"
+            id="campaignFollowupSaveButton"
+          >
+            Save Follow-up
+          </button>
+
+        </div>
+
+      </form>
+
+    </div>
+
   </div>
 
 
@@ -2790,9 +3072,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=11.1"></script>
+  <script src="js/dashboard-api.js?v=12"></script>
 
-  <script src="js/app.js?v=11.1"></script>
+  <script src="js/app.js?v=12"></script>
 
 </body>
 

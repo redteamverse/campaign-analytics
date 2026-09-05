@@ -564,6 +564,39 @@ const DashboardApi = (function () {
       return post('archive_email_template', {templateId});
     },
 
+
+
+    // ----------------------------------------------------------
+    // CAMPAIGN SEQUENCES
+    // ----------------------------------------------------------
+
+    getCampaignSequences() {
+      return post(
+        'get_campaign_sequences',
+        {}
+      );
+    },
+
+    saveCampaignFollowUp(payload) {
+      return post(
+        'save_campaign_followup',
+        payload
+      );
+    },
+
+    deleteCampaignFollowUp(
+      campaignId,
+      sequenceStepId
+    ) {
+      return post(
+        'delete_campaign_followup',
+        {
+          campaignId,
+          sequenceStepId
+        }
+      );
+    },
+
     // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------

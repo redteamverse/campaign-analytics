@@ -1586,3 +1586,275 @@ body.campaign-builder-open{overflow:hidden}
 
 /* V11.1 Saved Templates */
 .compose-saved-templates{margin:0 0 14px;padding:12px;border:1px solid #e4e7ec;border-radius:9px;background:#fafbfc}.compose-saved-templates-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:9px}.compose-saved-templates-heading strong{display:block;color:#101828;font-size:10.5px}.compose-saved-templates-heading span{display:block;margin-top:2px;color:#667085;font-size:8.5px}.compose-saved-template-list{display:flex;flex-direction:column;gap:6px}.compose-saved-template-card{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid #e4e7ec;border-radius:7px;background:#fff}.compose-saved-template-main{min-width:0}.compose-saved-template-main>strong{display:block;color:#101828;font-size:10px}.compose-template-subject{display:block;max-width:520px;margin-top:2px;overflow:hidden;color:#475467;font-size:9px;text-overflow:ellipsis;white-space:nowrap}.compose-saved-template-main small{display:block;margin-top:3px;color:#98a2b3;font-size:8px}.compose-saved-template-actions{display:flex;align-items:center;gap:5px;flex:0 0 auto}.compose-template-empty{padding:15px;border:1px dashed #d0d5dd;border-radius:7px;text-align:center;background:#fff}.compose-template-empty strong{display:block;color:#344054;font-size:10px}.compose-template-empty span{display:block;margin-top:4px;color:#667085;font-size:9px}@media(max-width:700px){.compose-saved-template-card{align-items:flex-start;flex-direction:column}.compose-saved-template-actions{width:100%}}
+
+
+/* ============================================================
+   V12 — CAMPAIGN FOLLOW-UP SEQUENCE
+   ============================================================ */
+
+.sequence-explainer{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin-bottom:12px;
+  padding:11px 12px;
+  border:1px solid #dbeafe;
+  border-radius:9px;
+  background:#eff6ff
+}
+
+.sequence-explainer-icon{
+  width:26px;
+  height:26px;
+  flex:0 0 26px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:50%;
+  background:#1d4ed8;
+  color:#fff;
+  font-size:9px;
+  font-weight:750
+}
+
+.sequence-explainer strong{
+  display:block;
+  color:#1e3a8a;
+  font-size:10px
+}
+
+.sequence-explainer span{
+  display:block;
+  margin-top:3px;
+  color:#475569;
+  font-size:9px;
+  line-height:1.45
+}
+
+.sequence-first-email-card,
+.sequence-followup-card{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:13px 14px;
+  border:1px solid #e4e7ec;
+  border-radius:10px;
+  background:#fff
+}
+
+.sequence-step-badge{
+  width:30px;
+  height:30px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid #d0d5dd;
+  border-radius:50%;
+  background:#f9fafb;
+  color:#344054;
+  font-size:10px;
+  font-weight:750
+}
+
+.sequence-step-main{
+  min-width:0
+}
+
+.sequence-step-main>strong{
+  display:block;
+  margin-top:2px;
+  overflow:hidden;
+  color:#101828;
+  font-size:11px;
+  text-overflow:ellipsis;
+  white-space:nowrap
+}
+
+.sequence-step-main p{
+  margin:4px 0 0;
+  color:#667085;
+  font-size:9px;
+  line-height:1.45
+}
+
+.sequence-step-meta{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap
+}
+
+.sequence-condition-pill{
+  min-height:20px;
+  display:inline-flex;
+  align-items:center;
+  padding:0 7px;
+  border:1px solid #dbeafe;
+  border-radius:999px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  font-size:8px;
+  font-weight:650
+}
+
+.sequence-step-actions{
+  display:flex;
+  align-items:center;
+  gap:5px
+}
+
+.sequence-connector{
+  display:flex;
+  justify-content:center;
+  padding:7px 0
+}
+
+.sequence-connector span{
+  display:inline-flex;
+  align-items:center;
+  min-height:21px;
+  padding:0 8px;
+  border-radius:999px;
+  background:#f2f4f7;
+  color:#667085;
+  font-size:8px;
+  font-weight:650
+}
+
+.sequence-followup-wrap+.sequence-followup-wrap{
+  margin-top:0
+}
+
+.sequence-empty-state{
+  padding:25px 18px;
+  border:1px dashed #d0d5dd;
+  border-radius:10px;
+  background:#fff;
+  text-align:center
+}
+
+.sequence-empty-state[hidden]{
+  display:none
+}
+
+.sequence-empty-state strong{
+  display:block;
+  color:#344054;
+  font-size:11px
+}
+
+.sequence-empty-state span{
+  display:block;
+  max-width:470px;
+  margin:5px auto 12px;
+  color:#667085;
+  font-size:9.5px;
+  line-height:1.5
+}
+
+.sequence-safety-note{
+  display:flex;
+  gap:8px;
+  margin-top:14px;
+  padding:10px 12px;
+  border:1px solid #e4e7ec;
+  border-radius:8px;
+  background:#fafbfc
+}
+
+.sequence-safety-note strong{
+  flex:0 0 auto;
+  color:#344054;
+  font-size:9px
+}
+
+.sequence-safety-note span{
+  color:#667085;
+  font-size:9px;
+  line-height:1.45
+}
+
+.campaign-followup-modal{
+  width:min(680px,calc(100vw - 32px));
+  max-height:calc(100vh - 40px);
+  overflow:auto
+}
+
+.followup-rule-builder{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px
+}
+
+.followup-rule-number{
+  display:grid;
+  grid-template-columns:auto 70px minmax(90px,1fr);
+  align-items:center;
+  gap:6px;
+  padding-top:17px
+}
+
+.followup-rule-number>span{
+  color:#344054;
+  font-size:10px;
+  font-weight:650
+}
+
+.followup-rule-number input,
+.followup-rule-number select{
+  height:34px;
+  border:1px solid #d0d5dd;
+  border-radius:7px;
+  background:#fff;
+  color:#344054;
+  font:inherit;
+  font-size:10px
+}
+
+.followup-rule-number input{
+  padding:0 8px
+}
+
+.followup-rule-number select{
+  padding:0 9px
+}
+
+.followup-rule-help{
+  margin:7px 0 13px;
+  padding:8px 10px;
+  border-radius:7px;
+  background:#f8f9fb;
+  color:#667085;
+  font-size:9px
+}
+
+.followup-body-editor{
+  min-height:190px;
+  border-radius:8px
+}
+
+.followup-html-editor{
+  min-height:120px;
+  border-radius:8px
+}
+
+@media(max-width:700px){
+  .followup-rule-builder{
+    grid-template-columns:1fr
+  }
+
+  .sequence-first-email-card,
+  .sequence-followup-card{
+    grid-template-columns:auto minmax(0,1fr)
+  }
+
+  .sequence-step-actions{
+    grid-column:1/-1;
+    justify-content:flex-end
+  }
+
+  .sequence-safety-note{
+    flex-direction:column
+  }
+}
