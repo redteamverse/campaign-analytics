@@ -6,6 +6,18 @@ let listenersAttached = false;
 let activeUserModuleTab = 'all';
 let activeCampaignModuleTab = 'all';
 
+let contactAudienceState = {
+  loaded: false,
+  loading: false,
+  lists: [],
+  listMembers: [],
+  segments: [],
+  selectedListId: ''
+};
+
+let parsedContactImportRows = [];
+let contactAudienceListenersAttached = false;
+
 function getFilters() {
   return {
     campaignId: document.getElementById('campaignFilter')?.value || 'all',
@@ -44,6 +56,7 @@ async function initDashboard(forceRefresh = true) {
     attachUserManagementListeners();
     attachCampaignManagementListeners();
     attachCampaignMemberManagementListeners();
+    attachContactAudienceListeners();
     attachModuleTabListeners();
     populateUserLeadStatusFilter();
     populateModuleCampaignSelectors();
@@ -3566,6 +3579,1994 @@ function attachCampaignMemberManagementListeners() {
 
 
 
+
+/* ============================================================
+   CONTACT LISTS / SEGMENTS / IMPORT
+   ============================================================ */
+
+async function ensureContactAudiencesLoaded(
+  force = false
+) {
+
+  if (
+    contactAudienceState.loading
+  ) {
+    return;
+  }
+
+  if (
+    contactAudienceState.loaded &&
+    !force
+  ) {
+    renderContactAudienceViews();
+    return;
+  }
+
+  contactAudienceState.loading =
+    true;
+
+  try {
+
+    const response =
+      await DashboardApi
+        .getContactAudiences();
+
+    const result =
+      response?.result ||
+      {};
+
+    contactAudienceState.lists =
+      Array.isArray(result.lists)
+        ? result.lists
+        : [];
+
+    contactAudienceState.listMembers =
+      Array.isArray(result.listMembers)
+        ? result.listMembers
+        : [];
+
+    contactAudienceState.segments =
+      Array.isArray(result.segments)
+        ? result.segments
+        : [];
+
+    contactAudienceState.loaded =
+      true;
+
+    if (
+      contactAudienceState.selectedListId &&
+      !contactAudienceState.lists.some(
+        item =>
+          item.listId ===
+          contactAudienceState.selectedListId
+      )
+    ) {
+      contactAudienceState.selectedListId =
+        '';
+    }
+
+    if (
+      !contactAudienceState.selectedListId &&
+      contactAudienceState.lists.length
+    ) {
+      contactAudienceState.selectedListId =
+        contactAudienceState.lists[0].listId;
+    }
+
+    renderContactAudienceViews();
+
+  } catch (error) {
+
+    console.error(
+      'Contact audience load failed:',
+      error
+    );
+
+    showUsersNotice(
+      error?.message ||
+      'Could not load contact lists and segments.',
+      'error'
+    );
+
+  } finally {
+
+    contactAudienceState.loading =
+      false;
+  }
+}
+
+
+function renderContactAudienceViews() {
+  renderContactLists();
+  renderContactListDetail();
+  renderContactSegments();
+}
+
+
+function renderContactLists() {
+
+  const container =
+    document.getElementById(
+      'contactListsNavigation'
+    );
+
+  if (!container) {
+    return;
+  }
+
+  const lists =
+    contactAudienceState.lists;
+
+  if (!contactAudienceState.loaded) {
+    container.innerHTML =
+      '<div class="audience-nav-empty">Open this tab to load lists.</div>';
+    return;
+  }
+
+  if (!lists.length) {
+    container.innerHTML =
+      '<div class="audience-nav-empty">No contact lists yet.</div>';
+    return;
+  }
+
+  container.innerHTML =
+    lists
+      .map(
+        list => {
+
+          const count =
+            contactAudienceState.listMembers
+              .filter(
+                member =>
+                  member.listId ===
+                  list.listId
+              )
+              .length;
+
+          const active =
+            list.listId ===
+            contactAudienceState.selectedListId;
+
+          return `
+            <button
+              type="button"
+              class="audience-nav-item ${active ? 'active' : ''}"
+              data-contact-list-select="${escapeHtml(list.listId)}"
+            >
+              <span>
+                <strong>${escapeHtml(list.name || 'Untitled List')}</strong>
+                <small>${count.toLocaleString()} member${count === 1 ? '' : 's'}</small>
+              </span>
+              <span aria-hidden="true">›</span>
+            </button>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+function renderContactListDetail() {
+
+  const emptyState =
+    document.getElementById(
+      'contactListEmptyState'
+    );
+
+  const detail =
+    document.getElementById(
+      'contactListDetail'
+    );
+
+  if (
+    !emptyState ||
+    !detail
+  ) {
+    return;
+  }
+
+  const list =
+    contactAudienceState.lists.find(
+      item =>
+        item.listId ===
+        contactAudienceState.selectedListId
+    );
+
+  if (!list) {
+    emptyState.hidden =
+      false;
+
+    detail.hidden =
+      true;
+
+    return;
+  }
+
+  emptyState.hidden =
+    true;
+
+  detail.hidden =
+    false;
+
+  setText(
+    'contactListDetailName',
+    list.name ||
+    'Contact List'
+  );
+
+  setText(
+    'contactListDetailDescription',
+    list.description ||
+    'Static contact list'
+  );
+
+  const data =
+    DataEngine.getNormalized();
+
+  const usersById =
+    new Map(
+      data.users.map(
+        user => [
+          String(
+            user.userId || ''
+          ),
+          user
+        ]
+      )
+    );
+
+  const memberRows =
+    contactAudienceState.listMembers
+      .filter(
+        member =>
+          member.listId ===
+          list.listId
+      )
+      .map(
+        member => ({
+          member,
+          user:
+            usersById.get(
+              String(
+                member.userId || ''
+              )
+            )
+        })
+      )
+      .filter(
+        item =>
+          item.user
+      );
+
+  const query =
+    (
+      document.getElementById(
+        'contactListMemberSearch'
+      )?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  const filtered =
+    memberRows.filter(
+      item => {
+
+        if (!query) {
+          return true;
+        }
+
+        return [
+          item.user.firstName,
+          item.user.emailAddress,
+          item.user.company
+        ].some(
+          value =>
+            String(
+              value || ''
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+        );
+      }
+    );
+
+  setText(
+    'contactListMemberCount',
+    memberRows.length.toLocaleString()
+  );
+
+  const select =
+    document.getElementById(
+      'contactListAddUserSelect'
+    );
+
+  if (select) {
+
+    const existingIds =
+      new Set(
+        memberRows.map(
+          item =>
+            String(
+              item.user.userId || ''
+            )
+        )
+      );
+
+    const eligible =
+      data.users
+        .filter(
+          user =>
+            user.userId &&
+            !existingIds.has(
+              String(
+                user.userId
+              )
+            )
+        )
+        .sort(
+          (a, b) =>
+            String(
+              a.emailAddress || ''
+            ).localeCompare(
+              String(
+                b.emailAddress || ''
+              )
+            )
+        );
+
+    select.innerHTML =
+      '<option value="">Select contact to add</option>' +
+      eligible
+        .map(
+          user => `
+            <option value="${escapeHtml(user.userId)}">
+              ${escapeHtml(user.firstName || user.emailAddress || user.userId)} — ${escapeHtml(user.emailAddress || '')}
+            </option>
+          `
+        )
+        .join('');
+  }
+
+  const tbody =
+    document.getElementById(
+      'contactListMembersTable'
+    );
+
+  if (!tbody) {
+    return;
+  }
+
+  if (!filtered.length) {
+
+    tbody.innerHTML =
+      emptyRow(
+        5,
+        memberRows.length
+          ? 'No list members match this search.'
+          : 'This list has no contacts yet.'
+      );
+
+    return;
+  }
+
+  tbody.innerHTML =
+    filtered
+      .map(
+        item => `
+          <tr>
+            <td>
+              <button
+                type="button"
+                class="contact-name-button"
+                data-user-view="${escapeHtml(item.user.userId || '')}"
+              >
+                ${escapeHtml(item.user.firstName || '—')}
+              </button>
+            </td>
+            <td>${escapeHtml(item.user.emailAddress || '—')}</td>
+            <td>${escapeHtml(item.user.company || '—')}</td>
+            <td>
+              ${
+                item.user.unsubscribed
+                  ? '<span class="status-badge badge-danger">Suppressed</span>'
+                  : '<span class="status-badge badge-success">Subscribed</span>'
+              }
+            </td>
+            <td class="actions-column">
+              <button
+                type="button"
+                class="danger-text-button"
+                data-contact-list-remove="${escapeHtml(item.user.userId || '')}"
+              >
+                Remove
+              </button>
+            </td>
+          </tr>
+        `
+      )
+      .join('');
+}
+
+
+function getSegmentMatchingUsers(
+  segment
+) {
+
+  const data =
+    DataEngine.getNormalized();
+
+  const field =
+    String(
+      segment.field || ''
+    ).toLowerCase();
+
+  const operator =
+    String(
+      segment.operator || 'equals'
+    ).toLowerCase();
+
+  const target =
+    String(
+      segment.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  return data.users.filter(
+    user => {
+
+      let value =
+        '';
+
+      if (
+        field ===
+        'leadstatus'
+      ) {
+        value =
+          user.leadStatus ||
+          'New';
+      } else if (
+        field ===
+        'company'
+      ) {
+        value =
+          user.company ||
+          '';
+      } else if (
+        field ===
+        'subscription'
+      ) {
+        value =
+          user.unsubscribed
+            ? 'Suppressed'
+            : 'Subscribed';
+      }
+
+      const normalized =
+        String(
+          value || ''
+        )
+          .trim()
+          .toLowerCase();
+
+      if (
+        operator ===
+        'contains'
+      ) {
+        return normalized.includes(
+          target
+        );
+      }
+
+      if (
+        operator ===
+        'not_equals'
+      ) {
+        return normalized !==
+          target;
+      }
+
+      return normalized ===
+        target;
+    }
+  );
+}
+
+
+function segmentRuleLabel(
+  segment
+) {
+
+  const fieldLabels = {
+    leadstatus:
+      'Lead Status',
+    company:
+      'Company',
+    subscription:
+      'Subscription'
+  };
+
+  const operatorLabels = {
+    equals:
+      'equals',
+    contains:
+      'contains',
+    not_equals:
+      'does not equal'
+  };
+
+  return `${
+    fieldLabels[
+      String(
+        segment.field || ''
+      ).toLowerCase()
+    ] ||
+    segment.field
+  } ${
+    operatorLabels[
+      String(
+        segment.operator || ''
+      ).toLowerCase()
+    ] ||
+    segment.operator
+  } "${segment.value || ''}"`;
+}
+
+
+function renderContactSegments() {
+
+  const grid =
+    document.getElementById(
+      'contactSegmentsGrid'
+    );
+
+  if (!grid) {
+    return;
+  }
+
+  if (
+    !contactAudienceState.loaded
+  ) {
+    grid.innerHTML =
+      '<div class="audience-empty-state full-span"><strong>Open this tab to load segments.</strong></div>';
+    return;
+  }
+
+  const segments =
+    contactAudienceState.segments;
+
+  if (!segments.length) {
+
+    grid.innerHTML =
+      `
+        <div class="audience-empty-state full-span">
+          <strong>No dynamic segments yet</strong>
+          <span>Create a saved rule such as Lead Status equals Interested.</span>
+        </div>
+      `;
+
+    return;
+  }
+
+  grid.innerHTML =
+    segments
+      .map(
+        segment => {
+
+          const matches =
+            getSegmentMatchingUsers(
+              segment
+            );
+
+          return `
+            <article class="segment-card">
+
+              <div class="segment-card-top">
+
+                <div>
+                  <span class="detail-eyebrow">Dynamic Segment</span>
+                  <h3>${escapeHtml(segment.name || 'Untitled Segment')}</h3>
+                </div>
+
+                <button
+                  type="button"
+                  class="danger-text-button"
+                  data-contact-segment-delete="${escapeHtml(segment.segmentId || '')}"
+                >
+                  Delete
+                </button>
+
+              </div>
+
+              <div class="segment-rule">
+                ${escapeHtml(segmentRuleLabel(segment))}
+              </div>
+
+              <div class="segment-card-footer">
+                <strong>${matches.length.toLocaleString()}</strong>
+                <span>matching contact${matches.length === 1 ? '' : 's'}</span>
+              </div>
+
+            </article>
+          `;
+        }
+      )
+      .join('');
+}
+
+
+function openContactListModal() {
+
+  const form =
+    document.getElementById(
+      'contactListForm'
+    );
+
+  form?.reset();
+
+  const backdrop =
+    document.getElementById(
+      'contactListModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      false;
+  }
+}
+
+
+function closeContactListModal() {
+
+  const backdrop =
+    document.getElementById(
+      'contactListModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      true;
+  }
+}
+
+
+async function submitContactList(
+  event
+) {
+
+  event.preventDefault();
+
+  const name =
+    document.getElementById(
+      'contactListName'
+    )?.value
+      .trim();
+
+  const description =
+    document.getElementById(
+      'contactListDescription'
+    )?.value
+      .trim();
+
+  if (!name) {
+    return;
+  }
+
+  try {
+
+    const response =
+      await DashboardApi
+        .createContactList({
+          name,
+          description
+        });
+
+    closeContactListModal();
+
+    contactAudienceState.selectedListId =
+      response?.result?.listId ||
+      '';
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Contact list created.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not create the contact list.',
+      'error'
+    );
+  }
+}
+
+
+async function deleteSelectedContactList() {
+
+  const listId =
+    contactAudienceState.selectedListId;
+
+  if (!listId) {
+    return;
+  }
+
+  const list =
+    contactAudienceState.lists.find(
+      item =>
+        item.listId ===
+        listId
+    );
+
+  const confirmed =
+    window.confirm(
+      `Delete "${list?.name || 'this contact list'}"? Contacts themselves will not be deleted.`
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+
+    await DashboardApi
+      .deleteContactList(
+        listId
+      );
+
+    contactAudienceState.selectedListId =
+      '';
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Contact list deleted.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not delete the contact list.',
+      'error'
+    );
+  }
+}
+
+
+async function addSelectedContactToList() {
+
+  const listId =
+    contactAudienceState.selectedListId;
+
+  const userId =
+    document.getElementById(
+      'contactListAddUserSelect'
+    )?.value ||
+    '';
+
+  if (
+    !listId ||
+    !userId
+  ) {
+    return;
+  }
+
+  try {
+
+    await DashboardApi
+      .addContactListMember(
+        listId,
+        userId
+      );
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Contact added to the list.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not add the contact to this list.',
+      'error'
+    );
+  }
+}
+
+
+async function removeContactFromSelectedList(
+  userId
+) {
+
+  const listId =
+    contactAudienceState.selectedListId;
+
+  if (
+    !listId ||
+    !userId
+  ) {
+    return;
+  }
+
+  try {
+
+    await DashboardApi
+      .removeContactListMember(
+        listId,
+        userId
+      );
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Contact removed from the list.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not remove the contact from this list.',
+      'error'
+    );
+  }
+}
+
+
+function openContactSegmentModal() {
+
+  document
+    .getElementById(
+      'contactSegmentForm'
+    )
+    ?.reset();
+
+  const backdrop =
+    document.getElementById(
+      'contactSegmentModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      false;
+  }
+}
+
+
+function closeContactSegmentModal() {
+
+  const backdrop =
+    document.getElementById(
+      'contactSegmentModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      true;
+  }
+}
+
+
+async function submitContactSegment(
+  event
+) {
+
+  event.preventDefault();
+
+  const payload = {
+    name:
+      document.getElementById(
+        'contactSegmentName'
+      )?.value
+        .trim(),
+    field:
+      document.getElementById(
+        'contactSegmentField'
+      )?.value ||
+      'leadstatus',
+    operator:
+      document.getElementById(
+        'contactSegmentOperator'
+      )?.value ||
+      'equals',
+    value:
+      document.getElementById(
+        'contactSegmentValue'
+      )?.value
+        .trim()
+  };
+
+  if (
+    !payload.name ||
+    !payload.value
+  ) {
+    return;
+  }
+
+  try {
+
+    await DashboardApi
+      .createContactSegment(
+        payload
+      );
+
+    closeContactSegmentModal();
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Dynamic segment created.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not create the segment.',
+      'error'
+    );
+  }
+}
+
+
+async function deleteContactSegment(
+  segmentId
+) {
+
+  const segment =
+    contactAudienceState.segments.find(
+      item =>
+        item.segmentId ===
+        segmentId
+    );
+
+  const confirmed =
+    window.confirm(
+      `Delete "${segment?.name || 'this segment'}"?`
+    );
+
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+
+    await DashboardApi
+      .deleteContactSegment(
+        segmentId
+      );
+
+    await ensureContactAudiencesLoaded(
+      true
+    );
+
+    showUsersNotice(
+      'Segment deleted.',
+      'success'
+    );
+
+  } catch (error) {
+
+    showUsersNotice(
+      error?.message ||
+      'Could not delete the segment.',
+      'error'
+    );
+  }
+}
+
+
+/* ============================================================
+   CSV IMPORT
+   ============================================================ */
+
+function openContactImportModal() {
+
+  parsedContactImportRows =
+    [];
+
+  const input =
+    document.getElementById(
+      'contactImportFile'
+    );
+
+  if (input) {
+    input.value =
+      '';
+  }
+
+  const update =
+    document.getElementById(
+      'contactImportUpdateExisting'
+    );
+
+  if (update) {
+    update.checked =
+      false;
+  }
+
+  const summary =
+    document.getElementById(
+      'contactImportSummary'
+    );
+
+  const preview =
+    document.getElementById(
+      'contactImportPreview'
+    );
+
+  const progress =
+    document.getElementById(
+      'contactImportProgress'
+    );
+
+  if (summary) {
+    summary.hidden =
+      true;
+  }
+
+  if (preview) {
+    preview.hidden =
+      true;
+  }
+
+  if (progress) {
+    progress.hidden =
+      true;
+  }
+
+  const start =
+    document.getElementById(
+      'contactImportStart'
+    );
+
+  if (start) {
+    start.disabled =
+      true;
+  }
+
+  const backdrop =
+    document.getElementById(
+      'contactImportModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      false;
+  }
+}
+
+
+function closeContactImportModal() {
+
+  const backdrop =
+    document.getElementById(
+      'contactImportModalBackdrop'
+    );
+
+  if (backdrop) {
+    backdrop.hidden =
+      true;
+  }
+}
+
+
+function parseCsvText(
+  text
+) {
+
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+
+  for (
+    let i = 0;
+    i < text.length;
+    i++
+  ) {
+
+    const char =
+      text[i];
+
+    const next =
+      text[i + 1];
+
+    if (
+      char === '"' &&
+      quoted &&
+      next === '"'
+    ) {
+      field += '"';
+      i++;
+      continue;
+    }
+
+    if (
+      char === '"'
+    ) {
+      quoted =
+        !quoted;
+      continue;
+    }
+
+    if (
+      char === ',' &&
+      !quoted
+    ) {
+      row.push(
+        field
+      );
+      field =
+        '';
+      continue;
+    }
+
+    if (
+      (
+        char === '\n' ||
+        char === '\r'
+      ) &&
+      !quoted
+    ) {
+
+      if (
+        char === '\r' &&
+        next === '\n'
+      ) {
+        i++;
+      }
+
+      row.push(
+        field
+      );
+
+      field =
+        '';
+
+      if (
+        row.some(
+          cell =>
+            String(
+              cell || ''
+            ).trim()
+        )
+      ) {
+        rows.push(
+          row
+        );
+      }
+
+      row =
+        [];
+      continue;
+    }
+
+    field +=
+      char;
+  }
+
+  row.push(
+    field
+  );
+
+  if (
+    row.some(
+      cell =>
+        String(
+          cell || ''
+        ).trim()
+    )
+  ) {
+    rows.push(
+      row
+    );
+  }
+
+  return rows;
+}
+
+
+function normalizeImportHeader(
+  header
+) {
+
+  return String(
+    header || ''
+  )
+    .trim()
+    .toLowerCase()
+    .replace(
+      /[^a-z0-9]/g,
+      ''
+    );
+}
+
+
+function getImportHeaderIndex(
+  headers,
+  candidates
+) {
+
+  for (
+    const candidate of
+    candidates
+  ) {
+
+    const index =
+      headers.indexOf(
+        candidate
+      );
+
+    if (
+      index !==
+      -1
+    ) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+
+async function handleContactImportFile(
+  event
+) {
+
+  const file =
+    event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  try {
+
+    const text =
+      await file.text();
+
+    const rows =
+      parseCsvText(
+        text.replace(
+          /^\uFEFF/,
+          ''
+        )
+      );
+
+    if (
+      rows.length <
+      2
+    ) {
+      throw new Error(
+        'The CSV must contain a header row and at least one contact.'
+      );
+    }
+
+    const headers =
+      rows[0].map(
+        normalizeImportHeader
+      );
+
+    const emailIndex =
+      getImportHeaderIndex(
+        headers,
+        [
+          'email',
+          'emailaddress',
+          'emailid'
+        ]
+      );
+
+    if (
+      emailIndex ===
+      -1
+    ) {
+      throw new Error(
+        'CSV must contain an Email or Email Address column.'
+      );
+    }
+
+    const firstNameIndex =
+      getImportHeaderIndex(
+        headers,
+        [
+          'firstname',
+          'first',
+          'name'
+        ]
+      );
+
+    const companyIndex =
+      getImportHeaderIndex(
+        headers,
+        [
+          'company',
+          'organization',
+          'organisation'
+        ]
+      );
+
+    const leadStatusIndex =
+      getImportHeaderIndex(
+        headers,
+        [
+          'leadstatus',
+          'status'
+        ]
+      );
+
+    const seen =
+      new Set();
+
+    parsedContactImportRows =
+      rows
+        .slice(
+          1
+        )
+        .map(
+          row => ({
+            emailAddress:
+              String(
+                row[emailIndex] || ''
+              )
+                .trim()
+                .toLowerCase(),
+            firstName:
+              firstNameIndex >= 0
+                ? String(
+                    row[firstNameIndex] || ''
+                  ).trim()
+                : '',
+            company:
+              companyIndex >= 0
+                ? String(
+                    row[companyIndex] || ''
+                  ).trim()
+                : '',
+            leadStatus:
+              leadStatusIndex >= 0
+                ? String(
+                    row[leadStatusIndex] || ''
+                  ).trim() ||
+                  'New'
+                : 'New'
+          })
+        )
+        .filter(
+          row => {
+
+            if (
+              !row.emailAddress ||
+              !row.emailAddress.includes(
+                '@'
+              )
+            ) {
+              return false;
+            }
+
+            if (
+              seen.has(
+                row.emailAddress
+              )
+            ) {
+              return false;
+            }
+
+            seen.add(
+              row.emailAddress
+            );
+
+            return true;
+          }
+        );
+
+    const summary =
+      document.getElementById(
+        'contactImportSummary'
+      );
+
+    if (summary) {
+      summary.hidden =
+        false;
+
+      summary.innerHTML =
+        `<strong>${parsedContactImportRows.length.toLocaleString()}</strong> valid unique contact${parsedContactImportRows.length === 1 ? '' : 's'} ready to import.`;
+    }
+
+    const preview =
+      document.getElementById(
+        'contactImportPreview'
+      );
+
+    if (preview) {
+
+      const previewRows =
+        parsedContactImportRows
+          .slice(
+            0,
+            5
+          );
+
+      preview.hidden =
+        false;
+
+      preview.innerHTML =
+        `
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Company</th>
+                <th>Lead Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${
+                previewRows
+                  .map(
+                    row => `
+                      <tr>
+                        <td>${escapeHtml(row.firstName || '—')}</td>
+                        <td>${escapeHtml(row.emailAddress)}</td>
+                        <td>${escapeHtml(row.company || '—')}</td>
+                        <td>${escapeHtml(row.leadStatus || 'New')}</td>
+                      </tr>
+                    `
+                  )
+                  .join('')
+              }
+            </tbody>
+          </table>
+          ${
+            parsedContactImportRows.length > 5
+              ? `<div class="import-preview-note">Previewing 5 of ${parsedContactImportRows.length.toLocaleString()} contacts.</div>`
+              : ''
+          }
+        `;
+    }
+
+    const start =
+      document.getElementById(
+        'contactImportStart'
+      );
+
+    if (start) {
+      start.disabled =
+        !parsedContactImportRows.length;
+    }
+
+  } catch (error) {
+
+    parsedContactImportRows =
+      [];
+
+    const start =
+      document.getElementById(
+        'contactImportStart'
+      );
+
+    if (start) {
+      start.disabled =
+        true;
+    }
+
+    const progress =
+      document.getElementById(
+        'contactImportProgress'
+      );
+
+    if (progress) {
+      progress.hidden =
+        false;
+
+      progress.className =
+        'dashboard-notice error';
+
+      progress.textContent =
+        error?.message ||
+        'Could not read the CSV file.';
+    }
+  }
+}
+
+
+async function runContactImport() {
+
+  if (
+    !parsedContactImportRows.length
+  ) {
+    return;
+  }
+
+  const updateExisting =
+    Boolean(
+      document.getElementById(
+        'contactImportUpdateExisting'
+      )?.checked
+    );
+
+  const progress =
+    document.getElementById(
+      'contactImportProgress'
+    );
+
+  const start =
+    document.getElementById(
+      'contactImportStart'
+    );
+
+  if (start) {
+    start.disabled =
+      true;
+  }
+
+  const data =
+    DataEngine.getNormalized();
+
+  const existingByEmail =
+    new Map(
+      data.users
+        .filter(
+          user =>
+            user.emailAddress
+        )
+        .map(
+          user => [
+            String(
+              user.emailAddress
+            )
+              .trim()
+              .toLowerCase(),
+            user
+          ]
+        )
+    );
+
+  let created =
+    0;
+
+  let updated =
+    0;
+
+  let skipped =
+    0;
+
+  let failed =
+    0;
+
+  for (
+    let index = 0;
+    index < parsedContactImportRows.length;
+    index++
+  ) {
+
+    const row =
+      parsedContactImportRows[index];
+
+    if (progress) {
+
+      progress.hidden =
+        false;
+
+      progress.className =
+        'dashboard-notice warning';
+
+      progress.textContent =
+        `Importing ${index + 1} of ${parsedContactImportRows.length}…`;
+    }
+
+    try {
+
+      const existing =
+        existingByEmail.get(
+          row.emailAddress
+        );
+
+      if (existing) {
+
+        if (
+          !updateExisting
+        ) {
+          skipped++;
+          continue;
+        }
+
+        await DashboardApi
+          .updateUser({
+            userId:
+              existing.userId,
+            firstName:
+              row.firstName ||
+              existing.firstName ||
+              '',
+            company:
+              row.company ||
+              existing.company ||
+              '',
+            leadStatus:
+              row.leadStatus ||
+              existing.leadStatus ||
+              'New'
+          });
+
+        updated++;
+
+      } else {
+
+        const response =
+          await DashboardApi
+            .createUser({
+              firstName:
+                row.firstName,
+              emailAddress:
+                row.emailAddress,
+              company:
+                row.company,
+              leadStatus:
+                row.leadStatus ||
+                'New'
+            });
+
+        created++;
+
+        if (
+          response?.result?.userId
+        ) {
+          existingByEmail.set(
+            row.emailAddress,
+            {
+              userId:
+                response.result.userId,
+              ...row
+            }
+          );
+        }
+      }
+
+    } catch (error) {
+
+      console.error(
+        'Contact import row failed:',
+        row.emailAddress,
+        error
+      );
+
+      failed++;
+    }
+  }
+
+  await initDashboard(
+    true
+  );
+
+  if (progress) {
+
+    progress.hidden =
+      false;
+
+    progress.className =
+      failed
+        ? 'dashboard-notice warning'
+        : 'dashboard-notice success';
+
+    progress.textContent =
+      `${created} created • ${updated} updated • ${skipped} skipped • ${failed} failed`;
+  }
+
+  parsedContactImportRows =
+    [];
+
+  setTimeout(
+    () => {
+      closeContactImportModal();
+    },
+    failed
+      ? 2500
+      : 1100
+  );
+}
+
+
+function attachContactAudienceListeners() {
+
+  if (
+    contactAudienceListenersAttached
+  ) {
+    return;
+  }
+
+  contactAudienceListenersAttached =
+    true;
+
+  document
+    .getElementById(
+      'importContactsButton'
+    )
+    ?.addEventListener(
+      'click',
+      openContactImportModal
+    );
+
+  document
+    .getElementById(
+      'contactImportModalClose'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactImportModal
+    );
+
+  document
+    .getElementById(
+      'contactImportCancel'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactImportModal
+    );
+
+  document
+    .getElementById(
+      'contactImportFile'
+    )
+    ?.addEventListener(
+      'change',
+      handleContactImportFile
+    );
+
+  document
+    .getElementById(
+      'contactImportStart'
+    )
+    ?.addEventListener(
+      'click',
+      runContactImport
+    );
+
+  document
+    .getElementById(
+      'createContactListButton'
+    )
+    ?.addEventListener(
+      'click',
+      openContactListModal
+    );
+
+  document
+    .getElementById(
+      'contactListModalClose'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactListModal
+    );
+
+  document
+    .getElementById(
+      'contactListModalCancel'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactListModal
+    );
+
+  document
+    .getElementById(
+      'contactListForm'
+    )
+    ?.addEventListener(
+      'submit',
+      submitContactList
+    );
+
+  document
+    .getElementById(
+      'contactListsNavigation'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        const button =
+          event.target.closest(
+            '[data-contact-list-select]'
+          );
+
+        if (!button) {
+          return;
+        }
+
+        contactAudienceState.selectedListId =
+          button.dataset.contactListSelect ||
+          '';
+
+        renderContactAudienceViews();
+      }
+    );
+
+  document
+    .getElementById(
+      'deleteContactListButton'
+    )
+    ?.addEventListener(
+      'click',
+      deleteSelectedContactList
+    );
+
+  document
+    .getElementById(
+      'addContactToListButton'
+    )
+    ?.addEventListener(
+      'click',
+      addSelectedContactToList
+    );
+
+  document
+    .getElementById(
+      'contactListMemberSearch'
+    )
+    ?.addEventListener(
+      'input',
+      renderContactListDetail
+    );
+
+  document
+    .getElementById(
+      'contactListMembersTable'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        const viewButton =
+          event.target.closest(
+            '[data-user-view]'
+          );
+
+        if (viewButton) {
+          openContactDetail(
+            viewButton.dataset.userView
+          );
+          return;
+        }
+
+        const removeButton =
+          event.target.closest(
+            '[data-contact-list-remove]'
+          );
+
+        if (removeButton) {
+          removeContactFromSelectedList(
+            removeButton.dataset.contactListRemove
+          );
+        }
+      }
+    );
+
+  document
+    .getElementById(
+      'createContactSegmentButton'
+    )
+    ?.addEventListener(
+      'click',
+      openContactSegmentModal
+    );
+
+  document
+    .getElementById(
+      'contactSegmentModalClose'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactSegmentModal
+    );
+
+  document
+    .getElementById(
+      'contactSegmentModalCancel'
+    )
+    ?.addEventListener(
+      'click',
+      closeContactSegmentModal
+    );
+
+  document
+    .getElementById(
+      'contactSegmentForm'
+    )
+    ?.addEventListener(
+      'submit',
+      submitContactSegment
+    );
+
+  document
+    .getElementById(
+      'contactSegmentsGrid'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        const deleteButton =
+          event.target.closest(
+            '[data-contact-segment-delete]'
+          );
+
+        if (deleteButton) {
+          deleteContactSegment(
+            deleteButton.dataset.contactSegmentDelete
+          );
+        }
+      }
+    );
+
+  [
+    'contactImportModalBackdrop',
+    'contactListModalBackdrop',
+    'contactSegmentModalBackdrop'
+  ].forEach(
+    id => {
+
+      document
+        .getElementById(
+          id
+        )
+        ?.addEventListener(
+          'click',
+          event => {
+
+            if (
+              event.target.id !==
+              id
+            ) {
+              return;
+            }
+
+            if (
+              id ===
+              'contactImportModalBackdrop'
+            ) {
+              closeContactImportModal();
+            } else if (
+              id ===
+              'contactListModalBackdrop'
+            ) {
+              closeContactListModal();
+            } else {
+              closeContactSegmentModal();
+            }
+          }
+        );
+    }
+  );
+}
+
+
 /* ============================================================
    PROFESSIONAL MODULE TABS
    ============================================================ */
@@ -3642,9 +5643,32 @@ function switchUserModuleTab(
   }
 
 
+  const importButton =
+    document.getElementById(
+      'importContactsButton'
+    );
+
+  if (importButton) {
+    importButton.hidden =
+      activeUserModuleTab !==
+      'all';
+  }
+
+
+  if (
+    activeUserModuleTab ===
+      'lists' ||
+    activeUserModuleTab ===
+      'segments'
+  ) {
+    ensureContactAudiencesLoaded();
+  }
+
+
   renderUsersManagement();
   renderUsersByCampaign();
   renderSubscriptionManagement();
+  renderContactAudienceViews();
 }
 
 

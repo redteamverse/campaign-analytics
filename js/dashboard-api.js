@@ -475,6 +475,77 @@ const DashboardApi = (function () {
     },
 
 
+
+
+    // ----------------------------------------------------------
+    // CONTACT AUDIENCES
+    // ----------------------------------------------------------
+
+    getContactAudiences() {
+      return post(
+        'get_contact_audiences',
+        {}
+      );
+    },
+
+    createContactList(payload) {
+      return post(
+        'create_contact_list',
+        payload
+      );
+    },
+
+    deleteContactList(listId) {
+      return post(
+        'delete_contact_list',
+        {
+          listId
+        }
+      );
+    },
+
+    addContactListMember(
+      listId,
+      userId
+    ) {
+      return post(
+        'add_contact_list_member',
+        {
+          listId,
+          userId
+        }
+      );
+    },
+
+    removeContactListMember(
+      listId,
+      userId
+    ) {
+      return post(
+        'remove_contact_list_member',
+        {
+          listId,
+          userId
+        }
+      );
+    },
+
+    createContactSegment(payload) {
+      return post(
+        'create_contact_segment',
+        payload
+      );
+    },
+
+    deleteContactSegment(segmentId) {
+      return post(
+        'delete_contact_segment',
+        {
+          segmentId
+        }
+      );
+    },
+
     // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------

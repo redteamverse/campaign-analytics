@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=6"
+    href="css/dashboard-modules.css?v=7"
   >
 </head>
 
@@ -630,6 +630,14 @@
                 All Contacts
               </button>
 
+              <button type="button" class="module-tab" data-user-tab="lists">
+                Lists
+              </button>
+
+              <button type="button" class="module-tab" data-user-tab="segments">
+                Segments
+              </button>
+
               <button type="button" class="module-tab" data-user-tab="campaign">
                 Campaign Membership
               </button>
@@ -641,6 +649,14 @@
             </div>
 
             <div class="command-actions">
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="importContactsButton"
+              >
+                Import CSV
+              </button>
 
               <button
                 type="button"
@@ -759,6 +775,182 @@
               </div>
 
             </div>
+
+          </div>
+
+
+          <!-- CONTACTS / LISTS -->
+
+          <div
+            class="module-tab-panel"
+            id="userTabLists"
+            data-user-panel="lists"
+            hidden
+          >
+
+            <div class="audience-layout">
+
+              <div class="audience-sidebar">
+
+                <div class="audience-panel-header">
+                  <div>
+                    <strong>Contact Lists</strong>
+                    <span>Static groups you control manually.</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="primary-action-button compact-action-button"
+                    id="createContactListButton"
+                  >
+                    + New List
+                  </button>
+                </div>
+
+                <div
+                  id="contactListsNavigation"
+                  class="audience-navigation"
+                ></div>
+
+              </div>
+
+
+              <div class="audience-content">
+
+                <div
+                  id="contactListEmptyState"
+                  class="audience-empty-state"
+                >
+                  <strong>Select a contact list</strong>
+                  <span>Create a list or choose one to manage its members.</span>
+                </div>
+
+
+                <div
+                  id="contactListDetail"
+                  hidden
+                >
+
+                  <div class="audience-detail-header">
+
+                    <div>
+                      <span class="detail-eyebrow">Contact List</span>
+                      <h3 id="contactListDetailName">List</h3>
+                      <p id="contactListDetailDescription"></p>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="danger-text-button"
+                      id="deleteContactListButton"
+                    >
+                      Delete List
+                    </button>
+
+                  </div>
+
+
+                  <div class="management-toolbar compact-toolbar">
+
+                    <select
+                      id="contactListAddUserSelect"
+                      class="management-filter wide-select"
+                      aria-label="Select contact to add"
+                    >
+                      <option value="">Select contact to add</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      class="secondary-action-button"
+                      id="addContactToListButton"
+                    >
+                      Add Contact
+                    </button>
+
+                    <div class="search-field-wrap">
+
+                      <input
+                        type="search"
+                        id="contactListMemberSearch"
+                        class="management-search"
+                        placeholder="Search list members"
+                      >
+
+                    </div>
+
+                  </div>
+
+
+                  <div class="contacts-summary-line">
+                    <span>
+                      <strong id="contactListMemberCount">0</strong>
+                      Members
+                    </span>
+                  </div>
+
+
+                  <div class="table-card">
+
+                    <div class="table-container">
+
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Contact</th>
+                            <th>Email</th>
+                            <th>Company</th>
+                            <th>Subscription</th>
+                            <th class="actions-column">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="contactListMembersTable"></tbody>
+                      </table>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          <!-- CONTACTS / SEGMENTS -->
+
+          <div
+            class="module-tab-panel"
+            id="userTabSegments"
+            data-user-panel="segments"
+            hidden
+          >
+
+            <div class="audience-panel-header segment-header">
+
+              <div>
+                <strong>Dynamic Segments</strong>
+                <span>Saved rules that update automatically as contact data changes.</span>
+              </div>
+
+              <button
+                type="button"
+                class="primary-action-button"
+                id="createContactSegmentButton"
+              >
+                + New Segment
+              </button>
+
+            </div>
+
+
+            <div
+              id="contactSegmentsGrid"
+              class="segments-grid"
+            ></div>
 
           </div>
 
@@ -923,6 +1115,310 @@
           </div>
 
         </section>
+
+
+        <!-- ===================================================
+             IMPORT CONTACTS MODAL
+             =================================================== -->
+
+        <div
+          class="modal-backdrop"
+          id="contactImportModalBackdrop"
+          hidden
+        >
+
+          <div
+            class="modal-card audience-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contactImportModalTitle"
+          >
+
+            <div class="modal-header">
+
+              <div>
+                <span class="detail-eyebrow">Contacts</span>
+                <h2 id="contactImportModalTitle">Import CSV</h2>
+                <p>Import contacts using Email Address as the unique identity.</p>
+              </div>
+
+              <button
+                type="button"
+                class="drawer-close-button"
+                id="contactImportModalClose"
+                aria-label="Close import"
+              >
+                ×
+              </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+              <label class="form-field">
+                <span>CSV file <strong>*</strong></span>
+                <input
+                  type="file"
+                  id="contactImportFile"
+                  accept=".csv,text/csv"
+                >
+              </label>
+
+              <label class="checkbox-field">
+                <input
+                  type="checkbox"
+                  id="contactImportUpdateExisting"
+                >
+                <span>Update existing contacts when the email already exists</span>
+              </label>
+
+              <div
+                id="contactImportSummary"
+                class="import-summary"
+                hidden
+              ></div>
+
+              <div
+                id="contactImportPreview"
+                class="import-preview"
+                hidden
+              ></div>
+
+              <div
+                id="contactImportProgress"
+                class="dashboard-notice"
+                hidden
+              ></div>
+
+            </div>
+
+
+            <div class="modal-footer">
+
+              <button
+                type="button"
+                class="secondary-action-button"
+                id="contactImportCancel"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                class="primary-action-button"
+                id="contactImportStart"
+                disabled
+              >
+                Import Contacts
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===================================================
+             CREATE CONTACT LIST MODAL
+             =================================================== -->
+
+        <div
+          class="modal-backdrop"
+          id="contactListModalBackdrop"
+          hidden
+        >
+
+          <div
+            class="modal-card audience-modal small-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contactListModalTitle"
+          >
+
+            <form id="contactListForm">
+
+              <div class="modal-header">
+
+                <div>
+                  <span class="detail-eyebrow">Contacts</span>
+                  <h2 id="contactListModalTitle">Create Contact List</h2>
+                </div>
+
+                <button
+                  type="button"
+                  class="drawer-close-button"
+                  id="contactListModalClose"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+
+              </div>
+
+              <div class="modal-body">
+
+                <label class="form-field">
+                  <span>List name <strong>*</strong></span>
+                  <input
+                    type="text"
+                    id="contactListName"
+                    maxlength="120"
+                    required
+                  >
+                </label>
+
+                <label class="form-field">
+                  <span>Description</span>
+                  <textarea
+                    id="contactListDescription"
+                    rows="3"
+                    maxlength="300"
+                  ></textarea>
+                </label>
+
+              </div>
+
+              <div class="modal-footer">
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="contactListModalCancel"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  class="primary-action-button"
+                >
+                  Create List
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+
+        <!-- ===================================================
+             CREATE SEGMENT MODAL
+             =================================================== -->
+
+        <div
+          class="modal-backdrop"
+          id="contactSegmentModalBackdrop"
+          hidden
+        >
+
+          <div
+            class="modal-card audience-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="contactSegmentModalTitle"
+          >
+
+            <form id="contactSegmentForm">
+
+              <div class="modal-header">
+
+                <div>
+                  <span class="detail-eyebrow">Contacts</span>
+                  <h2 id="contactSegmentModalTitle">Create Dynamic Segment</h2>
+                  <p>Start with one reliable rule. Multi-rule logic will come in a later phase.</p>
+                </div>
+
+                <button
+                  type="button"
+                  class="drawer-close-button"
+                  id="contactSegmentModalClose"
+                  aria-label="Close"
+                >
+                  ×
+                </button>
+
+              </div>
+
+              <div class="modal-body">
+
+                <label class="form-field">
+                  <span>Segment name <strong>*</strong></span>
+                  <input
+                    type="text"
+                    id="contactSegmentName"
+                    maxlength="120"
+                    required
+                  >
+                </label>
+
+
+                <div class="form-grid-3">
+
+                  <label class="form-field">
+                    <span>Field</span>
+                    <select id="contactSegmentField">
+                      <option value="leadstatus">Lead Status</option>
+                      <option value="company">Company</option>
+                      <option value="subscription">Subscription</option>
+                    </select>
+                  </label>
+
+                  <label class="form-field">
+                    <span>Operator</span>
+                    <select id="contactSegmentOperator">
+                      <option value="equals">Equals</option>
+                      <option value="contains">Contains</option>
+                      <option value="not_equals">Does not equal</option>
+                    </select>
+                  </label>
+
+                  <label class="form-field">
+                    <span>Value <strong>*</strong></span>
+                    <input
+                      type="text"
+                      id="contactSegmentValue"
+                      placeholder="e.g. Interested"
+                      required
+                    >
+                  </label>
+
+                </div>
+
+                <div class="segment-rule-help">
+                  For Subscription, use <strong>Subscribed</strong> or <strong>Suppressed</strong>.
+                </div>
+
+              </div>
+
+              <div class="modal-footer">
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="contactSegmentModalCancel"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  class="primary-action-button"
+                >
+                  Create Segment
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
 
 
         <!-- ===================================================
@@ -2083,9 +2579,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=6"></script>
+  <script src="js/dashboard-api.js?v=7"></script>
 
-  <script src="js/app.js?v=6"></script>
+  <script src="js/app.js?v=7"></script>
 
 </body>
 
