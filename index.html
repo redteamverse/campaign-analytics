@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=7"
+    href="css/dashboard-modules.css?v=8"
   >
 </head>
 
@@ -638,10 +638,6 @@
                 Segments
               </button>
 
-              <button type="button" class="module-tab" data-user-tab="campaign">
-                Campaign Membership
-              </button>
-
               <button type="button" class="module-tab" data-user-tab="subscription">
                 Suppression
               </button>
@@ -792,10 +788,11 @@
 
               <div class="audience-sidebar">
 
-                <div class="audience-panel-header">
+                <div class="audience-panel-header audience-panel-header-clean">
                   <div>
-                    <strong>Contact Lists</strong>
-                    <span>Static groups you control manually.</span>
+                    <span class="detail-eyebrow">Contacts</span>
+                    <strong>Lists</strong>
+                    <span>Organize contacts into reusable static groups.</span>
                   </div>
 
                   <button
@@ -803,7 +800,7 @@
                     class="primary-action-button compact-action-button"
                     id="createContactListButton"
                   >
-                    + New List
+                    + Create List
                   </button>
                 </div>
 
@@ -834,18 +831,20 @@
                   <div class="audience-detail-header">
 
                     <div>
-                      <span class="detail-eyebrow">Contact List</span>
+                      <span class="detail-eyebrow">List</span>
                       <h3 id="contactListDetailName">List</h3>
                       <p id="contactListDetailDescription"></p>
                     </div>
 
-                    <button
-                      type="button"
-                      class="danger-text-button"
-                      id="deleteContactListButton"
-                    >
-                      Delete List
-                    </button>
+                    <div class="audience-detail-actions">
+                      <button
+                        type="button"
+                        class="danger-text-button"
+                        id="deleteContactListButton"
+                      >
+                        Delete List
+                      </button>
+                    </div>
 
                   </div>
 
@@ -865,7 +864,7 @@
                       class="secondary-action-button"
                       id="addContactToListButton"
                     >
-                      Add Contact
+                      Add to List
                     </button>
 
                     <div class="search-field-wrap">
@@ -929,11 +928,12 @@
             hidden
           >
 
-            <div class="audience-panel-header segment-header">
+            <div class="audience-panel-header segment-header audience-panel-header-clean">
 
               <div>
-                <strong>Dynamic Segments</strong>
-                <span>Saved rules that update automatically as contact data changes.</span>
+                <span class="detail-eyebrow">Contacts</span>
+                <strong>Segments</strong>
+                <span>Build dynamic audiences that update automatically from contact data.</span>
               </div>
 
               <button
@@ -941,7 +941,7 @@
                 class="primary-action-button"
                 id="createContactSegmentButton"
               >
-                + New Segment
+                + Create Segment
               </button>
 
             </div>
@@ -951,89 +951,6 @@
               id="contactSegmentsGrid"
               class="segments-grid"
             ></div>
-
-          </div>
-
-
-          <!-- USERS / BY CAMPAIGN -->
-
-          <div
-            class="module-tab-panel"
-            id="userTabCampaign"
-            data-user-panel="campaign"
-            hidden
-          >
-
-            <div class="module-context-bar">
-
-              <div>
-                <strong>Campaign membership</strong>
-                <span>Review which contacts belong to a selected campaign.</span>
-              </div>
-
-              <select
-                id="userCampaignFilter"
-                class="management-filter wide-select"
-                aria-label="Select campaign"
-              >
-                <option value="">
-                  Select campaign
-                </option>
-              </select>
-
-            </div>
-
-
-            <div class="management-toolbar compact-toolbar">
-
-              <div class="search-field-wrap">
-
-                <input
-                  type="search"
-                  id="userCampaignSearchInput"
-                  class="management-search"
-                  placeholder="Search contact, email or company"
-                >
-
-              </div>
-
-              <select
-                id="userCampaignMembershipFilter"
-                class="management-filter"
-              >
-                <option value="all">All memberships</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
-
-            </div>
-
-
-            <div class="table-card">
-
-              <div class="table-header">
-                <h3 id="usersByCampaignTitle">Campaign Contacts</h3>
-              </div>
-
-              <div class="table-container">
-
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Contact</th>
-                      <th>Email</th>
-                      <th>Company</th>
-                      <th>Membership</th>
-                      <th>Subscription</th>
-                      <th>Lead Status</th>
-                    </tr>
-                  </thead>
-                  <tbody id="usersByCampaignTable"></tbody>
-                </table>
-
-              </div>
-
-            </div>
 
           </div>
 
@@ -1231,7 +1148,7 @@
         >
 
           <div
-            class="modal-card audience-modal small-modal"
+            class="modal-card audience-modal small-modal audience-builder-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contactListModalTitle"
@@ -1239,11 +1156,15 @@
 
             <form id="contactListForm">
 
-              <div class="modal-header">
+              <div class="audience-builder-header">
 
-                <div>
-                  <span class="detail-eyebrow">Contacts</span>
-                  <h2 id="contactListModalTitle">Create Contact List</h2>
+                <div class="audience-builder-title-wrap">
+                  <div class="audience-builder-icon">L</div>
+                  <div>
+                    <span class="detail-eyebrow">Static audience</span>
+                    <h2 id="contactListModalTitle">Create a Contact List</h2>
+                    <p>Use lists for groups you want to manage manually, such as partners, event leads, or enterprise prospects.</p>
+                  </div>
                 </div>
 
                 <button
@@ -1257,30 +1178,43 @@
 
               </div>
 
-              <div class="modal-body">
+              <div class="audience-builder-body">
 
-                <label class="form-field">
-                  <span>List name <strong>*</strong></span>
-                  <input
-                    type="text"
-                    id="contactListName"
-                    maxlength="120"
-                    required
-                  >
-                </label>
+                <div class="builder-section">
+                  <div class="builder-section-heading">
+                    <strong>List details</strong>
+                    <span>Give the list a clear name so it is easy to reuse later.</span>
+                  </div>
 
-                <label class="form-field">
-                  <span>Description</span>
-                  <textarea
-                    id="contactListDescription"
-                    rows="3"
-                    maxlength="300"
-                  ></textarea>
-                </label>
+                  <label class="form-field form-field-strong">
+                    <span>List name <strong>*</strong></span>
+                    <input
+                      type="text"
+                      id="contactListName"
+                      maxlength="120"
+                      placeholder="e.g. Enterprise Security Leads"
+                      required
+                    >
+                  </label>
+
+                  <label class="form-field">
+                    <span>Description</span>
+                    <textarea
+                      id="contactListDescription"
+                      rows="3"
+                      maxlength="300"
+                      placeholder="Optional note about who belongs in this list"
+                    ></textarea>
+                  </label>
+                </div>
+
+                <div class="builder-note">
+                  Contacts are not duplicated. A list only stores membership references to your existing contacts.
+                </div>
 
               </div>
 
-              <div class="modal-footer">
+              <div class="audience-builder-footer">
 
                 <button
                   type="button"
@@ -1293,6 +1227,7 @@
                 <button
                   type="submit"
                   class="primary-action-button"
+                  id="contactListSubmitButton"
                 >
                   Create List
                 </button>
@@ -1317,7 +1252,7 @@
         >
 
           <div
-            class="modal-card audience-modal"
+            class="modal-card audience-modal audience-builder-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="contactSegmentModalTitle"
@@ -1325,12 +1260,15 @@
 
             <form id="contactSegmentForm">
 
-              <div class="modal-header">
+              <div class="audience-builder-header">
 
-                <div>
-                  <span class="detail-eyebrow">Contacts</span>
-                  <h2 id="contactSegmentModalTitle">Create Dynamic Segment</h2>
-                  <p>Start with one reliable rule. Multi-rule logic will come in a later phase.</p>
+                <div class="audience-builder-title-wrap">
+                  <div class="audience-builder-icon">S</div>
+                  <div>
+                    <span class="detail-eyebrow">Dynamic audience</span>
+                    <h2 id="contactSegmentModalTitle">Create a Segment</h2>
+                    <p>Segments automatically include contacts that match the rule below.</p>
+                  </div>
                 </div>
 
                 <button
@@ -1344,58 +1282,84 @@
 
               </div>
 
-              <div class="modal-body">
+              <div class="audience-builder-body">
 
-                <label class="form-field">
-                  <span>Segment name <strong>*</strong></span>
-                  <input
-                    type="text"
-                    id="contactSegmentName"
-                    maxlength="120"
-                    required
-                  >
-                </label>
+                <div class="builder-section">
 
+                  <div class="builder-section-heading">
+                    <strong>Segment details</strong>
+                    <span>Name the audience so it is clear when selecting recipients later.</span>
+                  </div>
 
-                <div class="form-grid-3">
-
-                  <label class="form-field">
-                    <span>Field</span>
-                    <select id="contactSegmentField">
-                      <option value="leadstatus">Lead Status</option>
-                      <option value="company">Company</option>
-                      <option value="subscription">Subscription</option>
-                    </select>
-                  </label>
-
-                  <label class="form-field">
-                    <span>Operator</span>
-                    <select id="contactSegmentOperator">
-                      <option value="equals">Equals</option>
-                      <option value="contains">Contains</option>
-                      <option value="not_equals">Does not equal</option>
-                    </select>
-                  </label>
-
-                  <label class="form-field">
-                    <span>Value <strong>*</strong></span>
+                  <label class="form-field form-field-strong">
+                    <span>Segment name <strong>*</strong></span>
                     <input
                       type="text"
-                      id="contactSegmentValue"
-                      placeholder="e.g. Interested"
+                      id="contactSegmentName"
+                      maxlength="120"
+                      placeholder="e.g. Interested Enterprise Leads"
                       required
                     >
                   </label>
 
                 </div>
 
-                <div class="segment-rule-help">
-                  For Subscription, use <strong>Subscribed</strong> or <strong>Suppressed</strong>.
+
+                <div class="builder-section">
+
+                  <div class="builder-section-heading">
+                    <strong>Audience rule</strong>
+                    <span>Contacts matching this rule are included automatically.</span>
+                  </div>
+
+                  <div class="segment-rule-builder">
+
+                    <label class="form-field">
+                      <span>Field</span>
+                      <select id="contactSegmentField">
+                        <option value="leadstatus">Lead Status</option>
+                        <option value="company">Company</option>
+                        <option value="subscription">Subscription</option>
+                      </select>
+                    </label>
+
+                    <div class="rule-connector">is</div>
+
+                    <label class="form-field">
+                      <span>Condition</span>
+                      <select id="contactSegmentOperator">
+                        <option value="equals">Equals</option>
+                        <option value="contains">Contains</option>
+                        <option value="not_equals">Does not equal</option>
+                      </select>
+                    </label>
+
+                    <label class="form-field">
+                      <span>Value <strong>*</strong></span>
+                      <input
+                        type="text"
+                        id="contactSegmentValue"
+                        placeholder="e.g. Interested"
+                        required
+                      >
+                    </label>
+
+                  </div>
+
+                  <div class="segment-live-preview">
+                    <span>Rule preview</span>
+                    <strong id="contactSegmentRulePreview">Lead Status equals “…”</strong>
+                  </div>
+
+                  <div class="segment-rule-help">
+                    For Subscription, use <strong>Subscribed</strong> or <strong>Suppressed</strong>.
+                  </div>
+
                 </div>
 
               </div>
 
-              <div class="modal-footer">
+              <div class="audience-builder-footer">
 
                 <button
                   type="button"
@@ -1408,6 +1372,7 @@
                 <button
                   type="submit"
                   class="primary-action-button"
+                  id="contactSegmentSubmitButton"
                 >
                   Create Segment
                 </button>
@@ -2579,9 +2544,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=7"></script>
+  <script src="js/dashboard-api.js?v=8"></script>
 
-  <script src="js/app.js?v=7"></script>
+  <script src="js/app.js?v=8"></script>
 
 </body>
 

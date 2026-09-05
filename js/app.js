@@ -879,6 +879,155 @@ function exportContactsCsv() {
 }
 
 
+
+function setActionButtonBusy(
+  buttonOrId,
+  busy,
+  busyLabel
+) {
+
+  const button =
+    typeof buttonOrId ===
+      'string'
+      ? document.getElementById(
+          buttonOrId
+        )
+      : buttonOrId;
+
+  if (!button) {
+    return;
+  }
+
+  if (busy) {
+
+    if (
+      !button.dataset.originalLabel
+    ) {
+      button.dataset.originalLabel =
+        button.textContent.trim();
+    }
+
+    button.disabled =
+      true;
+
+    button.classList.add(
+      'is-loading'
+    );
+
+    button.innerHTML =
+      `<span class="button-spinner" aria-hidden="true"></span><span>${escapeHtml(busyLabel || 'Working…')}</span>`;
+
+  } else {
+
+    button.disabled =
+      false;
+
+    button.classList.remove(
+      'is-loading'
+    );
+
+    button.textContent =
+      button.dataset.originalLabel ||
+      button.textContent;
+
+    delete button.dataset.originalLabel;
+  }
+}
+
+
+async function withActionButtonBusy(
+  buttonOrId,
+  busyLabel,
+  callback
+) {
+
+  const button =
+    typeof buttonOrId ===
+      'string'
+      ? document.getElementById(
+          buttonOrId
+        )
+      : buttonOrId;
+
+  if (
+    button?.disabled
+  ) {
+    return;
+  }
+
+  setActionButtonBusy(
+    button,
+    true,
+    busyLabel
+  );
+
+  try {
+
+    return await callback();
+
+  } finally {
+
+    setActionButtonBusy(
+      button,
+      false
+    );
+  }
+}
+
+
+function renderContactSegmentRulePreview() {
+
+  const target =
+    document.getElementById(
+      'contactSegmentRulePreview'
+    );
+
+  if (!target) {
+    return;
+  }
+
+  const field =
+    document.getElementById(
+      'contactSegmentField'
+    )?.value ||
+    'leadstatus';
+
+  const operator =
+    document.getElementById(
+      'contactSegmentOperator'
+    )?.value ||
+    'equals';
+
+  const value =
+    document.getElementById(
+      'contactSegmentValue'
+    )?.value
+      .trim() ||
+    '…';
+
+  const fieldLabels = {
+    leadstatus:
+      'Lead Status',
+    company:
+      'Company',
+    subscription:
+      'Subscription'
+  };
+
+  const operatorLabels = {
+    equals:
+      'equals',
+    contains:
+      'contains',
+    not_equals:
+      'does not equal'
+  };
+
+  target.textContent =
+    `${fieldLabels[field] || field} ${operatorLabels[operator] || operator} “${value}”`;
+}
+
+
 function showUsersNotice(message, type = 'success') {
   const notice = document.getElementById('usersActionNotice');
   if (!notice) return;
@@ -965,22 +1114,30 @@ async function submitUserForm(event) {
   }
 }
 
-async function toggleUserSubscription(userId, nextState) {
+async function toggleUserSubscription(userId, nextState, button) {
   const user = DataEngine.getUserById(userId);
   if (!user) return;
   const unsubscribed = nextState === 'Y';
   const action = unsubscribed ? 'unsubscribe' : 'resubscribe';
   if (!window.confirm(`Are you sure you want to ${action} ${user.emailAddress}?`)) return;
 
-  try {
-    showUsersNotice(`${unsubscribed ? 'Unsubscribing' : 'Resubscribing'} ${user.emailAddress}…`, 'warning');
-    await DashboardApi.setUserUnsubscribed(userId, unsubscribed);
-    await initDashboard(true);
-    switchView('usersView');
-    showUsersNotice(`${user.emailAddress} ${unsubscribed ? 'unsubscribed' : 'resubscribed'} successfully.`, 'success');
-  } catch (error) {
-    showUsersNotice(error?.message || String(error), 'error');
-  }
+  await withActionButtonBusy(
+    button,
+    unsubscribed
+      ? 'Suppressing…'
+      : 'Resubscribing…',
+    async () => {
+      try {
+        showUsersNotice(`${unsubscribed ? 'Suppressing' : 'Resubscribing'} ${user.emailAddress}…`, 'warning');
+        await DashboardApi.setUserUnsubscribed(userId, unsubscribed);
+        await initDashboard(true);
+        switchView('usersView');
+        showUsersNotice(`${user.emailAddress} ${unsubscribed ? 'suppressed' : 'resubscribed'} successfully.`, 'success');
+      } catch (error) {
+        showUsersNotice(error?.message || String(error), 'error');
+      }
+    }
+  );
 }
 
 function attachUserManagementListeners() {
@@ -1026,7 +1183,8 @@ function attachUserManagementListeners() {
     if (unsubButton) {
       toggleUserSubscription(
         unsubButton.dataset.userUnsubscribe,
-        unsubButton.dataset.nextState
+        unsubButton.dataset.nextState,
+        unsubButton
       );
     }
   });
@@ -4254,38 +4412,45 @@ async function submitContactList(
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    'contactListSubmitButton',
+    'Creating…',
+    async () => {
 
-    const response =
-      await DashboardApi
-        .createContactList({
-          name,
-          description
-        });
+      try {
 
-    closeContactListModal();
+        const response =
+          await DashboardApi
+            .createContactList({
+              name,
+              description
+            });
 
-    contactAudienceState.selectedListId =
-      response?.result?.listId ||
-      '';
+        closeContactListModal();
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        contactAudienceState.selectedListId =
+          response?.result?.listId ||
+          '';
 
-    showUsersNotice(
-      'Contact list created.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Contact list created.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not create the contact list.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not create the contact list.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
@@ -4314,33 +4479,40 @@ async function deleteSelectedContactList() {
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    'deleteContactListButton',
+    'Deleting…',
+    async () => {
 
-    await DashboardApi
-      .deleteContactList(
-        listId
-      );
+      try {
 
-    contactAudienceState.selectedListId =
-      '';
+        await DashboardApi
+          .deleteContactList(
+            listId
+          );
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        contactAudienceState.selectedListId =
+          '';
 
-    showUsersNotice(
-      'Contact list deleted.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Contact list deleted.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not delete the contact list.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not delete the contact list.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
@@ -4362,36 +4534,44 @@ async function addSelectedContactToList() {
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    'addContactToListButton',
+    'Adding…',
+    async () => {
 
-    await DashboardApi
-      .addContactListMember(
-        listId,
-        userId
-      );
+      try {
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        await DashboardApi
+          .addContactListMember(
+            listId,
+            userId
+          );
 
-    showUsersNotice(
-      'Contact added to the list.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Contact added to the list.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not add the contact to this list.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not add the contact to this list.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
 async function removeContactFromSelectedList(
-  userId
+  userId,
+  button
 ) {
 
   const listId =
@@ -4404,31 +4584,38 @@ async function removeContactFromSelectedList(
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    button,
+    'Removing…',
+    async () => {
 
-    await DashboardApi
-      .removeContactListMember(
-        listId,
-        userId
-      );
+      try {
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        await DashboardApi
+          .removeContactListMember(
+            listId,
+            userId
+          );
 
-    showUsersNotice(
-      'Contact removed from the list.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Contact removed from the list.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not remove the contact from this list.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not remove the contact from this list.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
@@ -4449,6 +4636,8 @@ function openContactSegmentModal() {
     backdrop.hidden =
       false;
   }
+
+  renderContactSegmentRulePreview();
 }
 
 
@@ -4502,37 +4691,45 @@ async function submitContactSegment(
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    'contactSegmentSubmitButton',
+    'Creating…',
+    async () => {
 
-    await DashboardApi
-      .createContactSegment(
-        payload
-      );
+      try {
 
-    closeContactSegmentModal();
+        await DashboardApi
+          .createContactSegment(
+            payload
+          );
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        closeContactSegmentModal();
 
-    showUsersNotice(
-      'Dynamic segment created.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Dynamic segment created.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not create the segment.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not create the segment.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
 async function deleteContactSegment(
-  segmentId
+  segmentId,
+  button
 ) {
 
   const segment =
@@ -4551,30 +4748,37 @@ async function deleteContactSegment(
     return;
   }
 
-  try {
+  await withActionButtonBusy(
+    button,
+    'Deleting…',
+    async () => {
 
-    await DashboardApi
-      .deleteContactSegment(
-        segmentId
-      );
+      try {
 
-    await ensureContactAudiencesLoaded(
-      true
-    );
+        await DashboardApi
+          .deleteContactSegment(
+            segmentId
+          );
 
-    showUsersNotice(
-      'Segment deleted.',
-      'success'
-    );
+        await ensureContactAudiencesLoaded(
+          true
+        );
 
-  } catch (error) {
+        showUsersNotice(
+          'Segment deleted.',
+          'success'
+        );
 
-    showUsersNotice(
-      error?.message ||
-      'Could not delete the segment.',
-      'error'
-    );
-  }
+      } catch (error) {
+
+        showUsersNotice(
+          error?.message ||
+          'Could not delete the segment.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
@@ -5119,10 +5323,11 @@ async function runContactImport() {
       'contactImportStart'
     );
 
-  if (start) {
-    start.disabled =
-      true;
-  }
+  setActionButtonBusy(
+    start,
+    true,
+    'Importing…'
+  );
 
   const data =
     DataEngine.getNormalized();
@@ -5279,6 +5484,11 @@ async function runContactImport() {
 
   parsedContactImportRows =
     [];
+
+  setActionButtonBusy(
+    start,
+    false
+  );
 
   setTimeout(
     () => {
@@ -5462,7 +5672,8 @@ function attachContactAudienceListeners() {
 
         if (removeButton) {
           removeContactFromSelectedList(
-            removeButton.dataset.contactListRemove
+            removeButton.dataset.contactListRemove,
+            removeButton
           );
         }
       }
@@ -5504,6 +5715,33 @@ function attachContactAudienceListeners() {
       submitContactSegment
     );
 
+  [
+    'contactSegmentField',
+    'contactSegmentOperator',
+    'contactSegmentValue'
+  ].forEach(
+    id => {
+
+      document
+        .getElementById(
+          id
+        )
+        ?.addEventListener(
+          'input',
+          renderContactSegmentRulePreview
+        );
+
+      document
+        .getElementById(
+          id
+        )
+        ?.addEventListener(
+          'change',
+          renderContactSegmentRulePreview
+        );
+    }
+  );
+
   document
     .getElementById(
       'contactSegmentsGrid'
@@ -5519,7 +5757,8 @@ function attachContactAudienceListeners() {
 
         if (deleteButton) {
           deleteContactSegment(
-            deleteButton.dataset.contactSegmentDelete
+            deleteButton.dataset.contactSegmentDelete,
+            deleteButton
           );
         }
       }
@@ -5666,7 +5905,6 @@ function switchUserModuleTab(
 
 
   renderUsersManagement();
-  renderUsersByCampaign();
   renderSubscriptionManagement();
   renderContactAudienceViews();
 }
