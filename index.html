@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=8"
+    href="css/dashboard-modules.css?v=9"
   >
 </head>
 
@@ -1521,7 +1521,7 @@
             >
 
               <button type="button" class="module-tab active" data-campaign-tab="all">
-                All Campaigns
+                Campaigns
               </button>
 
               <button type="button" class="module-tab" data-campaign-tab="members">
@@ -1557,7 +1557,75 @@
             data-campaign-panel="all"
           >
 
-            <div class="management-toolbar compact-toolbar">
+            <div class="campaign-lifecycle-strip">
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter active"
+                data-campaign-lifecycle="all"
+              >
+                All
+                <span id="campaignLifecycleAllCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="draft"
+              >
+                Drafts
+                <span id="campaignLifecycleDraftCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="scheduled"
+              >
+                Scheduled
+                <span id="campaignLifecycleScheduledCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="running"
+              >
+                Running
+                <span id="campaignLifecycleRunningCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="paused"
+              >
+                Paused
+                <span id="campaignLifecyclePausedCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="completed"
+              >
+                Completed
+                <span id="campaignLifecycleCompletedCount">0</span>
+              </button>
+
+              <button
+                type="button"
+                class="campaign-lifecycle-filter"
+                data-campaign-lifecycle="archived"
+              >
+                Archived
+                <span id="campaignLifecycleArchivedCount">0</span>
+              </button>
+
+            </div>
+
+
+            <div class="management-toolbar compact-toolbar campaign-management-toolbar">
 
               <div class="search-field-wrap">
 
@@ -1565,50 +1633,14 @@
                   type="search"
                   id="campaignSearchInput"
                   class="management-search"
-                  placeholder="Search campaign"
+                  placeholder="Search campaigns"
                 >
 
               </div>
 
-              <select
-                id="campaignStatusFilter"
-                class="management-filter"
-                aria-label="Filter campaigns by status"
-              >
-                <option value="all">All statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="PAUSED">Paused</option>
-                <option value="COMPLETED">Completed</option>
-              </select>
-
-            </div>
-
-
-            <div class="users-summary-grid module-summary-grid">
-
-              <div class="mini-stat">
-                <span>Total Campaigns</span>
-                <strong id="campaignsTotalCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Active</span>
-                <strong id="campaignsActiveCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Paused</span>
-                <strong id="campaignsPausedCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Completed</span>
-                <strong id="campaignsCompletedCount">0</strong>
-              </div>
-
-              <div class="mini-stat">
-                <span>Showing</span>
+              <div class="campaign-toolbar-meta">
                 <strong id="campaignsShowingCount">0</strong>
+                <span>showing</span>
               </div>
 
             </div>
@@ -1631,10 +1663,10 @@
                     <tr>
                       <th>Campaign</th>
                       <th>Status</th>
-                      <th>Active Members</th>
-                      <th>Email Events</th>
+                      <th>Contacts</th>
+                      <th>Messages</th>
                       <th>Updated</th>
-                      <th>Actions</th>
+                      <th class="actions-column">Actions</th>
                     </tr>
                   </thead>
 
@@ -2256,100 +2288,120 @@
   >
 
     <div
-      class="modal-card"
+      class="modal-card campaign-builder-modal"
       role="dialog"
       aria-modal="true"
       aria-labelledby="campaignModalTitle"
     >
 
-      <div class="modal-header">
+      <form
+        id="campaignForm"
+        class="management-form campaign-builder-form"
+      >
 
-        <div>
+        <div class="campaign-builder-header">
 
-          <div class="modal-eyebrow">
-            Campaign Management
+          <div class="campaign-builder-heading">
+
+            <div class="campaign-builder-icon">
+              C
+            </div>
+
+            <div>
+              <div class="modal-eyebrow">
+                Campaign
+              </div>
+
+              <h3 id="campaignModalTitle">
+                Create Campaign
+              </h3>
+
+              <p id="campaignModalDescription">
+                Create the campaign record first. Recipients, content, sending and scheduling are configured in later steps.
+              </p>
+            </div>
+
           </div>
 
-          <h3 id="campaignModalTitle">
-            Add Campaign
-          </h3>
+
+          <button
+            type="button"
+            class="modal-close"
+            id="campaignModalClose"
+            aria-label="Close"
+          >
+            ×
+          </button>
 
         </div>
 
 
-        <button
-          type="button"
-          class="modal-close"
-          id="campaignModalClose"
-          aria-label="Close"
-        >
-          ×
-        </button>
-
-      </div>
-
-
-      <form
-        id="campaignForm"
-        class="management-form"
-      >
-
-        <input
-          type="hidden"
-          id="campaignFormCampaignId"
-        >
-
-
-        <label>
-
-          <span>
-            Campaign Name <strong>*</strong>
-          </span>
+        <div class="campaign-builder-body">
 
           <input
-            type="text"
-            id="campaignFormName"
-            autocomplete="off"
-            placeholder="Example: AltSecCON 2026"
-            required
+            type="hidden"
+            id="campaignFormCampaignId"
           >
 
-        </label>
+          <input
+            type="hidden"
+            id="campaignFormStatus"
+            value="DRAFT"
+          >
 
 
-        <label>
+          <div class="builder-section">
 
-          <span>
-            Campaign Status
-          </span>
+            <div class="builder-section-heading">
+              <strong>Campaign details</strong>
+              <span>Use a clear internal name that identifies the audience, event, offer, or outreach objective.</span>
+            </div>
 
-          <select id="campaignFormStatus">
+            <label class="form-field form-field-strong">
 
-            <option value="ACTIVE">
-              Active
-            </option>
+              <span>
+                Campaign name <strong>*</strong>
+              </span>
 
-            <option value="PAUSED">
-              Paused
-            </option>
+              <input
+                type="text"
+                id="campaignFormName"
+                autocomplete="off"
+                placeholder="e.g. AltSecCON 2026 Enterprise Outreach"
+                required
+              >
 
-            <option value="COMPLETED">
-              Completed
-            </option>
+            </label>
 
-          </select>
-
-        </label>
-
-
-        <div
-          id="campaignFormError"
-          class="form-error"
-          hidden
-        ></div>
+          </div>
 
 
-        <div class="modal-actions">
+          <div
+            id="campaignEditLifecycleContext"
+            class="campaign-lifecycle-context"
+            hidden
+          >
+            <span>Current lifecycle</span>
+            <strong id="campaignEditLifecycleStatus">Draft</strong>
+            <small>Status changes are managed from the campaign action menu.</small>
+          </div>
+
+
+          <div class="builder-note">
+            New campaigns are created as <strong>Draft</strong>. This prevents incomplete campaigns from becoming sendable by accident.
+          </div>
+
+
+          <div
+            id="campaignFormError"
+            class="form-error"
+            hidden
+          ></div>
+
+        </div>
+
+
+        <div class="campaign-builder-footer">
 
           <button
             type="button"
@@ -2544,9 +2596,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=8"></script>
+  <script src="js/dashboard-api.js?v=9"></script>
 
-  <script src="js/app.js?v=8"></script>
+  <script src="js/app.js?v=9"></script>
 
 </body>
 

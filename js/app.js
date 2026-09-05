@@ -1222,11 +1222,12 @@ function attachUserManagementListeners() {
   });
 }
 /* ============================================================
-   CAMPAIGN MANAGEMENT
+   CAMPAIGN MANAGEMENT — V9 LIFECYCLE
    ============================================================ */
 
 let campaignManagementAttached = false;
 let editingCampaignId = '';
+let activeCampaignLifecycleFilter = 'all';
 
 
 function formatCampaignDate(value) {
@@ -1259,6 +1260,143 @@ function getCampaignById(campaignId) {
 }
 
 
+function getRawCampaignStatus(
+  campaign
+) {
+
+  return String(
+    campaign?.campaignStatus ||
+    campaign?.status ||
+    'DRAFT'
+  )
+    .trim()
+    .toUpperCase();
+}
+
+
+function getCampaignLifecycleStatus(
+  campaign
+) {
+
+  const raw =
+    getRawCampaignStatus(
+      campaign
+    );
+
+  // Existing ACTIVE campaigns remain operationally compatible
+  // with the current mailer, but the dashboard presents them
+  // as RUNNING.
+  if (
+    raw ===
+    'ACTIVE'
+  ) {
+    return 'RUNNING';
+  }
+
+  return raw;
+}
+
+
+function campaignLifecycleLabel(
+  status
+) {
+
+  const normalized =
+    String(
+      status || ''
+    )
+      .trim()
+      .toUpperCase();
+
+  const labels = {
+    DRAFT:
+      'Draft',
+    READY:
+      'Ready',
+    SCHEDULED:
+      'Scheduled',
+    RUNNING:
+      'Running',
+    ACTIVE:
+      'Running',
+    PAUSED:
+      'Paused',
+    COMPLETED:
+      'Completed',
+    CANCELED:
+      'Canceled',
+    ARCHIVED:
+      'Archived'
+  };
+
+  return labels[normalized] ||
+    normalized ||
+    'Draft';
+}
+
+
+function campaignLifecycleBadge(
+  campaign
+) {
+
+  const status =
+    getCampaignLifecycleStatus(
+      campaign
+    );
+
+  const classMap = {
+    DRAFT:
+      'campaign-status-draft',
+    READY:
+      'campaign-status-ready',
+    SCHEDULED:
+      'campaign-status-scheduled',
+    RUNNING:
+      'campaign-status-running',
+    PAUSED:
+      'campaign-status-paused',
+    COMPLETED:
+      'campaign-status-completed',
+    CANCELED:
+      'campaign-status-canceled',
+    ARCHIVED:
+      'campaign-status-archived'
+  };
+
+  return `
+    <span class="campaign-status-badge ${classMap[status] || 'campaign-status-draft'}">
+      <span class="campaign-status-dot" aria-hidden="true"></span>
+      ${escapeHtml(campaignLifecycleLabel(status))}
+    </span>
+  `;
+}
+
+
+function campaignMatchesLifecycleFilter(
+  campaign,
+  filter
+) {
+
+  if (
+    !filter ||
+    filter ===
+    'all'
+  ) {
+    return true;
+  }
+
+  const status =
+    getCampaignLifecycleStatus(
+      campaign
+    );
+
+  return status ===
+    String(filter)
+      .trim()
+      .toUpperCase();
+}
+
+
 function getCampaignManagementRows() {
 
   const data =
@@ -1273,57 +1411,254 @@ function getCampaignManagementRows() {
       .trim()
       .toLowerCase();
 
-  const status =
-    document.getElementById(
-      'campaignStatusFilter'
-    )?.value || 'all';
-
-
   return data.campaigns
-    .filter(campaign => {
-
-      const campaignStatus =
-        String(
-          campaign.campaignStatus ||
-          campaign.status ||
-          ''
+    .filter(
+      campaign =>
+        campaignMatchesLifecycleFilter(
+          campaign,
+          activeCampaignLifecycleFilter
         )
-          .trim()
-          .toUpperCase();
+    )
+    .filter(
+      campaign => {
 
+        if (!query) {
+          return true;
+        }
 
-      if (
-        status !== 'all' &&
-        campaignStatus !== status
-      ) {
-
-        return false;
-      }
-
-
-      if (!query) {
-        return true;
-      }
-
-
-      return [
-        campaign.campaignName,
-        campaign.campaignId,
-        campaignStatus
-      ].some(
-        value =>
-          String(value || '')
-            .toLowerCase()
-            .includes(query)
-      );
-    })
-    .sort(
-      (a, b) =>
-        String(a.campaignName || '')
-          .localeCompare(
-            String(b.campaignName || '')
+        return [
+          campaign.campaignName,
+          campaign.campaignId,
+          getCampaignLifecycleStatus(
+            campaign
           )
+        ].some(
+          value =>
+            String(
+              value || ''
+            )
+              .toLowerCase()
+              .includes(
+                query
+              )
+        );
+      }
+    )
+    .sort(
+      (a, b) => {
+
+        const aUpdated =
+          new Date(
+            a.updatedAt ||
+            a.createdAt ||
+            0
+          ).getTime();
+
+        const bUpdated =
+          new Date(
+            b.updatedAt ||
+            b.createdAt ||
+            0
+          ).getTime();
+
+        if (
+          !Number.isNaN(aUpdated) &&
+          !Number.isNaN(bUpdated) &&
+          aUpdated !== bUpdated
+        ) {
+          return bUpdated - aUpdated;
+        }
+
+        return String(
+          a.campaignName || ''
+        ).localeCompare(
+          String(
+            b.campaignName || ''
+          )
+        );
+      }
     );
+}
+
+
+function updateCampaignLifecycleCounts(
+  campaigns
+) {
+
+  const count =
+    status =>
+      campaigns.filter(
+        campaign =>
+          getCampaignLifecycleStatus(
+            campaign
+          ) === status
+      ).length;
+
+  setText(
+    'campaignLifecycleAllCount',
+    campaigns.length.toLocaleString()
+  );
+
+  setText(
+    'campaignLifecycleDraftCount',
+    count('DRAFT').toLocaleString()
+  );
+
+  setText(
+    'campaignLifecycleScheduledCount',
+    count('SCHEDULED').toLocaleString()
+  );
+
+  setText(
+    'campaignLifecycleRunningCount',
+    count('RUNNING').toLocaleString()
+  );
+
+  setText(
+    'campaignLifecyclePausedCount',
+    count('PAUSED').toLocaleString()
+  );
+
+  setText(
+    'campaignLifecycleCompletedCount',
+    count('COMPLETED').toLocaleString()
+  );
+
+  setText(
+    'campaignLifecycleArchivedCount',
+    count('ARCHIVED').toLocaleString()
+  );
+}
+
+
+function getCampaignLifecycleActions(
+  campaign
+) {
+
+  const status =
+    getCampaignLifecycleStatus(
+      campaign
+    );
+
+  const actions = [
+    {
+      key:
+        'edit',
+      label:
+        'Edit campaign'
+    },
+    {
+      key:
+        'members',
+      label:
+        'Manage members'
+    },
+    {
+      key:
+        'duplicate',
+      label:
+        'Duplicate'
+    }
+  ];
+
+
+  if (
+    status ===
+    'DRAFT'
+  ) {
+    actions.push({
+      key:
+        'ready',
+      label:
+        'Mark ready'
+    });
+  }
+
+
+  if (
+    status ===
+      'RUNNING'
+  ) {
+    actions.push({
+      key:
+        'pause',
+      label:
+        'Pause'
+    });
+  }
+
+
+  if (
+    status ===
+      'PAUSED'
+  ) {
+    actions.push({
+      key:
+        'resume',
+      label:
+        'Resume'
+    });
+  }
+
+
+  if (
+    [
+      'READY',
+      'SCHEDULED',
+      'RUNNING',
+      'PAUSED'
+    ].includes(
+      status
+    )
+  ) {
+    actions.push({
+      key:
+        'complete',
+      label:
+        'Mark completed'
+    });
+  }
+
+
+  if (
+    [
+      'DRAFT',
+      'READY',
+      'SCHEDULED',
+      'RUNNING',
+      'PAUSED'
+    ].includes(
+      status
+    )
+  ) {
+    actions.push({
+      key:
+        'cancel',
+      label:
+        'Cancel campaign',
+      danger:
+        true
+    });
+  }
+
+
+  if (
+    [
+      'COMPLETED',
+      'CANCELED'
+    ].includes(
+      status
+    )
+  ) {
+    actions.push({
+      key:
+        'archive',
+      label:
+        'Archive'
+    });
+  }
+
+  return actions;
 }
 
 
@@ -1338,55 +1673,16 @@ function renderCampaignManagement() {
     return;
   }
 
-
   const allCampaigns =
-    DataEngine.getNormalized().campaigns;
+    DataEngine
+      .getNormalized()
+      .campaigns || [];
 
   const rows =
     getCampaignManagementRows();
 
-
-  const campaignStatusOf =
-    campaign =>
-      String(
-        campaign.campaignStatus ||
-        campaign.status ||
-        ''
-      )
-        .trim()
-        .toUpperCase();
-
-
-  setText(
-    'campaignsTotalCount',
-    allCampaigns.length.toLocaleString()
-  );
-
-  setText(
-    'campaignsActiveCount',
-    allCampaigns.filter(
-      campaign =>
-        campaignStatusOf(campaign) ===
-        'ACTIVE'
-    ).length.toLocaleString()
-  );
-
-  setText(
-    'campaignsPausedCount',
-    allCampaigns.filter(
-      campaign =>
-        campaignStatusOf(campaign) ===
-        'PAUSED'
-    ).length.toLocaleString()
-  );
-
-  setText(
-    'campaignsCompletedCount',
-    allCampaigns.filter(
-      campaign =>
-        campaignStatusOf(campaign) ===
-        'COMPLETED'
-    ).length.toLocaleString()
+  updateCampaignLifecycleCounts(
+    allCampaigns
   );
 
   setText(
@@ -1395,12 +1691,29 @@ function renderCampaignManagement() {
   );
 
 
+  document
+    .querySelectorAll(
+      '[data-campaign-lifecycle]'
+    )
+    .forEach(
+      button =>
+        button.classList.toggle(
+          'active',
+          button.dataset.campaignLifecycle ===
+            activeCampaignLifecycleFilter
+        )
+    );
+
+
   if (!rows.length) {
 
     tbody.innerHTML =
       emptyRow(
         6,
-        'No campaigns match the current search or filters.'
+        activeCampaignLifecycleFilter ===
+          'all'
+          ? 'No campaigns match the current search.'
+          : `No ${activeCampaignLifecycleFilter} campaigns found.`
       );
 
     return;
@@ -1409,65 +1722,117 @@ function renderCampaignManagement() {
 
   tbody.innerHTML =
     rows
-      .slice(0, 1000)
-      .map(campaign => {
+      .slice(
+        0,
+        1000
+      )
+      .map(
+        campaign => {
 
-        const campaignId =
-          String(campaign.campaignId || '');
+          const campaignId =
+            String(
+              campaign.campaignId ||
+              ''
+            );
 
-        const campaignName =
-          String(
-            campaign.campaignName ||
-            campaignId ||
-            '—'
-          );
+          const campaignName =
+            String(
+              campaign.campaignName ||
+              campaignId ||
+              '—'
+            );
 
-        const campaignStatus =
-          String(
-            campaign.campaignStatus ||
-            campaign.status ||
-            'ACTIVE'
-          )
-            .trim()
-            .toUpperCase();
+          const totalContacts =
+            Number(
+              campaign.totalContacts ||
+              0
+            );
 
-        const totalContacts =
-          Number(campaign.totalContacts || 0);
+          const totalEmailEvents =
+            Number(
+              campaign.totalEmailEvents ||
+              0
+            );
 
-        const totalEmailEvents =
-          Number(campaign.totalEmailEvents || 0);
+          const actions =
+            getCampaignLifecycleActions(
+              campaign
+            );
 
-        return `
-          <tr>
-            <td class="user-name-cell">
-              <strong>${escapeHtml(campaignName)}</strong>
-              <small>${escapeHtml(campaignId)}</small>
-            </td>
-            <td>${statusBadge(campaignStatus)}</td>
-            <td>${totalContacts.toLocaleString()}</td>
-            <td>${totalEmailEvents.toLocaleString()}</td>
-            <td>${escapeHtml(formatCampaignDate(campaign.updatedAt))}</td>
-            <td>
-              <div class="user-actions">
+          return `
+            <tr>
+              <td>
                 <button
                   type="button"
-                  class="table-action-button"
-                  data-campaign-edit="${escapeHtml(campaignId)}"
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  class="table-action-button"
+                  class="campaign-name-button"
                   data-campaign-open="${escapeHtml(campaignId)}"
                 >
-                  Members
+                  ${escapeHtml(campaignName)}
                 </button>
-              </div>
-            </td>
-          </tr>
-        `;
-      })
+              </td>
+
+              <td>
+                ${campaignLifecycleBadge(campaign)}
+              </td>
+
+              <td>
+                ${totalContacts.toLocaleString()}
+              </td>
+
+              <td>
+                ${totalEmailEvents.toLocaleString()}
+              </td>
+
+              <td>
+                <span class="campaign-updated-value">
+                  ${escapeHtml(formatCampaignDate(campaign.updatedAt))}
+                </span>
+              </td>
+
+              <td class="actions-column">
+
+                <div class="row-menu">
+
+                  <button
+                    type="button"
+                    class="row-menu-trigger"
+                    aria-label="Campaign actions"
+                    aria-expanded="false"
+                    data-campaign-menu-trigger="${escapeHtml(campaignId)}"
+                  >
+                    •••
+                  </button>
+
+                  <div
+                    class="row-menu-panel campaign-row-menu"
+                    data-campaign-menu="${escapeHtml(campaignId)}"
+                    hidden
+                  >
+                    ${
+                      actions
+                        .map(
+                          action => `
+                            <button
+                              type="button"
+                              class="row-menu-item ${action.danger ? 'danger' : ''}"
+                              data-campaign-action="${escapeHtml(action.key)}"
+                              data-campaign-id="${escapeHtml(campaignId)}"
+                            >
+                              ${escapeHtml(action.label)}
+                            </button>
+                          `
+                        )
+                        .join('')
+                    }
+                  </div>
+
+                </div>
+
+              </td>
+            </tr>
+          `;
+        }
+      )
       .join('');
 }
 
@@ -1486,7 +1851,6 @@ function showCampaignsNotice(
     return;
   }
 
-
   notice.hidden =
     !message;
 
@@ -1494,7 +1858,8 @@ function showCampaignsNotice(
     `dashboard-notice ${type}`;
 
   notice.textContent =
-    message || '';
+    message ||
+    '';
 }
 
 
@@ -1503,8 +1868,8 @@ function openCampaignModal(
 ) {
 
   editingCampaignId =
-    campaignId || '';
-
+    campaignId ||
+    '';
 
   const campaign =
     editingCampaignId
@@ -1513,10 +1878,14 @@ function openCampaignModal(
         )
       : null;
 
-
   const title =
     document.getElementById(
       'campaignModalTitle'
+    );
+
+  const description =
+    document.getElementById(
+      'campaignModalDescription'
     );
 
   const idInput =
@@ -1529,7 +1898,7 @@ function openCampaignModal(
       'campaignFormName'
     );
 
-  const statusSelect =
+  const statusInput =
     document.getElementById(
       'campaignFormStatus'
     );
@@ -1537,6 +1906,16 @@ function openCampaignModal(
   const submit =
     document.getElementById(
       'campaignFormSubmit'
+    );
+
+  const context =
+    document.getElementById(
+      'campaignEditLifecycleContext'
+    );
+
+  const contextStatus =
+    document.getElementById(
+      'campaignEditLifecycleStatus'
     );
 
   const errorBox =
@@ -1554,16 +1933,11 @@ function openCampaignModal(
     !title ||
     !idInput ||
     !nameInput ||
-    !statusSelect ||
+    !statusInput ||
     !submit ||
     !errorBox ||
     !backdrop
   ) {
-
-    console.warn(
-      'Campaign management modal elements were not found.'
-    );
-
     return;
   }
 
@@ -1571,25 +1945,33 @@ function openCampaignModal(
   title.textContent =
     campaign
       ? 'Edit Campaign'
-      : 'Add Campaign';
+      : 'Create Campaign';
+
+
+  if (description) {
+    description.textContent =
+      campaign
+        ? 'Update the campaign name. Lifecycle changes are controlled separately from the action menu.'
+        : 'Create the campaign record first. Recipients, content, sending and scheduling are configured in later steps.';
+  }
 
 
   idInput.value =
-    campaign?.campaignId || '';
+    campaign?.campaignId ||
+    '';
 
 
   nameInput.value =
-    campaign?.campaignName || '';
+    campaign?.campaignName ||
+    '';
 
 
-  statusSelect.value =
-    String(
-      campaign?.campaignStatus ||
-      campaign?.status ||
-      'ACTIVE'
-    )
-      .trim()
-      .toUpperCase();
+  statusInput.value =
+    campaign
+      ? getRawCampaignStatus(
+          campaign
+        )
+      : 'DRAFT';
 
 
   submit.textContent =
@@ -1598,16 +1980,33 @@ function openCampaignModal(
       : 'Create Campaign';
 
 
+  if (context) {
+    context.hidden =
+      !campaign;
+  }
+
+
+  if (
+    contextStatus &&
+    campaign
+  ) {
+    contextStatus.textContent =
+      campaignLifecycleLabel(
+        getCampaignLifecycleStatus(
+          campaign
+        )
+      );
+  }
+
+
   errorBox.hidden =
     true;
 
   errorBox.textContent =
     '';
 
-
   backdrop.hidden =
     false;
-
 
   setTimeout(
     () =>
@@ -1634,9 +2033,9 @@ function closeCampaignModal() {
       'campaignFormError'
     );
 
-
   if (backdrop) {
-    backdrop.hidden = true;
+    backdrop.hidden =
+      true;
   }
 
   if (form) {
@@ -1644,10 +2043,12 @@ function closeCampaignModal() {
   }
 
   if (errorBox) {
-    errorBox.hidden = true;
-    errorBox.textContent = '';
-  }
+    errorBox.hidden =
+      true;
 
+    errorBox.textContent =
+      '';
+  }
 
   editingCampaignId =
     '';
@@ -1668,25 +2069,18 @@ function setCampaignFormBusy(
       'campaignFormCancel'
     );
 
-
   if (submit) {
 
-    submit.disabled =
-      busy;
-
-    submit.textContent =
-      busy
+    setActionButtonBusy(
+      submit,
+      busy,
+      editingCampaignId
         ? 'Saving…'
-        : (
-            editingCampaignId
-              ? 'Save Changes'
-              : 'Create Campaign'
-          );
+        : 'Creating…'
+    );
   }
 
-
   if (cancel) {
-
     cancel.disabled =
       busy;
   }
@@ -1699,7 +2093,6 @@ async function submitCampaignForm(
 
   event.preventDefault();
 
-
   const errorBox =
     document.getElementById(
       'campaignFormError'
@@ -1710,21 +2103,18 @@ async function submitCampaignForm(
       'campaignFormName'
     );
 
-  const statusSelect =
+  const statusInput =
     document.getElementById(
       'campaignFormStatus'
     );
 
-
   if (
     !errorBox ||
     !nameInput ||
-    !statusSelect
+    !statusInput
   ) {
-
     return;
   }
-
 
   errorBox.hidden =
     true;
@@ -1732,24 +2122,26 @@ async function submitCampaignForm(
   errorBox.textContent =
     '';
 
+  const wasEditing =
+    Boolean(
+      editingCampaignId
+    );
 
   const payload = {
-
     campaignName:
       nameInput.value.trim(),
-
     campaignStatus:
-      statusSelect.value
-
+      wasEditing
+        ? statusInput.value
+        : 'DRAFT'
   };
-
 
   if (
     !payload.campaignName
   ) {
 
     errorBox.textContent =
-      'Campaign Name is required.';
+      'Campaign name is required.';
 
     errorBox.hidden =
       false;
@@ -1757,21 +2149,10 @@ async function submitCampaignForm(
     return;
   }
 
-
-  const wasEditing =
-    Boolean(
-      editingCampaignId
-    );
-
-
-  if (
-    wasEditing
-  ) {
-
+  if (wasEditing) {
     payload.campaignId =
       editingCampaignId;
   }
-
 
   try {
 
@@ -1779,60 +2160,48 @@ async function submitCampaignForm(
       true
     );
 
-
     const result =
       wasEditing
-        ? await DashboardApi.updateCampaign(
-            payload
-          )
-        : await DashboardApi.createCampaign(
-            payload
-          );
-
+        ? await DashboardApi
+            .updateCampaign(
+              payload
+            )
+        : await DashboardApi
+            .createCampaign(
+              payload
+            );
 
     closeCampaignModal();
-
-
-    showCampaignsNotice(
-      wasEditing
-        ? (
-            result?.result?.message ||
-            'Campaign updated successfully.'
-          )
-        : (
-            result?.result?.message ||
-            'Campaign created successfully.'
-          ),
-      'success'
-    );
-
 
     await initDashboard(
       true
     );
 
-
     switchView(
       'campaignsView'
     );
 
+    switchCampaignModuleTab(
+      'all'
+    );
 
     showCampaignsNotice(
       wasEditing
         ? 'Campaign updated successfully.'
         : (
             result?.result?.message ||
-            'Campaign created successfully.'
+            'Draft campaign created successfully.'
           ),
       'success'
     );
-
 
   } catch (error) {
 
     errorBox.textContent =
       error?.message ||
-      String(error);
+      String(
+        error
+      );
 
     errorBox.hidden =
       false;
@@ -1843,6 +2212,327 @@ async function submitCampaignForm(
       false
     );
   }
+}
+
+
+function closeAllCampaignMenus() {
+
+  document
+    .querySelectorAll(
+      '[data-campaign-menu]'
+    )
+    .forEach(
+      menu => {
+        menu.hidden =
+          true;
+      }
+    );
+
+  document
+    .querySelectorAll(
+      '[data-campaign-menu-trigger]'
+    )
+    .forEach(
+      trigger =>
+        trigger.setAttribute(
+          'aria-expanded',
+          'false'
+        )
+    );
+}
+
+
+function toggleCampaignMenu(
+  trigger
+) {
+
+  const campaignId =
+    trigger.dataset.campaignMenuTrigger ||
+    '';
+
+  const menu =
+    document.querySelector(
+      `[data-campaign-menu="${CSS.escape(campaignId)}"]`
+    );
+
+  if (!menu) {
+    return;
+  }
+
+  const shouldOpen =
+    menu.hidden;
+
+  closeAllCampaignMenus();
+
+  menu.hidden =
+    !shouldOpen;
+
+  trigger.setAttribute(
+    'aria-expanded',
+    shouldOpen
+      ? 'true'
+      : 'false'
+  );
+}
+
+
+function getCampaignTransitionTarget(
+  action
+) {
+
+  const targets = {
+    ready:
+      'READY',
+
+    // Keep ACTIVE as the current operational status so
+    // existing MailerEngine compatibility is not broken.
+    resume:
+      'ACTIVE',
+
+    pause:
+      'PAUSED',
+
+    complete:
+      'COMPLETED',
+
+    cancel:
+      'CANCELED',
+
+    archive:
+      'ARCHIVED'
+  };
+
+  return targets[action] ||
+    '';
+}
+
+
+function getCampaignActionBusyLabel(
+  action
+) {
+
+  const labels = {
+    ready:
+      'Updating…',
+    pause:
+      'Pausing…',
+    resume:
+      'Resuming…',
+    complete:
+      'Completing…',
+    cancel:
+      'Canceling…',
+    archive:
+      'Archiving…',
+    duplicate:
+      'Duplicating…'
+  };
+
+  return labels[action] ||
+    'Working…';
+}
+
+
+async function updateCampaignLifecycle(
+  campaign,
+  action,
+  button
+) {
+
+  const targetStatus =
+    getCampaignTransitionTarget(
+      action
+    );
+
+  if (!targetStatus) {
+    return;
+  }
+
+  const destructive =
+    action ===
+      'cancel';
+
+  if (destructive) {
+
+    const confirmed =
+      window.confirm(
+        `Cancel "${campaign.campaignName}"? This campaign will no longer be treated as active.`
+      );
+
+    if (!confirmed) {
+      return;
+    }
+  }
+
+  await withActionButtonBusy(
+    button,
+    getCampaignActionBusyLabel(
+      action
+    ),
+    async () => {
+
+      try {
+
+        await DashboardApi
+          .updateCampaign({
+            campaignId:
+              campaign.campaignId,
+            campaignName:
+              campaign.campaignName,
+            campaignStatus:
+              targetStatus
+          });
+
+        closeAllCampaignMenus();
+
+        await initDashboard(
+          true
+        );
+
+        switchView(
+          'campaignsView'
+        );
+
+        switchCampaignModuleTab(
+          'all'
+        );
+
+        const messages = {
+          ready:
+            'Campaign marked ready.',
+          pause:
+            'Campaign paused.',
+          resume:
+            'Campaign resumed.',
+          complete:
+            'Campaign marked completed.',
+          cancel:
+            'Campaign canceled.',
+          archive:
+            'Campaign archived.'
+        };
+
+        showCampaignsNotice(
+          messages[action] ||
+          'Campaign updated.',
+          'success'
+        );
+
+      } catch (error) {
+
+        showCampaignsNotice(
+          error?.message ||
+          'Could not update the campaign.',
+          'error'
+        );
+      }
+    }
+  );
+}
+
+
+function getUniqueDuplicateCampaignName(
+  campaignName
+) {
+
+  const data =
+    DataEngine.getNormalized();
+
+  const names =
+    new Set(
+      data.campaigns.map(
+        campaign =>
+          String(
+            campaign.campaignName ||
+            ''
+          )
+            .trim()
+            .toLowerCase()
+      )
+    );
+
+  const base =
+    `${campaignName} Copy`;
+
+  if (
+    !names.has(
+      base.toLowerCase()
+    )
+  ) {
+    return base;
+  }
+
+  let number =
+    2;
+
+  while (
+    names.has(
+      `${base} ${number}`.toLowerCase()
+    )
+  ) {
+    number++;
+  }
+
+  return `${base} ${number}`;
+}
+
+
+async function duplicateCampaign(
+  campaign,
+  button
+) {
+
+  await withActionButtonBusy(
+    button,
+    'Duplicating…',
+    async () => {
+
+      try {
+
+        await DashboardApi
+          .createCampaign({
+            campaignName:
+              getUniqueDuplicateCampaignName(
+                campaign.campaignName
+              ),
+            campaignStatus:
+              'DRAFT'
+          });
+
+        closeAllCampaignMenus();
+
+        await initDashboard(
+          true
+        );
+
+        switchView(
+          'campaignsView'
+        );
+
+        switchCampaignModuleTab(
+          'all'
+        );
+
+        activeCampaignLifecycleFilter =
+          'draft';
+
+        renderCampaignManagement();
+
+        showCampaignsNotice(
+          'Campaign duplicated as a new draft.',
+          'success'
+        );
+
+      } catch (error) {
+
+        showCampaignsNotice(
+          error?.message ||
+          'Could not duplicate the campaign.',
+          'error'
+        );
+      }
+    }
+  );
 }
 
 
@@ -1899,6 +2589,7 @@ function openCampaign(
   renderCampaignMembers();
 }
 
+
 function showDashboardCampaignSelectionNotice(
   campaign
 ) {
@@ -1908,11 +2599,9 @@ function showDashboardCampaignSelectionNotice(
       'dashboardNotice'
     );
 
-
   if (!notice) {
     return;
   }
-
 
   notice.hidden =
     false;
@@ -1925,123 +2614,267 @@ function showDashboardCampaignSelectionNotice(
 }
 
 
-function attachCampaignManagementListeners() {
+async function handleCampaignRowAction(
+  action,
+  campaignId,
+  button
+) {
 
-  if (
-    campaignManagementAttached
-  ) {
+  const campaign =
+    getCampaignById(
+      campaignId
+    );
+
+  if (!campaign) {
+
+    showCampaignsNotice(
+      'Campaign could not be found.',
+      'error'
+    );
 
     return;
   }
 
 
+  if (
+    action ===
+    'edit'
+  ) {
+
+    closeAllCampaignMenus();
+
+    openCampaignModal(
+      campaignId
+    );
+
+    return;
+  }
+
+
+  if (
+    action ===
+    'members'
+  ) {
+
+    closeAllCampaignMenus();
+
+    openCampaign(
+      campaignId
+    );
+
+    return;
+  }
+
+
+  if (
+    action ===
+    'duplicate'
+  ) {
+
+    await duplicateCampaign(
+      campaign,
+      button
+    );
+
+    return;
+  }
+
+
+  await updateCampaignLifecycle(
+    campaign,
+    action,
+    button
+  );
+}
+
+
+function attachCampaignManagementListeners() {
+
+  if (
+    campaignManagementAttached
+  ) {
+    return;
+  }
+
   campaignManagementAttached =
     true;
 
 
-  document.getElementById(
-    'addCampaignButton'
-  )?.addEventListener(
-    'click',
-    () =>
-      openCampaignModal()
-  );
+  document
+    .getElementById(
+      'addCampaignButton'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        if (
+          event.currentTarget.disabled
+        ) {
+          return;
+        }
+
+        openCampaignModal();
+      }
+    );
 
 
-  document.getElementById(
-    'campaignModalClose'
-  )?.addEventListener(
-    'click',
-    closeCampaignModal
-  );
+  document
+    .getElementById(
+      'campaignModalClose'
+    )
+    ?.addEventListener(
+      'click',
+      closeCampaignModal
+    );
 
 
-  document.getElementById(
-    'campaignFormCancel'
-  )?.addEventListener(
-    'click',
-    closeCampaignModal
-  );
+  document
+    .getElementById(
+      'campaignFormCancel'
+    )
+    ?.addEventListener(
+      'click',
+      closeCampaignModal
+    );
 
 
-  document.getElementById(
-    'campaignForm'
-  )?.addEventListener(
-    'submit',
-    submitCampaignForm
-  );
+  document
+    .getElementById(
+      'campaignForm'
+    )
+    ?.addEventListener(
+      'submit',
+      submitCampaignForm
+    );
 
 
-  document.getElementById(
-    'campaignModalBackdrop'
-  )?.addEventListener(
+  document
+    .getElementById(
+      'campaignModalBackdrop'
+    )
+    ?.addEventListener(
+      'click',
+      event => {
+
+        if (
+          event.target.id ===
+          'campaignModalBackdrop'
+        ) {
+          closeCampaignModal();
+        }
+      }
+    );
+
+
+  document
+    .getElementById(
+      'campaignSearchInput'
+    )
+    ?.addEventListener(
+      'input',
+      renderCampaignManagement
+    );
+
+
+  document
+    .querySelectorAll(
+      '[data-campaign-lifecycle]'
+    )
+    .forEach(
+      button =>
+        button.addEventListener(
+          'click',
+          () => {
+
+            activeCampaignLifecycleFilter =
+              button.dataset.campaignLifecycle ||
+              'all';
+
+            renderCampaignManagement();
+          }
+        )
+    );
+
+
+  document
+    .getElementById(
+      'campaignManagementTable'
+    )
+    ?.addEventListener(
+      'click',
+      async event => {
+
+        const nameButton =
+          event.target.closest(
+            '[data-campaign-open]'
+          );
+
+        if (nameButton) {
+
+          openCampaign(
+            nameButton.dataset.campaignOpen
+          );
+
+          return;
+        }
+
+
+        const trigger =
+          event.target.closest(
+            '[data-campaign-menu-trigger]'
+          );
+
+        if (trigger) {
+
+          event.stopPropagation();
+
+          toggleCampaignMenu(
+            trigger
+          );
+
+          return;
+        }
+
+
+        const actionButton =
+          event.target.closest(
+            '[data-campaign-action]'
+          );
+
+        if (actionButton) {
+
+          event.stopPropagation();
+
+          if (
+            actionButton.disabled
+          ) {
+            return;
+          }
+
+          await handleCampaignRowAction(
+            actionButton.dataset.campaignAction,
+            actionButton.dataset.campaignId,
+            actionButton
+          );
+        }
+      }
+    );
+
+
+  document.addEventListener(
     'click',
     event => {
 
       if (
-        event.target.id ===
-        'campaignModalBackdrop'
+        !event.target.closest(
+          '.campaign-row-menu'
+        ) &&
+        !event.target.closest(
+          '[data-campaign-menu-trigger]'
+        )
       ) {
-
-        closeCampaignModal();
-      }
-    }
-  );
-
-
-  document.getElementById(
-    'campaignSearchInput'
-  )?.addEventListener(
-    'input',
-    renderCampaignManagement
-  );
-
-
-  document.getElementById(
-    'campaignStatusFilter'
-  )?.addEventListener(
-    'change',
-    renderCampaignManagement
-  );
-
-
-  document.getElementById(
-    'campaignManagementTable'
-  )?.addEventListener(
-    'click',
-    event => {
-
-      const editButton =
-        event.target.closest(
-          '[data-campaign-edit]'
-        );
-
-
-      if (
-        editButton
-      ) {
-
-        openCampaignModal(
-          editButton.dataset.campaignEdit
-        );
-
-        return;
-      }
-
-
-      const openButton =
-        event.target.closest(
-          '[data-campaign-open]'
-        );
-
-
-      if (
-        openButton
-      ) {
-
-        openCampaign(
-          openButton.dataset.campaignOpen
-        );
+        closeAllCampaignMenus();
       }
     }
   );
@@ -2791,7 +3624,7 @@ function openCampaignMemberModal() {
   ) {
 
     showCampaignMembersNotice(
-      'Members can only be added or reactivated while the campaign is ACTIVE.',
+      'Members can only be added or reactivated while the campaign is Running.',
       'error'
     );
 
@@ -3239,12 +4072,16 @@ async function runCampaignPrecheck() {
 
 
   if (
-    campaignStatus !==
-    'ACTIVE'
+    ![
+      'ACTIVE',
+      'RUNNING'
+    ].includes(
+      campaignStatus
+    )
   ) {
 
     showCampaignMembersNotice(
-      'Campaign pre-check can only run while the campaign is ACTIVE.',
+      'Campaign pre-check can only run while the campaign is Running.',
       'error'
     );
 
@@ -5996,23 +6833,30 @@ function getDefaultManagementCampaign() {
       .getNormalized()
       .campaigns || [];
 
-
   if (!campaigns.length) {
     return null;
   }
 
-
   return (
     campaigns.find(
-      campaign =>
-        String(
-          campaign.campaignStatus ||
-          campaign.status ||
-          ''
-        )
-          .trim()
-          .toUpperCase() ===
-        'ACTIVE'
+      campaign => {
+
+        const status =
+          String(
+            campaign.campaignStatus ||
+            campaign.status ||
+            ''
+          )
+            .trim()
+            .toUpperCase();
+
+        return (
+          status ===
+            'ACTIVE' ||
+          status ===
+            'RUNNING'
+        );
+      }
     ) ||
     campaigns[0]
   );
@@ -7033,7 +7877,7 @@ async function runPrecheckModuleCampaign() {
   ) {
 
     showPrecheckNotice(
-      'Campaign must be ACTIVE before running pre-check.',
+      'Campaign must be Running before running pre-check.',
       'error'
     );
 
