@@ -202,3 +202,112 @@ tbody tr:last-child td{border-bottom:0}tbody tr:hover td{background:#fafbfc}
 .filter-actions .reset-filters-button {
   margin: 0;
 }
+
+
+/* ============================================================
+   V5 — FINAL APP SHELL FOUNDATION
+   ============================================================ */
+
+.sidebar {
+  width: 236px;
+}
+
+.main {
+  margin-left: 236px;
+}
+
+.sidebar-brand {
+  min-height: 72px;
+  padding: 16px;
+}
+
+.sidebar-nav {
+  padding: 12px 9px;
+}
+
+.nav-item {
+  min-height: 40px;
+  padding: 0 11px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.nav-item + .nav-item {
+  margin-top: 2px;
+}
+
+.topbar {
+  min-height: 72px;
+  padding: 13px 24px;
+}
+
+.page-title {
+  font-size: 19px;
+}
+
+.page-subtitle {
+  max-width: 680px;
+}
+
+.content {
+  padding: 20px 24px 36px;
+}
+
+/* Make controls read as one coherent product system. */
+button,
+select,
+input {
+  font-family: inherit;
+}
+
+.primary-action-button,
+.secondary-action-button,
+.refresh-button,
+.admin-logout-button {
+  transition:
+    background-color .15s ease,
+    border-color .15s ease,
+    color .15s ease,
+    box-shadow .15s ease;
+}
+
+/* Tables should feel operational, not card-heavy. */
+.table-card {
+  border-radius: 9px;
+}
+
+thead th {
+  height: 39px;
+}
+
+tbody td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+/* Keep the tab bar visually light. */
+.module-commandbar {
+  margin-bottom: 16px;
+}
+
+.module-tab {
+  min-height: 42px;
+}
+
+/* On wide desktop, keep content aligned and intentional. */
+@media (min-width: 1500px) {
+  .content {
+    padding-left: 30px;
+    padding-right: 30px;
+  }
+}
+
+@media (max-width: 900px) {
+  .sidebar {
+    width: 236px;
+  }
+
+  .main {
+    margin-left: 0;
+  }
+}
