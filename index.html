@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=12"
+    href="css/dashboard-modules.css?v=12.1"
   >
 </head>
 
@@ -244,6 +244,31 @@
 
           <span>
             Campaigns
+          </span>
+
+        </a>
+
+
+        <a
+          href="#compose"
+          class="nav-item"
+          data-view="composeView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 4h16v16H4z"/>
+            <path d="M8 9h8M8 13h6"/>
+            <path d="M16.5 16.5l3-3"/>
+          </svg>
+
+          <span>
+            Compose
           </span>
 
         </a>
@@ -1501,6 +1526,50 @@
           </aside>
 
         </div>
+
+
+        <!-- ===================================================
+             COMPOSE — CAMPAIGN EMAIL WORKSPACE
+             =================================================== -->
+
+        <section class="view" id="composeView">
+          <div class="compose-main-header">
+            <div>
+              <h2>Compose</h2>
+              <p>Write and manage the first email for every campaign from one place.</p>
+            </div>
+            <button type="button" class="primary-action-button" id="composeMainCreateButton">+ Create Email</button>
+          </div>
+
+          <div class="compose-main-toolbar">
+            <div class="compose-main-search-wrap">
+              <input type="search" id="composeMainSearch" placeholder="Search campaign or subject…" aria-label="Search campaign emails">
+            </div>
+            <select id="composeMainStatusFilter" aria-label="Filter by campaign status">
+              <option value="all">All campaign statuses</option>
+            </select>
+          </div>
+
+          <div class="compose-main-summary" id="composeMainSummary">Loading campaign emails…</div>
+
+          <div class="compose-main-table-wrap">
+            <table class="compose-main-table">
+              <thead>
+                <tr>
+                  <th>Campaign</th>
+                  <th>Subject</th>
+                  <th>Email</th>
+                  <th>Campaign Status</th>
+                  <th>Updated</th>
+                  <th class="compose-main-action-col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="composeMainTableBody">
+                <tr><td colspan="6" class="compose-main-empty">Loading campaign emails…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
 
 
         <!-- ===================================================
@@ -3072,9 +3141,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=12"></script>
+  <script src="js/dashboard-api.js?v=12.1"></script>
 
-  <script src="js/app.js?v=12"></script>
+  <script src="js/app.js?v=12.1"></script>
 
 </body>
 

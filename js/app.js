@@ -64,6 +64,7 @@ async function initDashboard(forceRefresh = true) {
     populateUserLeadStatusFilter();
     populateModuleCampaignSelectors();
     renderDashboard();
+    renderMainComposeWorkspace();
     updateLastUpdated(rawStore.lastUpdated);
 
     const warning = rawStore.sourceWarnings && rawStore.sourceWarnings[0];
@@ -205,6 +206,10 @@ function switchView(viewId) {
     campaignsView: {
       title: 'Campaigns',
       subtitle: 'Manage campaign setup, members, verification and performance'
+    },
+    composeView: {
+      title: 'Compose',
+      subtitle: 'Write and manage campaign emails from one workspace'
     }
   };
 
@@ -3243,6 +3248,103 @@ function attachCampaignBuilderListeners() {
 }
 
 
+
+/* ============================================================
+   MAIN COMPOSE WORKSPACE V12.1
+   ============================================================ */
+let mainComposeListenersAttached = false;
+
+function getMainComposeCampaigns() {
+  const data = DataEngine.getNormalized();
+  return Array.isArray(data.campaigns) ? data.campaigns : [];
+}
+
+function getMainComposeContentForCampaign(campaignId) {
+  return (campaignContentState.campaignContent || []).find(
+    item => String(item.campaignId || '') === String(campaignId || '')
+  ) || null;
+}
+
+function formatMainComposeUpdated(value) {
+  if (!value) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+}
+
+function populateMainComposeStatusFilter() {
+  const select = document.getElementById('composeMainStatusFilter');
+  if (!select) return;
+  const current = select.value || 'all';
+  const statuses = [...new Set(getMainComposeCampaigns().map(c => String(c.campaignStatus || c.status || 'DRAFT').toUpperCase()))].filter(Boolean).sort();
+  select.innerHTML = '<option value="all">All campaign statuses</option>' + statuses.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('');
+  select.value = statuses.includes(current) ? current : 'all';
+}
+
+async function renderMainComposeWorkspace(force=false) {
+  const body = document.getElementById('composeMainTableBody');
+  if (!body) return;
+  try {
+    await ensureCampaignContentLoaded(force);
+    populateMainComposeStatusFilter();
+    const search = String(document.getElementById('composeMainSearch')?.value || '').trim().toLowerCase();
+    const status = String(document.getElementById('composeMainStatusFilter')?.value || 'all').toUpperCase();
+    const campaigns = getMainComposeCampaigns().filter(campaign => {
+      const campaignStatus = String(campaign.campaignStatus || campaign.status || 'DRAFT').toUpperCase();
+      const content = getMainComposeContentForCampaign(campaign.campaignId);
+      const haystack = `${campaign.campaignName || ''} ${content?.subject || ''}`.toLowerCase();
+      return (!search || haystack.includes(search)) && (status === 'ALL' || campaignStatus === status);
+    });
+    const written = campaigns.filter(c => getMainComposeContentForCampaign(c.campaignId)).length;
+    setText('composeMainSummary', `${campaigns.length} campaign${campaigns.length===1?'':'s'} · ${written} with email content`);
+    if (!campaigns.length) {
+      body.innerHTML = '<tr><td colspan="6" class="compose-main-empty"><strong>No campaign emails found.</strong><span>Try another search or create a campaign first.</span></td></tr>';
+      return;
+    }
+    body.innerHTML = campaigns.map(campaign => {
+      const content = getMainComposeContentForCampaign(campaign.campaignId);
+      const campaignStatus = String(campaign.campaignStatus || campaign.status || 'DRAFT').toUpperCase();
+      const hasContent = Boolean(content && (content.subject || content.plainBody || content.htmlBody));
+      return `<tr>
+        <td><div class="compose-main-campaign"><strong>${escapeHtml(campaign.campaignName || 'Untitled Campaign')}</strong><span>${escapeHtml(campaign.campaignId || '')}</span></div></td>
+        <td>${content?.subject ? escapeHtml(content.subject) : '<span class="compose-main-muted">No subject yet</span>'}</td>
+        <td><span class="compose-email-state ${hasContent?'is-written':'is-empty'}">${hasContent?'Written':'Not written'}</span></td>
+        <td><span class="status-badge">${escapeHtml(campaignStatus)}</span></td>
+        <td>${escapeHtml(formatMainComposeUpdated(content?.updatedAt))}</td>
+        <td class="compose-main-action-col"><button type="button" class="secondary-action-button compose-main-open" data-campaign-id="${escapeHtml(campaign.campaignId || '')}">${hasContent?'Open Compose':'Write Email'}</button></td>
+      </tr>`;
+    }).join('');
+  } catch (error) {
+    body.innerHTML = `<tr><td colspan="6" class="compose-main-empty"><strong>Could not load campaign emails.</strong><span>${escapeHtml(error?.message || String(error))}</span></td></tr>`;
+  }
+}
+
+async function openMainComposeCampaign(campaignId) {
+  if (!campaignId) return;
+  switchView('campaignsView');
+  await openCampaignBuilder(campaignId);
+  switchCampaignBuilderStep('compose');
+}
+
+function attachMainComposeListeners() {
+  if (mainComposeListenersAttached) return;
+  mainComposeListenersAttached = true;
+  document.getElementById('composeMainSearch')?.addEventListener('input', () => renderMainComposeWorkspace());
+  document.getElementById('composeMainStatusFilter')?.addEventListener('change', () => renderMainComposeWorkspace());
+  document.getElementById('composeMainTableBody')?.addEventListener('click', event => {
+    const button = event.target.closest('.compose-main-open');
+    if (button) openMainComposeCampaign(button.dataset.campaignId);
+  });
+  document.getElementById('composeMainCreateButton')?.addEventListener('click', () => {
+    const campaigns = getMainComposeCampaigns();
+    const target = campaigns.find(c => !getMainComposeContentForCampaign(c.campaignId)) || campaigns[0];
+    if (!target) {
+      switchView('campaignsView');
+      document.getElementById('addCampaignButton')?.click();
+      return;
+    }
+    openMainComposeCampaign(target.campaignId);
+  });
+}
 
 /* ============================================================
    CAMPAIGN COMPOSE V11 — CONTENT, PERSONALIZATION, TEMPLATES
