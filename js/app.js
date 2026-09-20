@@ -10537,7 +10537,7 @@ function collectCampaignSettingsPayload() {
 function validateCampaignSettingsClient(payload) {
   if(!payload.timezone) return 'Choose a time zone.';
   if(!payload.sendingDays.length) return 'Choose at least one sending day.';
-  if(!/^\\d{2}:\\d{2}$/.test(payload.windowStart) || !/^\\d{2}:\\d{2}$/.test(payload.windowEnd)) return 'Choose a valid sending window.';
+  if(!/^\d{2}:\d{2}$/.test(payload.windowStart) || !/^\d{2}:\d{2}$/.test(payload.windowEnd)) return 'Choose a valid sending window.';
   if(payload.windowStart >= payload.windowEnd) return 'End time must be later than start time.';
   if(!Number.isInteger(payload.dailyLimit) || payload.dailyLimit < 1 || payload.dailyLimit > 2000) return 'Daily sending limit must be between 1 and 2000.';
   if(!Number.isInteger(payload.minGapMinutes) || payload.minGapMinutes < 1 || payload.minGapMinutes > 1440) return 'Minimum gap must be between 1 and 1440 minutes.';
