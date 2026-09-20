@@ -57,6 +57,7 @@ async function initDashboard(forceRefresh = true) {
     attachCampaignManagementListeners();
   attachCampaignBuilderListeners();
   attachCampaignComposeListeners();
+  attachMainComposeListeners();
   attachCampaignFollowupListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
