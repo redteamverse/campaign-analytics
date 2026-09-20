@@ -3528,6 +3528,41 @@ async function saveCampaignCompose() {
     } catch(error){setText('campaignBuilderSaveState','Not saved');showCampaignComposeNotice(error?.message||'Could not save compose content.','error');}
   });
 }
+async function sendCampaignComposeTest() {
+  const validation = validateCampaignCompose();
+  if (!validation.valid) return;
+
+  const testEmail = window.prompt(
+    'Send this email as a test to which address?',
+    ''
+  );
+
+  if (testEmail === null) return;
+
+  const email = String(testEmail || '').trim();
+  if (!email) {
+    showCampaignComposeNotice('Enter a test email address.','warning');
+    return;
+  }
+
+  const button = document.getElementById('campaignComposeSendTest');
+  await withActionButtonBusy(button,'Sending test…',async()=>{
+    try {
+      const result = await DashboardApi.sendCampaignTest({
+        campaignId: campaignBuilderCampaignId,
+        testEmail: email,
+        subject: document.getElementById('campaignComposeSubject')?.value || '',
+        plainBody: document.getElementById('campaignComposePlainBody')?.value || '',
+        htmlBody: document.getElementById('campaignComposeHtmlBody')?.value || ''
+      });
+      const sentTo = result?.result?.testEmail || email;
+      showCampaignComposeNotice(`Test email sent to ${sentTo}. This did not launch the campaign or create tracking events.`,'success');
+    } catch(error) {
+      showCampaignComposeNotice(error?.message || 'Could not send the test email.','error');
+    }
+  });
+}
+
 async function saveComposeAsTemplate() {
   const validation=validateCampaignCompose(); if(!validation.valid)return;
   const name=window.prompt('Template name'); if(!name?.trim())return;
@@ -3545,6 +3580,7 @@ async function saveComposeAsTemplate() {
 function attachCampaignComposeListeners() {
   document.getElementById('campaignComposeBack')?.addEventListener('click',()=>switchCampaignBuilderStep('recipients'));
   document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
+  document.getElementById('campaignComposeSendTest')?.addEventListener('click',sendCampaignComposeTest);
   document.getElementById('campaignComposeSaveTemplate')?.addEventListener('click',saveComposeAsTemplate);
   document.getElementById('campaignComposeApplyTemplate')?.addEventListener('click',applySelectedComposeTemplate);
   document.getElementById('campaignComposeSavedTemplates')?.addEventListener('click', event => { const use=event.target.closest('[data-compose-use-template]'); if(use){applyComposeTemplateById(use.dataset.composeUseTemplate,true);return;} const archive=event.target.closest('[data-compose-archive-template]'); if(archive) archiveComposeTemplate(archive.dataset.composeArchiveTemplate,archive); });

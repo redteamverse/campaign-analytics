@@ -563,6 +563,9 @@ const DashboardApi = (function () {
     archiveEmailTemplate(templateId) {
       return post('archive_email_template', {templateId});
     },
+    sendCampaignTest(payload) {
+      return post('send_campaign_test', payload);
+    },
 
 
 
