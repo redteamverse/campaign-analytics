@@ -59,6 +59,7 @@ async function initDashboard(forceRefresh = true) {
   attachCampaignComposeListeners();
   attachMainComposeListeners();
   attachCampaignFollowupListeners();
+  attachCampaignSettingsListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -1247,6 +1248,7 @@ let campaignComposeLastFocusedEditor = 'campaignComposePlainBody';
 let campaignSequenceState = { loaded:false, steps:[] };
 let editingCampaignFollowupId = '';
 let campaignFollowupLastFocusedEditor = 'campaignFollowupPlainBody';
+let campaignSettingsState = { loaded: false, loading: false, settings: [] };
 
 
 function formatCampaignDate(value) {
@@ -2963,6 +2965,7 @@ function switchCampaignBuilderStep(step) {
   if (step === 'recipients') renderCampaignBuilderRecipients();
   if (step === 'compose') loadCampaignCompose();
   if (step === 'followups') loadCampaignFollowups();
+  if (step === 'settings') loadCampaignSettings();
 }
 
 function closeCampaignBuilder() {
@@ -4610,13 +4613,7 @@ function attachCampaignFollowupListeners() {
     )
     ?.addEventListener(
       'click',
-      () => {
-
-        showCampaignFollowupNotice(
-          'Settings is the next builder step. It will be enabled in the next release.',
-          'warning'
-        );
-      }
+      () => switchCampaignBuilderStep('settings')
     );
 
 
@@ -10446,3 +10443,130 @@ function attachModuleTabListeners() {
   });
 
 })();
+
+/* ============================================================
+   V13 — CAMPAIGN SETTINGS
+   ============================================================ */
+function normalizeCampaignSetting(item = {}) {
+  return {
+    campaignSettingId: String(item.campaignSettingId || item['Campaign Setting ID'] || ''),
+    campaignId: String(item.campaignId || item['Campaign ID'] || ''),
+    timezone: String(item.timezone || item['Timezone'] || 'Asia/Kolkata'),
+    sendingDays: Array.isArray(item.sendingDays) ? item.sendingDays : String(item.sendingDays || item['Sending Days'] || 'MON,TUE,WED,THU,FRI').split(',').map(v=>v.trim()).filter(Boolean),
+    windowStart: String(item.windowStart || item['Window Start'] || '09:00'),
+    windowEnd: String(item.windowEnd || item['Window End'] || '18:00'),
+    dailyLimit: Number(item.dailyLimit || item['Daily Limit'] || 100),
+    minGapMinutes: Number(item.minGapMinutes || item['Minimum Gap Minutes'] || 2),
+    stopOnReply: item.stopOnReply === undefined ? String(item['Stop On Reply'] ?? 'TRUE').toUpperCase() !== 'FALSE' : Boolean(item.stopOnReply),
+    trackOpens: item.trackOpens === undefined ? String(item['Track Opens'] ?? 'TRUE').toUpperCase() !== 'FALSE' : Boolean(item.trackOpens),
+    trackClicks: item.trackClicks === undefined ? String(item['Track Clicks'] ?? 'TRUE').toUpperCase() !== 'FALSE' : Boolean(item.trackClicks),
+    updatedAt: String(item.updatedAt || item['Updated At'] || '')
+  };
+}
+
+function getCurrentCampaignSettings() {
+  return campaignSettingsState.settings.find(item => String(item.campaignId) === String(campaignBuilderCampaignId)) || null;
+}
+
+function showCampaignSettingsNotice(message, type='success') {
+  const notice=document.getElementById('campaignSettingsNotice');
+  if(!notice) return;
+  notice.hidden=!message;
+  notice.className=`dashboard-notice ${type}`;
+  notice.textContent=message||'';
+}
+
+function applyCampaignSettingsToForm(setting) {
+  const s=setting || normalizeCampaignSetting({});
+  const timezone=document.getElementById('campaignSettingsTimezone');
+  if(timezone) {
+    if (![...timezone.options].some(o=>o.value===s.timezone) && s.timezone) {
+      timezone.add(new Option(s.timezone, s.timezone));
+    }
+    timezone.value=s.timezone || 'Asia/Kolkata';
+  }
+  document.querySelectorAll('#campaignSettingsDays input[type="checkbox"]').forEach(box=>{ box.checked=s.sendingDays.includes(box.value); });
+  const set=(id,value)=>{const el=document.getElementById(id); if(el) el.value=value;};
+  set('campaignSettingsWindowStart',s.windowStart);
+  set('campaignSettingsWindowEnd',s.windowEnd);
+  set('campaignSettingsDailyLimit',s.dailyLimit);
+  set('campaignSettingsMinGap',s.minGapMinutes);
+  const check=(id,value)=>{const el=document.getElementById(id); if(el) el.checked=Boolean(value);};
+  check('campaignSettingsStopOnReply',s.stopOnReply);
+  check('campaignSettingsTrackOpens',s.trackOpens);
+  check('campaignSettingsTrackClicks',s.trackClicks);
+}
+
+async function loadCampaignSettings(force=false) {
+  if (!campaignBuilderCampaignId) return;
+  if (campaignSettingsState.loading) return;
+  try {
+    campaignSettingsState.loading=true;
+    setText('campaignBuilderSaveState','Loading settings…');
+    if(force || !campaignSettingsState.loaded) {
+      const response=await DashboardApi.getCampaignSettings();
+      const result=response?.result || response || {};
+      campaignSettingsState.settings=(result.settings || []).map(normalizeCampaignSetting);
+      campaignSettingsState.loaded=true;
+    }
+    applyCampaignSettingsToForm(getCurrentCampaignSettings());
+    showCampaignSettingsNotice('', 'success');
+    setText('campaignBuilderSaveState','Saved');
+  } catch(error) {
+    setText('campaignBuilderSaveState','Load failed');
+    showCampaignSettingsNotice(error?.message || 'Could not load campaign settings.','error');
+  } finally { campaignSettingsState.loading=false; }
+}
+
+function collectCampaignSettingsPayload() {
+  const sendingDays=[...document.querySelectorAll('#campaignSettingsDays input[type="checkbox"]:checked')].map(el=>el.value);
+  return {
+    campaignId: campaignBuilderCampaignId,
+    timezone: document.getElementById('campaignSettingsTimezone')?.value || '',
+    sendingDays,
+    windowStart: document.getElementById('campaignSettingsWindowStart')?.value || '',
+    windowEnd: document.getElementById('campaignSettingsWindowEnd')?.value || '',
+    dailyLimit: Number(document.getElementById('campaignSettingsDailyLimit')?.value || 0),
+    minGapMinutes: Number(document.getElementById('campaignSettingsMinGap')?.value || 0),
+    stopOnReply: Boolean(document.getElementById('campaignSettingsStopOnReply')?.checked),
+    trackOpens: Boolean(document.getElementById('campaignSettingsTrackOpens')?.checked),
+    trackClicks: Boolean(document.getElementById('campaignSettingsTrackClicks')?.checked)
+  };
+}
+
+function validateCampaignSettingsClient(payload) {
+  if(!payload.timezone) return 'Choose a time zone.';
+  if(!payload.sendingDays.length) return 'Choose at least one sending day.';
+  if(!/^\\d{2}:\\d{2}$/.test(payload.windowStart) || !/^\\d{2}:\\d{2}$/.test(payload.windowEnd)) return 'Choose a valid sending window.';
+  if(payload.windowStart >= payload.windowEnd) return 'End time must be later than start time.';
+  if(!Number.isInteger(payload.dailyLimit) || payload.dailyLimit < 1 || payload.dailyLimit > 2000) return 'Daily sending limit must be between 1 and 2000.';
+  if(!Number.isInteger(payload.minGapMinutes) || payload.minGapMinutes < 1 || payload.minGapMinutes > 1440) return 'Minimum gap must be between 1 and 1440 minutes.';
+  return '';
+}
+
+async function saveCampaignSettings(event) {
+  const payload=collectCampaignSettingsPayload();
+  const error=validateCampaignSettingsClient(payload);
+  if(error){showCampaignSettingsNotice(error,'error');return;}
+  await withActionButtonBusy(event?.currentTarget || document.getElementById('campaignSettingsSave'),'Saving…',async()=>{
+    try {
+      setText('campaignBuilderSaveState','Saving…');
+      await DashboardApi.saveCampaignSettings(payload);
+      campaignSettingsState.loaded=false;
+      await loadCampaignSettings(true);
+      setText('campaignBuilderSaveState','Saved');
+      showCampaignSettingsNotice('Campaign settings saved. These rules will be enforced when sending is connected.','success');
+    } catch(error) {
+      setText('campaignBuilderSaveState','Not saved');
+      showCampaignSettingsNotice(error?.message || 'Could not save campaign settings.','error');
+    }
+  });
+}
+
+function attachCampaignSettingsListeners() {
+  document.getElementById('campaignSettingsBack')?.addEventListener('click',()=>switchCampaignBuilderStep('followups'));
+  document.getElementById('campaignSettingsSave')?.addEventListener('click',saveCampaignSettings);
+  document.getElementById('campaignSettingsContinue')?.addEventListener('click',()=>{
+    showCampaignSettingsNotice('Schedule is the next builder step. It remains disabled until V14.','warning');
+  });
+}

@@ -2388,10 +2388,10 @@
             <span class="builder-step-number">4</span>
             <span><strong>Follow-ups</strong><small>Build your sequence</small></span>
           </button>
-          <div class="campaign-builder-step disabled">
+          <button type="button" class="campaign-builder-step" data-builder-step="settings">
             <span class="builder-step-number">5</span>
-            <span><strong>Settings</strong><small>Sending controls later</small></span>
-          </div>
+            <span><strong>Settings</strong><small>Sending rules</small></span>
+          </button>
           <div class="campaign-builder-step disabled">
             <span class="builder-step-number">6</span>
             <span><strong>Schedule</strong><small>Queue required first</small></span>
@@ -2646,6 +2646,97 @@
 
             </div>
 
+          </section>
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="settings">
+            <div class="builder-stage-heading">
+              <span class="detail-eyebrow">Step 5</span>
+              <h3>Campaign Settings</h3>
+              <p>Set the sending rules this campaign must follow when the Send Queue is connected.</p>
+            </div>
+
+            <div id="campaignSettingsNotice" class="dashboard-notice" hidden></div>
+
+            <div class="campaign-settings-grid">
+              <div class="builder-content-card campaign-settings-card">
+                <div class="campaign-settings-card-heading">
+                  <strong>When emails may be sent</strong>
+                  <span>These rules will be enforced by the sending engine, not by the browser.</span>
+                </div>
+
+                <label class="form-field form-field-strong">
+                  <span>Time zone <strong>*</strong></span>
+                  <select id="campaignSettingsTimezone">
+                    <option value="Asia/Kolkata">Asia/Kolkata (India)</option>
+                    <option value="UTC">UTC</option>
+                    <option value="America/New_York">America/New_York</option>
+                    <option value="America/Chicago">America/Chicago</option>
+                    <option value="America/Denver">America/Denver</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles</option>
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
+                    <option value="Asia/Dubai">Asia/Dubai</option>
+                    <option value="Asia/Singapore">Asia/Singapore</option>
+                    <option value="Australia/Sydney">Australia/Sydney</option>
+                  </select>
+                </label>
+
+                <div class="campaign-settings-field">
+                  <span class="campaign-settings-label">Send on <strong>*</strong></span>
+                  <div class="campaign-settings-days" id="campaignSettingsDays">
+                    <label><input type="checkbox" value="MON" checked> Mon</label>
+                    <label><input type="checkbox" value="TUE" checked> Tue</label>
+                    <label><input type="checkbox" value="WED" checked> Wed</label>
+                    <label><input type="checkbox" value="THU" checked> Thu</label>
+                    <label><input type="checkbox" value="FRI" checked> Fri</label>
+                    <label><input type="checkbox" value="SAT"> Sat</label>
+                    <label><input type="checkbox" value="SUN"> Sun</label>
+                  </div>
+                </div>
+
+                <div class="campaign-settings-two-col">
+                  <label class="form-field"><span>Start time</span><input type="time" id="campaignSettingsWindowStart" value="09:00"></label>
+                  <label class="form-field"><span>End time</span><input type="time" id="campaignSettingsWindowEnd" value="18:00"></label>
+                </div>
+              </div>
+
+              <div class="builder-content-card campaign-settings-card">
+                <div class="campaign-settings-card-heading">
+                  <strong>Sending pace</strong>
+                  <span>Control how much mail this campaign may send and how quickly.</span>
+                </div>
+                <div class="campaign-settings-two-col">
+                  <label class="form-field form-field-strong"><span>Daily sending limit <strong>*</strong></span><input type="number" id="campaignSettingsDailyLimit" min="1" max="2000" value="100"></label>
+                  <label class="form-field form-field-strong"><span>Minimum gap (minutes) <strong>*</strong></span><input type="number" id="campaignSettingsMinGap" min="1" max="1440" value="2"></label>
+                </div>
+                <div class="campaign-settings-inline-note">Example: a daily limit of 100 means this campaign can never send more than 100 campaign emails in one configured day.</div>
+              </div>
+
+              <div class="builder-content-card campaign-settings-card campaign-settings-card-wide">
+                <div class="campaign-settings-card-heading">
+                  <strong>Sequence & tracking</strong>
+                  <span>Choose what should stop a sequence and which engagement signals should be collected.</span>
+                </div>
+                <div class="campaign-settings-toggles">
+                  <label class="campaign-setting-toggle"><input type="checkbox" id="campaignSettingsStopOnReply" checked><span><strong>Stop sequence when recipient replies</strong><small>Future follow-ups for that recipient will stop after a detected reply.</small></span></label>
+                  <label class="campaign-setting-toggle"><input type="checkbox" id="campaignSettingsTrackOpens" checked><span><strong>Track opens</strong><small>Record supported email-open events when sending is connected.</small></span></label>
+                  <label class="campaign-setting-toggle"><input type="checkbox" id="campaignSettingsTrackClicks" checked><span><strong>Track clicks</strong><small>Record supported link-click events when sending is connected.</small></span></label>
+                </div>
+              </div>
+            </div>
+
+            <div class="sequence-safety-note">
+              <strong>Settings only — no campaign email is sent here</strong>
+              <span>V13 stores and validates these rules. Schedule and the Send Queue remain disabled until their own stages are completed.</span>
+            </div>
+
+            <div class="builder-stage-footer">
+              <button type="button" class="secondary-action-button" id="campaignSettingsBack">Back to Follow-ups</button>
+              <div class="builder-footer-actions">
+                <button type="button" class="primary-action-button" id="campaignSettingsSave">Save Settings</button>
+                <button type="button" class="secondary-action-button" id="campaignSettingsContinue">Continue to Schedule</button>
+              </div>
+            </div>
           </section>
 
         </main>
@@ -3144,9 +3235,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=12.2"></script>
+  <script src="js/dashboard-api.js?v=13"></script>
 
-  <script src="js/app.js?v=12.2"></script>
+  <script src="js/app.js?v=13"></script>
 
 </body>
 

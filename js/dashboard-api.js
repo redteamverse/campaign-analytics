@@ -600,6 +600,18 @@ const DashboardApi = (function () {
       );
     },
 
+
+
+    // ----------------------------------------------------------
+    // CAMPAIGN SETTINGS — V13
+    // ----------------------------------------------------------
+    getCampaignSettings() {
+      return post('get_campaign_settings', {});
+    },
+    saveCampaignSettings(payload) {
+      return post('save_campaign_settings', payload);
+    },
+
     // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------
