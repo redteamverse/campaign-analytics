@@ -60,6 +60,7 @@ async function initDashboard(forceRefresh = true) {
   attachMainComposeListeners();
   attachCampaignFollowupListeners();
   attachCampaignSettingsListeners();
+  attachCampaignScheduleListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -2966,6 +2967,7 @@ function switchCampaignBuilderStep(step) {
   if (step === 'compose') loadCampaignCompose();
   if (step === 'followups') loadCampaignFollowups();
   if (step === 'settings') loadCampaignSettings();
+  if (step === 'schedule') loadCampaignSchedule();
 }
 
 function closeCampaignBuilder() {
@@ -10566,7 +10568,91 @@ async function saveCampaignSettings(event) {
 function attachCampaignSettingsListeners() {
   document.getElementById('campaignSettingsBack')?.addEventListener('click',()=>switchCampaignBuilderStep('followups'));
   document.getElementById('campaignSettingsSave')?.addEventListener('click',saveCampaignSettings);
-  document.getElementById('campaignSettingsContinue')?.addEventListener('click',()=>{
-    showCampaignSettingsNotice('Schedule is the next builder step. It remains disabled until V14.','warning');
+  document.getElementById('campaignSettingsContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
+}
+
+
+/* ============================================================
+   CAMPAIGN SCHEDULE — V14
+   ============================================================ */
+let campaignScheduleState={loaded:false,loading:false,schedules:[]};
+let campaignScheduleListenersAttached=false;
+
+function normalizeCampaignSchedule(item={}){
+  return {
+    campaignScheduleId:String(item.campaignScheduleId||''),
+    campaignId:String(item.campaignId||''),
+    startMode:String(item.startMode||'MANUAL').toUpperCase(),
+    startDate:String(item.startDate||''),
+    startTime:String(item.startTime||''),
+    createdAt:item.createdAt||'',updatedAt:item.updatedAt||''
+  };
+}
+function getCurrentCampaignSchedule(){return campaignScheduleState.schedules.find(x=>String(x.campaignId)===String(campaignBuilderCampaignId))||null;}
+function showCampaignScheduleNotice(message,type='success'){
+  const el=document.getElementById('campaignScheduleNotice'); if(!el)return;
+  el.hidden=!message; el.className=`dashboard-notice ${type}`; el.textContent=message||'';
+}
+function getCampaignScheduleMode(){return document.querySelector('input[name="campaignScheduleMode"]:checked')?.value||'MANUAL';}
+function updateCampaignScheduleUi(){
+  const mode=getCampaignScheduleMode();
+  const box=document.getElementById('campaignScheduleDateTime'); if(box)box.hidden=mode!=='SCHEDULED';
+  const modeText=document.getElementById('campaignScheduleSummaryMode');
+  if(modeText) modeText.textContent=mode==='SCHEDULED' ? `${document.getElementById('campaignScheduleStartDate')?.value||'Choose date'} ${document.getElementById('campaignScheduleStartTime')?.value||''}`.trim() : 'Manual launch';
+  const setting=getCurrentCampaignSettings();
+  const tz=document.getElementById('campaignScheduleSummaryTimezone'); if(tz)tz.textContent=setting?.timezone||'Save Campaign Settings first';
+  const win=document.getElementById('campaignScheduleSummaryWindow'); if(win)win.textContent=setting?.windowStart&&setting?.windowEnd ? `${setting.windowStart}–${setting.windowEnd} · ${(setting.sendingDays||[]).join(', ')}` : 'Save Campaign Settings first';
+}
+function applyCampaignScheduleToForm(schedule){
+  const s=schedule||{startMode:'MANUAL',startDate:'',startTime:''};
+  const radio=document.querySelector(`input[name="campaignScheduleMode"][value="${s.startMode==='SCHEDULED'?'SCHEDULED':'MANUAL'}"]`); if(radio)radio.checked=true;
+  const date=document.getElementById('campaignScheduleStartDate'); if(date)date.value=s.startDate||'';
+  const time=document.getElementById('campaignScheduleStartTime'); if(time)time.value=s.startTime||'';
+  updateCampaignScheduleUi();
+}
+async function loadCampaignSchedule(force=false){
+  if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;
+  campaignScheduleState.loading=true;
+  try{
+    if(!campaignSettingsState.loaded) await loadCampaignSettings();
+    if(force||!campaignScheduleState.loaded){
+      const response=await DashboardApi.getCampaignSchedules();
+      const result=response?.result?.result||response?.result||{};
+      campaignScheduleState.schedules=(result.schedules||[]).map(normalizeCampaignSchedule);
+      campaignScheduleState.loaded=true;
+    }
+    applyCampaignScheduleToForm(getCurrentCampaignSchedule());
+    showCampaignScheduleNotice('','success');
+  }catch(error){showCampaignScheduleNotice(error?.message||'Could not load campaign schedule.','error');}
+  finally{campaignScheduleState.loading=false;}
+}
+function collectCampaignSchedulePayload(){
+  return {campaignId:campaignBuilderCampaignId,startMode:getCampaignScheduleMode(),startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};
+}
+function validateCampaignScheduleClient(p){
+  if(!p.campaignId)return 'Campaign is required.';
+  if(!['MANUAL','SCHEDULED'].includes(p.startMode))return 'Choose how this campaign should start.';
+  if(p.startMode==='SCHEDULED'&&!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate))return 'Choose a valid start date.';
+  if(p.startMode==='SCHEDULED'&&!/^\d{2}:\d{2}$/.test(p.startTime))return 'Choose a valid start time.';
+  return '';
+}
+async function saveCampaignSchedule(event){
+  const payload=collectCampaignSchedulePayload(); const error=validateCampaignScheduleClient(payload);
+  if(error){showCampaignScheduleNotice(error,'error');return;}
+  await withActionButtonBusy(event?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{
+    try{
+      await DashboardApi.saveCampaignSchedule(payload);
+      campaignScheduleState.loaded=false; await loadCampaignSchedule(true);
+      showCampaignScheduleNotice('Campaign schedule saved. No email has been queued or sent.','success');
+    }catch(error){showCampaignScheduleNotice(error?.message||'Could not save campaign schedule.','error');}
   });
+}
+function attachCampaignScheduleListeners(){
+  if(campaignScheduleListenersAttached)return; campaignScheduleListenersAttached=true;
+  document.querySelectorAll('input[name="campaignScheduleMode"]').forEach(el=>el.addEventListener('change',updateCampaignScheduleUi));
+  document.getElementById('campaignScheduleStartDate')?.addEventListener('change',updateCampaignScheduleUi);
+  document.getElementById('campaignScheduleStartTime')?.addEventListener('change',updateCampaignScheduleUi);
+  document.getElementById('campaignScheduleBack')?.addEventListener('click',()=>switchCampaignBuilderStep('settings'));
+  document.getElementById('campaignScheduleSave')?.addEventListener('click',saveCampaignSchedule);
+  document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>showCampaignScheduleNotice('Review is the next builder step. It remains disabled until V15.','warning'));
 }

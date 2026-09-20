@@ -2392,10 +2392,10 @@
             <span class="builder-step-number">5</span>
             <span><strong>Settings</strong><small>Sending rules</small></span>
           </button>
-          <div class="campaign-builder-step disabled">
+          <button type="button" class="campaign-builder-step" data-builder-step="schedule">
             <span class="builder-step-number">6</span>
-            <span><strong>Schedule</strong><small>Queue required first</small></span>
-          </div>
+            <span><strong>Schedule</strong><small>Choose when to start</small></span>
+          </button>
           <div class="campaign-builder-step disabled">
             <span class="builder-step-number">7</span>
             <span><strong>Review</strong><small>Launch later</small></span>
@@ -2735,6 +2735,57 @@
               <div class="builder-footer-actions">
                 <button type="button" class="primary-action-button" id="campaignSettingsSave">Save Settings</button>
                 <button type="button" class="secondary-action-button" id="campaignSettingsContinue">Continue to Schedule</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="schedule">
+            <div class="builder-stage-heading">
+              <div><span class="detail-eyebrow">Step 6</span><h3>Campaign Schedule</h3><p>Choose when this campaign becomes eligible to start. Sending days and hours still come from Campaign Settings.</p></div>
+            </div>
+
+            <div id="campaignScheduleNotice" class="dashboard-notice" hidden></div>
+
+            <div class="campaign-schedule-layout">
+              <div class="builder-content-card campaign-schedule-card">
+                <h4>When should this campaign start?</h4>
+                <p class="builder-card-help">Scheduling does not send anything yet. V14 only stores the start rule for the future Send Queue.</p>
+
+                <label class="campaign-schedule-option">
+                  <input type="radio" name="campaignScheduleMode" value="MANUAL" checked>
+                  <span><strong>Start manually</strong><small>The campaign waits until you launch it from Review.</small></span>
+                </label>
+
+                <label class="campaign-schedule-option">
+                  <input type="radio" name="campaignScheduleMode" value="SCHEDULED">
+                  <span><strong>Start on a specific date and time</strong><small>The future Send Queue may begin at or after this time, while still obeying your sending window.</small></span>
+                </label>
+
+                <div class="campaign-schedule-datetime" id="campaignScheduleDateTime" hidden>
+                  <label class="form-field form-field-strong"><span>Start date <strong>*</strong></span><input type="date" id="campaignScheduleStartDate"></label>
+                  <label class="form-field form-field-strong"><span>Start time <strong>*</strong></span><input type="time" id="campaignScheduleStartTime"></label>
+                </div>
+              </div>
+
+              <div class="builder-content-card campaign-schedule-summary">
+                <h4>How Schedule works</h4>
+                <div class="schedule-rule-row"><strong>Start rule</strong><span id="campaignScheduleSummaryMode">Manual launch</span></div>
+                <div class="schedule-rule-row"><strong>Campaign time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div>
+                <div class="schedule-rule-row"><strong>Sending window</strong><span id="campaignScheduleSummaryWindow">From Settings</span></div>
+                <p class="builder-card-help">Example: if the start is 08:00 but your sending window begins at 09:00, the future sending engine must wait until 09:00.</p>
+              </div>
+            </div>
+
+            <div class="campaign-settings-safety-note">
+              <strong>Schedule only — no campaign email is sent here</strong>
+              <span>V14 stores the start rule. Review and Send Queue remain disabled until their own stages are completed.</span>
+            </div>
+
+            <div class="builder-stage-footer">
+              <button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button>
+              <div class="builder-footer-actions">
+                <button type="button" class="primary-action-button" id="campaignScheduleSave">Save Schedule</button>
+                <button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button>
               </div>
             </div>
           </section>
@@ -3235,9 +3286,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=13"></script>
+  <script src="js/dashboard-api.js?v=14"></script>
 
-  <script src="js/app.js?v=13.0.1"></script>
+  <script src="js/app.js?v=14"></script>
 
 </body>
 

@@ -613,6 +613,16 @@ const DashboardApi = (function () {
     },
 
     // ----------------------------------------------------------
+    // CAMPAIGN SCHEDULE — V14
+    // ----------------------------------------------------------
+    getCampaignSchedules() {
+      return post('get_campaign_schedules', {});
+    },
+    saveCampaignSchedule(payload) {
+      return post('save_campaign_schedule', payload);
+    },
+
+    // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------
 
