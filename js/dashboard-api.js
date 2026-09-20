@@ -622,6 +622,11 @@ const DashboardApi = (function () {
       return post('save_campaign_schedule', payload);
     },
 
+    // CAMPAIGN REVIEW & READINESS — V15
+    checkCampaignReadiness(campaignId) {
+      return post('check_campaign_readiness', {campaignId});
+    },
+
     // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------

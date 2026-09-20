@@ -61,6 +61,7 @@ async function initDashboard(forceRefresh = true) {
   attachCampaignFollowupListeners();
   attachCampaignSettingsListeners();
   attachCampaignScheduleListeners();
+  attachCampaignReviewListeners();
     attachCampaignMemberManagementListeners();
     attachContactAudienceListeners();
     attachModuleTabListeners();
@@ -2968,6 +2969,7 @@ function switchCampaignBuilderStep(step) {
   if (step === 'followups') loadCampaignFollowups();
   if (step === 'settings') loadCampaignSettings();
   if (step === 'schedule') loadCampaignSchedule();
+  if (step === 'review') loadCampaignReview();
 }
 
 function closeCampaignBuilder() {
@@ -10675,5 +10677,37 @@ function attachCampaignScheduleListeners(){
   document.getElementById('campaignScheduleStartTime')?.addEventListener('change',updateCampaignScheduleUi);
   document.getElementById('campaignScheduleBack')?.addEventListener('click',()=>switchCampaignBuilderStep('settings'));
   document.getElementById('campaignScheduleSave')?.addEventListener('click',saveCampaignSchedule);
-  document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>showCampaignScheduleNotice('Review is the next builder step. It remains disabled until V15.','warning'));
+  document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('review'));
+}
+
+
+// ============================================================
+// CAMPAIGN REVIEW & READINESS — V15
+// ============================================================
+let campaignReviewLoading=false;
+function escapeReviewHtml_(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function showCampaignReviewNotice(message,type='success'){const n=document.getElementById('campaignReviewNotice');if(!n)return;n.hidden=!message;n.className=`dashboard-notice ${type}`;n.textContent=message||'';}
+function renderCampaignReview(result){
+  const title=document.getElementById('campaignReviewTitle');
+  const subtitle=document.getElementById('campaignReviewSubtitle');
+  const score=document.getElementById('campaignReviewScore');
+  const grid=document.getElementById('campaignReviewChecks');
+  const launch=document.getElementById('campaignReviewLaunch');
+  if(title)title.textContent=result.ready?'Campaign is ready for launch':'Campaign needs attention';
+  if(subtitle)subtitle.textContent=result.ready?'All required checks passed. No email has been queued or sent.':'Fix the items marked below, then recheck the campaign.';
+  if(score)score.textContent=`${result.requiredPassed}/${result.requiredTotal}`;
+  if(grid)grid.innerHTML=(result.checks||[]).map(c=>`<article class="campaign-review-check ${c.passed?'passed':'failed'}"><div class="campaign-review-check-icon">${c.passed?'✓':'!'}</div><div><div class="campaign-review-check-heading"><strong>${escapeReviewHtml_(c.label)}</strong>${c.required?'':'<span class="review-optional">Optional</span>'}</div><p>${escapeReviewHtml_(c.description||'')}</p><small>${escapeReviewHtml_(c.detail||'')}</small></div></article>`).join('');
+  if(launch){launch.disabled=true;launch.title=result.ready?'Launch will be enabled when the Send Queue is built.':'Complete all required readiness checks first.';}
+}
+async function loadCampaignReview(){
+  if(!campaignBuilderCampaignId||campaignReviewLoading)return;
+  campaignReviewLoading=true; showCampaignReviewNotice('','success');
+  const grid=document.getElementById('campaignReviewChecks'); if(grid)grid.innerHTML='<div class="campaign-review-loading">Checking campaign readiness…</div>';
+  try{const response=await DashboardApi.checkCampaignReadiness(campaignBuilderCampaignId);const result=response?.result?.result||response?.result||response;if(!result||!Array.isArray(result.checks))throw new Error('Readiness response is invalid.');renderCampaignReview(result);}
+  catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');if(grid)grid.innerHTML='';}
+  finally{campaignReviewLoading=false;}
+}
+function attachCampaignReviewListeners(){
+  document.getElementById('campaignReviewBack')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
+  document.getElementById('campaignReviewRecheck')?.addEventListener('click',loadCampaignReview);
 }

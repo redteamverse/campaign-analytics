@@ -2396,10 +2396,10 @@
             <span class="builder-step-number">6</span>
             <span><strong>Schedule</strong><small>Choose when to start</small></span>
           </button>
-          <div class="campaign-builder-step disabled">
+          <button type="button" class="campaign-builder-step" data-builder-step="review">
             <span class="builder-step-number">7</span>
-            <span><strong>Review</strong><small>Launch later</small></span>
-          </div>
+            <span><strong>Review</strong><small>Check readiness</small></span>
+          </button>
         </aside>
 
         <main class="campaign-builder-stage">
@@ -2790,6 +2790,30 @@
               <div class="builder-footer-actions">
                 <button type="button" class="primary-action-button" id="campaignScheduleSave">Save Schedule</button>
                 <button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button>
+              </div>
+            </div>
+          </section>
+
+
+          <section class="campaign-builder-stage-panel" data-builder-panel="review">
+            <div class="builder-stage-heading">
+              <div><span class="detail-eyebrow">Step 7</span><h3>Review Campaign</h3><p>Check the complete campaign before it can be launched or handed to the Send Queue.</p></div>
+            </div>
+            <div id="campaignReviewNotice" class="dashboard-notice" hidden></div>
+            <div class="campaign-review-hero">
+              <div><span class="detail-eyebrow">Readiness</span><h4 id="campaignReviewTitle">Checking campaign…</h4><p id="campaignReviewSubtitle">The backend is validating your campaign.</p></div>
+              <div class="campaign-review-score"><strong id="campaignReviewScore">—</strong><span>required checks</span></div>
+            </div>
+            <div class="campaign-review-grid" id="campaignReviewChecks"></div>
+            <div class="campaign-review-launch-note" id="campaignReviewLaunchNote">
+              <strong>Launch is not enabled yet</strong>
+              <span>V15 validates readiness only. The next stage will connect approved campaigns to the Send Queue safely.</span>
+            </div>
+            <div class="builder-stage-footer">
+              <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
+              <div class="builder-footer-actions">
+                <button type="button" class="secondary-action-button" id="campaignReviewRecheck">Recheck Campaign</button>
+                <button type="button" class="primary-action-button" id="campaignReviewLaunch" disabled>Launch Campaign</button>
               </div>
             </div>
           </section>
@@ -3292,7 +3316,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=14"></script>
 
-  <script src="js/app.js?v=14.1"></script>
+  <script src="js/app.js?v=15"></script>
 
 </body>
 
