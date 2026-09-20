@@ -2751,28 +2751,32 @@
                 <h4>When should this campaign start?</h4>
                 <p class="builder-card-help">Scheduling does not send anything yet. V14 only stores the start rule for the future Send Queue.</p>
 
-                <label class="campaign-schedule-option">
+                <label class="campaign-schedule-option" id="campaignScheduleManualOption">
                   <input type="radio" name="campaignScheduleMode" value="MANUAL" checked>
-                  <span><strong>Start manually</strong><small>The campaign waits until you launch it from Review.</small></span>
+                  <span><strong>Start manually</strong><small>Launch this campaign yourself from Review when you are ready.</small></span>
                 </label>
 
-                <label class="campaign-schedule-option">
-                  <input type="radio" name="campaignScheduleMode" value="SCHEDULED">
-                  <span><strong>Start on a specific date and time</strong><small>The future Send Queue may begin at or after this time, while still obeying your sending window.</small></span>
-                </label>
+                <div class="campaign-schedule-option-wrap" id="campaignScheduleScheduledOption">
+                  <label class="campaign-schedule-option">
+                    <input type="radio" name="campaignScheduleMode" value="SCHEDULED">
+                    <span><strong>Schedule for later</strong><small>Choose the date and time when this campaign becomes eligible to start.</small></span>
+                  </label>
 
-                <div class="campaign-schedule-datetime" id="campaignScheduleDateTime" hidden>
-                  <label class="form-field form-field-strong"><span>Start date <strong>*</strong></span><input type="date" id="campaignScheduleStartDate"></label>
-                  <label class="form-field form-field-strong"><span>Start time <strong>*</strong></span><input type="time" id="campaignScheduleStartTime"></label>
+                  <div class="campaign-schedule-datetime" id="campaignScheduleDateTime" hidden>
+                    <label class="form-field form-field-strong"><span>Start date <strong>*</strong></span><input type="date" id="campaignScheduleStartDate"></label>
+                    <label class="form-field form-field-strong"><span>Start time <strong>*</strong></span><input type="time" id="campaignScheduleStartTime"></label>
+                    <div class="campaign-schedule-timezone-note"><span>Time zone</span><strong id="campaignScheduleInlineTimezone">From Settings</strong></div>
+                  </div>
                 </div>
               </div>
 
               <div class="builder-content-card campaign-schedule-summary">
-                <h4>How Schedule works</h4>
-                <div class="schedule-rule-row"><strong>Start rule</strong><span id="campaignScheduleSummaryMode">Manual launch</span></div>
-                <div class="schedule-rule-row"><strong>Campaign time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div>
-                <div class="schedule-rule-row"><strong>Sending window</strong><span id="campaignScheduleSummaryWindow">From Settings</span></div>
-                <p class="builder-card-help">Example: if the start is 08:00 but your sending window begins at 09:00, the future sending engine must wait until 09:00.</p>
+                <h4>Schedule summary</h4>
+                <div class="schedule-rule-row"><strong>Start</strong><span id="campaignScheduleSummaryMode">Manual launch</span></div>
+                <div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div>
+                <div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div>
+                <div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div>
+                <p class="builder-card-help">Actual sending will always follow the rules saved in Campaign Settings.</p>
               </div>
             </div>
 
@@ -3288,7 +3292,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=14"></script>
 
-  <script src="js/app.js?v=14"></script>
+  <script src="js/app.js?v=14.1"></script>
 
 </body>
 

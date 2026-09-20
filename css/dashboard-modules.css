@@ -1904,3 +1904,19 @@ body.campaign-builder-open{overflow:hidden}
 .schedule-rule-row{display:flex;justify-content:space-between;gap:18px;padding:12px 0;border-bottom:1px solid #E5E7EB;font-size:13px}.schedule-rule-row strong{color:#111827}.schedule-rule-row span{text-align:right;color:#6B7280}
 .campaign-schedule-summary .builder-card-help{margin-top:16px;margin-bottom:0}
 @media(max-width:900px){.campaign-schedule-layout{grid-template-columns:1fr}.campaign-schedule-datetime{grid-template-columns:1fr}}
+
+
+/* ============================================================
+   CAMPAIGN SCHEDULE — V14.1 UX REFINEMENT
+   ============================================================ */
+.campaign-schedule-option-wrap{margin-top:10px;border:1px solid #E5E7EB;border-radius:12px;background:#fff;overflow:hidden;transition:border-color .15s ease,box-shadow .15s ease}
+.campaign-schedule-option-wrap>.campaign-schedule-option{margin-top:0;border:0;border-radius:0}
+.campaign-schedule-option.is-selected,.campaign-schedule-option-wrap.is-selected{border-color:#B91C1C;box-shadow:0 0 0 1px rgba(185,28,28,.05)}
+.campaign-schedule-option-wrap.is-selected>.campaign-schedule-option{background:#FFF7F7}
+.campaign-schedule-datetime{margin:0 16px 16px;padding:16px;border:1px solid #F1D2D2;background:#FFFBFB}
+.campaign-schedule-timezone-note{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:12px;border-top:1px solid #E5E7EB;color:#667085;font-size:12px}
+.campaign-schedule-timezone-note strong{color:#344054;font-weight:650}
+.campaign-schedule-summary{align-self:start}
+.campaign-schedule-summary h4{margin-bottom:10px}
+.campaign-schedule-summary .schedule-rule-row:last-of-type{border-bottom:0}
+@media(max-width:900px){.campaign-schedule-timezone-note{grid-column:auto}}

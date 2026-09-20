@@ -10594,14 +10594,35 @@ function showCampaignScheduleNotice(message,type='success'){
   el.hidden=!message; el.className=`dashboard-notice ${type}`; el.textContent=message||'';
 }
 function getCampaignScheduleMode(){return document.querySelector('input[name="campaignScheduleMode"]:checked')?.value||'MANUAL';}
+function formatCampaignScheduleDate_(value){
+  const s=String(value||'').trim();
+  const match=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return match ? `${match[3]} ${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(match[2])]} ${match[1]}` : s;
+}
 function updateCampaignScheduleUi(){
   const mode=getCampaignScheduleMode();
-  const box=document.getElementById('campaignScheduleDateTime'); if(box)box.hidden=mode!=='SCHEDULED';
+  const box=document.getElementById('campaignScheduleDateTime');
+  if(box) box.hidden=mode!=='SCHEDULED';
+  document.getElementById('campaignScheduleManualOption')?.classList.toggle('is-selected',mode==='MANUAL');
+  document.getElementById('campaignScheduleScheduledOption')?.classList.toggle('is-selected',mode==='SCHEDULED');
+
+  const dateValue=document.getElementById('campaignScheduleStartDate')?.value||'';
+  const timeValue=document.getElementById('campaignScheduleStartTime')?.value||'';
   const modeText=document.getElementById('campaignScheduleSummaryMode');
-  if(modeText) modeText.textContent=mode==='SCHEDULED' ? `${document.getElementById('campaignScheduleStartDate')?.value||'Choose date'} ${document.getElementById('campaignScheduleStartTime')?.value||''}`.trim() : 'Manual launch';
+  if(modeText){
+    modeText.textContent=mode==='SCHEDULED'
+      ? (dateValue&&timeValue ? `${formatCampaignScheduleDate_(dateValue)} at ${timeValue}` : 'Choose date and time')
+      : 'Manual launch';
+  }
+
   const setting=getCurrentCampaignSettings();
-  const tz=document.getElementById('campaignScheduleSummaryTimezone'); if(tz)tz.textContent=setting?.timezone||'Save Campaign Settings first';
-  const win=document.getElementById('campaignScheduleSummaryWindow'); if(win)win.textContent=setting?.windowStart&&setting?.windowEnd ? `${setting.windowStart}–${setting.windowEnd} · ${(setting.sendingDays||[]).join(', ')}` : 'Save Campaign Settings first';
+  const timezone=setting?.timezone||'Save Campaign Settings first';
+  const tz=document.getElementById('campaignScheduleSummaryTimezone'); if(tz)tz.textContent=timezone;
+  const inlineTz=document.getElementById('campaignScheduleInlineTimezone'); if(inlineTz)inlineTz.textContent=timezone;
+  const hours=document.getElementById('campaignScheduleSummaryHours');
+  if(hours) hours.textContent=setting?.windowStart&&setting?.windowEnd ? `${setting.windowStart} – ${setting.windowEnd}` : 'Save Campaign Settings first';
+  const days=document.getElementById('campaignScheduleSummaryDays');
+  if(days) days.textContent=(setting?.sendingDays||[]).length ? setting.sendingDays.join(', ') : 'Save Campaign Settings first';
 }
 function applyCampaignScheduleToForm(schedule){
   const s=schedule||{startMode:'MANUAL',startDate:'',startTime:''};
@@ -10643,7 +10664,7 @@ async function saveCampaignSchedule(event){
     try{
       await DashboardApi.saveCampaignSchedule(payload);
       campaignScheduleState.loaded=false; await loadCampaignSchedule(true);
-      showCampaignScheduleNotice('Campaign schedule saved. No email has been queued or sent.','success');
+      showCampaignScheduleNotice(payload.startMode==='SCHEDULED' ? `Schedule saved — ${formatCampaignScheduleDate_(payload.startDate)} at ${payload.startTime} (${getCurrentCampaignSettings()?.timezone||'campaign time zone'}).` : 'Campaign will wait for manual launch from Review.','success');
     }catch(error){showCampaignScheduleNotice(error?.message||'Could not save campaign schedule.','error');}
   });
 }
