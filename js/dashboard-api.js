@@ -627,6 +627,14 @@ const DashboardApi = (function () {
       return post('check_campaign_readiness', {campaignId});
     },
 
+    // SEND QUEUE FOUNDATION — V16
+    launchCampaign(campaignId) {
+      return post('launch_campaign', {campaignId});
+    },
+    getCampaignQueueStatus(campaignId) {
+      return post('get_campaign_queue_status', {campaignId});
+    },
+
     // ----------------------------------------------------------
     // DEBUG / CONFIG
     // ----------------------------------------------------------

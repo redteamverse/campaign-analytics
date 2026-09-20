@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=12.2"
+    href="css/dashboard-modules.css?v=16"
   >
 </head>
 
@@ -2806,8 +2806,8 @@
             </div>
             <div class="campaign-review-grid" id="campaignReviewChecks"></div>
             <div class="campaign-review-launch-note" id="campaignReviewLaunchNote">
-              <strong>Launch is not enabled yet</strong>
-              <span>V15 validates readiness only. The next stage will connect approved campaigns to the Send Queue safely.</span>
+              <strong>Launch is protected by readiness checks</strong>
+              <span>V16 creates Send Queue items only. No campaign email is sent by this stage.</span>
             </div>
             <div class="builder-stage-footer">
               <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
@@ -3314,9 +3314,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=14"></script>
+  <script src="js/dashboard-api.js?v=16"></script>
 
-  <script src="js/app.js?v=15"></script>
+  <script src="js/app.js?v=16"></script>
 
 </body>
 

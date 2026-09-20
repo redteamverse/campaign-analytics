@@ -10697,7 +10697,17 @@ function renderCampaignReview(result){
   if(subtitle)subtitle.textContent=result.ready?'All required checks passed. No email has been queued or sent.':'Fix the items marked below, then recheck the campaign.';
   if(score)score.textContent=`${result.requiredPassed}/${result.requiredTotal}`;
   if(grid)grid.innerHTML=(result.checks||[]).map(c=>`<article class="campaign-review-check ${c.passed?'passed':'failed'}"><div class="campaign-review-check-icon">${c.passed?'✓':'!'}</div><div><div class="campaign-review-check-heading"><strong>${escapeReviewHtml_(c.label)}</strong>${c.required?'':'<span class="review-optional">Optional</span>'}</div><p>${escapeReviewHtml_(c.description||'')}</p><small>${escapeReviewHtml_(c.detail||'')}</small></div></article>`).join('');
-  if(launch){launch.disabled=true;launch.title=result.ready?'Launch will be enabled when the Send Queue is built.':'Complete all required readiness checks first.';}
+  if(launch){
+    launch.disabled=!result.ready;
+    launch.title=result.ready?'Add this approved campaign to the Send Queue. No email will be sent yet.':'Complete all required readiness checks first.';
+    launch.textContent=result.ready?'Launch Campaign':'Launch Campaign';
+  }
+  const note=document.getElementById('campaignReviewLaunchNote');
+  if(note){
+    note.innerHTML=result.ready
+      ? '<strong>Ready to launch</strong><span>Launch will create protected Send Queue items only. V16 does not send email.</span>'
+      : '<strong>Launch is blocked</strong><span>Complete all required checks before this campaign can enter the Send Queue.</span>';
+  }
 }
 async function loadCampaignReview(){
   if(!campaignBuilderCampaignId||campaignReviewLoading)return;
@@ -10707,7 +10717,47 @@ async function loadCampaignReview(){
   catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');if(grid)grid.innerHTML='';}
   finally{campaignReviewLoading=false;}
 }
+async function launchReviewedCampaign(){
+  if(!campaignBuilderCampaignId)return;
+  const campaign=getCampaignBuilderCampaign();
+  const button=document.getElementById('campaignReviewLaunch');
+  if(!campaign)return;
+
+  const confirmed=window.confirm(
+    `Launch "${campaign.campaignName}" into the Send Queue?\n\nThis creates queue items only. V16 will NOT send any email.`
+  );
+  if(!confirmed)return;
+
+  await withActionButtonBusy(button,'Launching…',async()=>{
+    try{
+      showCampaignReviewNotice('','success');
+      // Server re-runs readiness under a lock before creating any queue rows.
+      const response=await DashboardApi.launchCampaign(campaignBuilderCampaignId);
+      const result=response?.result?.result||response?.result||response;
+      showCampaignReviewNotice(
+        result?.message || 'Campaign added to the Send Queue. No email has been sent.',
+        'success'
+      );
+      if(button){
+        button.disabled=true;
+        button.textContent='Added to Send Queue';
+      }
+      const note=document.getElementById('campaignReviewLaunchNote');
+      if(note){
+        note.innerHTML=`<strong>Send Queue created</strong><span>${escapeReviewHtml_(result?.queueTotal||0)} queue item${Number(result?.queueTotal||0)===1?'':'s'} created. Sending remains disabled until the queue processor is built.</span>`;
+      }
+      await initDashboard(true);
+      // initDashboard refreshes normalized data; restore this builder and Review.
+      await openCampaignBuilder(campaignBuilderCampaignId || result?.campaignId);
+      switchCampaignBuilderStep('review');
+    }catch(error){
+      showCampaignReviewNotice(error?.message||'Could not launch campaign into the Send Queue.','error');
+      await loadCampaignReview();
+    }
+  });
+}
 function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewBack')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
   document.getElementById('campaignReviewRecheck')?.addEventListener('click',loadCampaignReview);
+  document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }
