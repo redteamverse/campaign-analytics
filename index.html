@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=16"
+    href="css/dashboard-modules.css?v=177"
   >
 </head>
 
@@ -573,6 +573,21 @@
 
             </div>
 
+          </div>
+
+          <div class="overview-section-heading overview-schedule-heading">
+            <div>
+              <h2>Today’s Schedule</h2>
+              <p>Scheduled campaign activity for today. Send Now remains a separate campaign action.</p>
+            </div>
+          </div>
+          <div class="table-card overview-schedule-card">
+            <div class="table-container">
+              <table>
+                <thead><tr><th>Time</th><th>Campaign</th><th>Status</th><th>Schedule ID</th></tr></thead>
+                <tbody id="todayCampaignScheduleTable"><tr><td colspan="4">Loading schedules…</td></tr></tbody>
+              </table>
+            </div>
           </div>
 
           <div class="overview-section-heading">
@@ -1734,6 +1749,7 @@
                       <th>Status</th>
                       <th>Contacts</th>
                       <th>Messages</th>
+                      <th>Next Schedule</th>
                       <th>Updated</th>
                       <th class="actions-column">Actions</th>
                     </tr>
@@ -2740,58 +2756,23 @@
           </section>
 
           <section class="campaign-builder-stage-panel" data-builder-panel="schedule">
-            <div class="builder-stage-heading">
-              <div><span class="detail-eyebrow">Step 6</span><h3>Campaign Schedule</h3><p>Choose when this campaign becomes eligible to start. Sending days and hours still come from Campaign Settings.</p></div>
-            </div>
-
+            <div class="builder-stage-heading"><div><span class="detail-eyebrow">Step 6</span><h3>Campaign Schedule</h3><p>Add one or more future send times. Send Now remains a separate instant action.</p></div></div>
             <div id="campaignScheduleNotice" class="dashboard-notice" hidden></div>
-
             <div class="campaign-schedule-layout">
               <div class="builder-content-card campaign-schedule-card">
-                <h4>When should this campaign start?</h4>
-                <p class="builder-card-help">Scheduling does not send anything yet. V14 only stores the start rule for the future Send Queue.</p>
-
-                <label class="campaign-schedule-option" id="campaignScheduleManualOption">
-                  <input type="radio" name="campaignScheduleMode" value="MANUAL" checked>
-                  <span><strong>Start manually</strong><small>Launch this campaign yourself from Review when you are ready.</small></span>
-                </label>
-
-                <div class="campaign-schedule-option-wrap" id="campaignScheduleScheduledOption">
-                  <label class="campaign-schedule-option">
-                    <input type="radio" name="campaignScheduleMode" value="SCHEDULED">
-                    <span><strong>Schedule for later</strong><small>Choose the date and time when this campaign becomes eligible to start.</small></span>
-                  </label>
-
-                  <div class="campaign-schedule-datetime" id="campaignScheduleDateTime" hidden>
-                    <label class="form-field form-field-strong"><span>Start date <strong>*</strong></span><input type="date" id="campaignScheduleStartDate"></label>
-                    <label class="form-field form-field-strong"><span>Start time <strong>*</strong></span><input type="time" id="campaignScheduleStartTime"></label>
-                    <div class="campaign-schedule-timezone-note"><span>Time zone</span><strong id="campaignScheduleInlineTimezone">From Settings</strong></div>
-                  </div>
+                <div class="schedule-card-heading"><div><h4 id="campaignScheduleFormTitle">Add scheduled time</h4><p class="builder-card-help">Each scheduled time gets its own permanent Schedule ID and can be edited or canceled independently.</p></div></div>
+                <input type="hidden" id="campaignScheduleEditId">
+                <div class="campaign-schedule-datetime">
+                  <label class="form-field form-field-strong"><span>Date <strong>*</strong></span><input type="date" id="campaignScheduleStartDate"></label>
+                  <label class="form-field form-field-strong"><span>Time <strong>*</strong></span><input type="time" id="campaignScheduleStartTime"></label>
+                  <div class="campaign-schedule-timezone-note"><span>Time zone</span><strong id="campaignScheduleInlineTimezone">From Settings</strong></div>
                 </div>
+                <div class="schedule-form-actions"><button type="button" class="secondary-action-button" id="campaignScheduleCancelEdit" hidden>Cancel Edit</button><button type="button" class="primary-action-button" id="campaignScheduleSave">Add Schedule</button></div>
               </div>
-
-              <div class="builder-content-card campaign-schedule-summary">
-                <h4>Schedule summary</h4>
-                <div class="schedule-rule-row"><strong>Start</strong><span id="campaignScheduleSummaryMode">Manual launch</span></div>
-                <div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div>
-                <div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div>
-                <div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div>
-                <p class="builder-card-help">Actual sending will always follow the rules saved in Campaign Settings.</p>
-              </div>
+              <div class="builder-content-card campaign-schedule-summary"><h4>Sending rules</h4><div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div><div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div><div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div><p class="builder-card-help">Scheduled sends still obey Campaign Settings. Send Now is separate from this schedule list.</p></div>
             </div>
-
-            <div class="campaign-settings-safety-note">
-              <strong>Schedule only — no campaign email is sent here</strong>
-              <span>V14 stores the start rule. Review and Send Queue remain disabled until their own stages are completed.</span>
-            </div>
-
-            <div class="builder-stage-footer">
-              <button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button>
-              <div class="builder-footer-actions">
-                <button type="button" class="primary-action-button" id="campaignScheduleSave">Save Schedule</button>
-                <button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button>
-              </div>
-            </div>
+            <div class="builder-content-card campaign-schedule-list-card"><div class="schedule-list-heading"><div><h4>Scheduled times</h4><p>All scheduled times for this campaign.</p></div><span id="campaignScheduleCount" class="status-badge badge-muted">0</span></div><div id="campaignScheduleList" class="campaign-schedule-list"><div class="schedule-empty">No scheduled times yet.</div></div></div>
+            <div class="builder-stage-footer"><button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button><div class="builder-footer-actions"><button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button></div></div>
           </section>
 
 
@@ -3314,9 +3295,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=16"></script>
+  <script src="js/dashboard-api.js?v=177"></script>
 
-  <script src="js/app.js?v=16"></script>
+  <script src="js/app.js?v=177"></script>
 
 </body>
 

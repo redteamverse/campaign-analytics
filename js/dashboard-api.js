@@ -621,6 +621,9 @@ const DashboardApi = (function () {
     saveCampaignSchedule(payload) {
       return post('save_campaign_schedule', payload);
     },
+    cancelCampaignSchedule(campaignScheduleId) {
+      return post('cancel_campaign_schedule', {campaignScheduleId});
+    },
 
     // CAMPAIGN REVIEW & READINESS — V15
     checkCampaignReadiness(campaignId) {
