@@ -45,99 +45,10 @@ function showDashboardError(error) {
   }
 }
 
-
-/* ============================================================
-   V17.8 PERFORMANCE HELPERS
-   Keep successful writes local instead of reloading every sheet.
-   ============================================================ */
-function unwrapDashboardResult_(response) {
-  let value = response;
-  let guard = 0;
-  while (
-    value &&
-    typeof value === 'object' &&
-    Object.prototype.hasOwnProperty.call(value, 'result') &&
-    guard < 5
-  ) {
-    value = value.result;
-    guard++;
-  }
-  return value;
-}
-
-function applyCampaignWriteLocally_(response, fallbackPayload = {}) {
-  const result = unwrapDashboardResult_(response) || {};
-  const returnedCampaign = result.campaign || result;
-  const campaignId = String(
-    returnedCampaign.campaignId || fallbackPayload.campaignId || ''
-  ).trim();
-
-  if (!campaignId) return false;
-
-  const data = DataEngine.getNormalized();
-  if (!data || !Array.isArray(data.campaigns)) return false;
-
-  const index = data.campaigns.findIndex(
-    campaign => String(campaign.campaignId || '') === campaignId
-  );
-
-  const current = index >= 0 ? data.campaigns[index] : {};
-  const merged = {
-    ...current,
-    ...returnedCampaign,
-    campaignId,
-    campaignName:
-      returnedCampaign.campaignName ||
-      fallbackPayload.campaignName ||
-      current.campaignName ||
-      campaignId,
-    campaignStatus:
-      returnedCampaign.campaignStatus ||
-      fallbackPayload.campaignStatus ||
-      current.campaignStatus ||
-      'DRAFT'
-  };
-
-  if (index >= 0) data.campaigns[index] = merged;
-  else data.campaigns.push(merged);
-
-  populateFilterDropdowns(getFilters());
-  populateModuleCampaignSelectors();
-  renderCampaignManagement();
-  renderMainComposeWorkspace();
-  return true;
-}
-
-function applyScheduleWriteLocally_(response) {
-  const schedule = unwrapDashboardResult_(response);
-  if (!schedule || !schedule.campaignScheduleId) return false;
-
-  const normalized = normalizeCampaignSchedule(schedule);
-  const index = campaignScheduleState.schedules.findIndex(
-    item => item.campaignScheduleId === normalized.campaignScheduleId
-  );
-
-  if (index >= 0) campaignScheduleState.schedules[index] = normalized;
-  else campaignScheduleState.schedules.push(normalized);
-
-  campaignScheduleState.loaded = true;
-  renderCampaignScheduleList();
-  renderTodaySchedule();
-  return true;
-}
-
 async function initDashboard(forceRefresh = true) {
   setDataStatus('Loading data…', 'loading');
   try {
     const current = getFilters();
-
-    // V17.8: schedules and the main relational dataset are independent
-    // reads, so start them together instead of waiting serially.
-    const schedulePromise =
-      DashboardApi?.isAuthenticated?.()
-        ? DashboardApi.getCampaignSchedules().catch(() => null)
-        : Promise.resolve(null);
-
     const rawStore = await DataSource.loadData(forceRefresh);
     DataEngine.init(rawStore);
     populateFilterDropdowns(current);
@@ -156,14 +67,7 @@ async function initDashboard(forceRefresh = true) {
     attachModuleTabListeners();
     populateUserLeadStatusFilter();
     populateModuleCampaignSelectors();
-    try {
-      const sr = await schedulePromise;
-      const sx = sr?.result?.result || sr?.result || {};
-      if (sr) {
-        campaignScheduleState.schedules = (sx.schedules || []).map(normalizeCampaignSchedule);
-        campaignScheduleState.loaded = true;
-      }
-    } catch (e) {}
+    try { const sr=await DashboardApi.getCampaignSchedules(); const sx=sr?.result?.result||sr?.result||{}; campaignScheduleState.schedules=(sx.schedules||[]).map(normalizeCampaignSchedule); campaignScheduleState.loaded=true; } catch(e) {}
     renderDashboard();
     renderMainComposeWorkspace();
     updateLastUpdated(rawStore.lastUpdated);
@@ -2311,12 +2215,9 @@ async function submitCampaignForm(
 
     closeCampaignModal();
 
-    // V17.8: the write response already contains the saved campaign.
-    // Update only the affected UI instead of re-reading every Google Sheet.
-    const appliedLocally = applyCampaignWriteLocally_(result, payload);
-    if (!appliedLocally) {
-      await initDashboard(true);
-    }
+    await initDashboard(
+      true
+    );
 
     switchView(
       'campaignsView'
@@ -10707,9 +10608,9 @@ function scheduleStatusBadge_(s){const st=String(s||'').toUpperCase();if(st==='U
 function renderCampaignScheduleList(){const list=document.getElementById('campaignScheduleList'),rows=getCampaignSchedulesForCurrent_();setText('campaignScheduleCount',String(rows.length));if(!list)return;if(!rows.length){list.innerHTML='<div class="schedule-empty">No scheduled times yet. You can still use Send Now from the Campaigns screen.</div>';return;}list.innerHTML=rows.map(s=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(s.campaignScheduleId)}</small>${scheduleStatusBadge_(s.scheduleStatus)}</div><div class="schedule-row-actions">${s.scheduleStatus==='UPCOMING'?`<button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(s.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(s.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(s.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(s.campaignScheduleId)}">Cancel Schedule</button></div>`:''}</div></div>`).join('');}
 function resetCampaignScheduleForm_(){const id=document.getElementById('campaignScheduleEditId'),d=document.getElementById('campaignScheduleStartDate'),t=document.getElementById('campaignScheduleStartTime'),c=document.getElementById('campaignScheduleCancelEdit'),b=document.getElementById('campaignScheduleSave');if(id)id.value='';if(d)d.value='';if(t)t.value='';if(c)c.hidden=true;if(b)b.textContent='Add Schedule';setText('campaignScheduleFormTitle','Add scheduled time');}
 async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
-async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{const response=await DashboardApi.saveCampaignSchedule(p);if(!applyScheduleWriteLocally_(response)){campaignScheduleState.loaded=false;await loadCampaignSchedule(true);}resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
+async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{await DashboardApi.saveCampaignSchedule(p);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
 function editCampaignSchedule_(id){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||s.scheduleStatus!=='UPCOMING')return;document.getElementById('campaignScheduleEditId').value=s.campaignScheduleId;document.getElementById('campaignScheduleStartDate').value=s.startDate;document.getElementById('campaignScheduleStartTime').value=s.startTime;document.getElementById('campaignScheduleCancelEdit').hidden=false;document.getElementById('campaignScheduleSave').textContent='Update Schedule';setText('campaignScheduleFormTitle','Edit scheduled time');}
-async function cancelCampaignSchedule_(id,button){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||!confirm(`Cancel the ${s.startTime} schedule on ${formatCampaignScheduleDate_(s.startDate)}?\n\nThis cancels only this scheduled time, not the campaign.`))return;await withActionButtonBusy(button,'Canceling…',async()=>{try{const response=await DashboardApi.cancelCampaignSchedule(id);if(!applyScheduleWriteLocally_(response)){campaignScheduleState.loaded=false;await loadCampaignSchedule(true);}showCampaignScheduleNotice('Schedule canceled.','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not cancel schedule.','error');}});}
+async function cancelCampaignSchedule_(id,button){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||!confirm(`Cancel the ${s.startTime} schedule on ${formatCampaignScheduleDate_(s.startDate)}?\n\nThis cancels only this scheduled time, not the campaign.`))return;await withActionButtonBusy(button,'Canceling…',async()=>{try{await DashboardApi.cancelCampaignSchedule(id);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);showCampaignScheduleNotice('Schedule canceled.','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not cancel schedule.','error');}});}
 function attachCampaignScheduleListeners(){if(campaignScheduleListenersAttached)return;campaignScheduleListenersAttached=true;document.getElementById('campaignScheduleBack')?.addEventListener('click',()=>switchCampaignBuilderStep('settings'));document.getElementById('campaignScheduleSave')?.addEventListener('click',saveCampaignSchedule);document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('review'));document.getElementById('campaignScheduleCancelEdit')?.addEventListener('click',resetCampaignScheduleForm_);document.getElementById('campaignScheduleList')?.addEventListener('click',async e=>{const edit=e.target.closest('[data-schedule-edit]');if(edit){editCampaignSchedule_(edit.dataset.scheduleEdit);return;}const trig=e.target.closest('[data-schedule-menu-trigger]');if(trig){const menu=document.querySelector(`[data-schedule-menu="${CSS.escape(trig.dataset.scheduleMenuTrigger)}"]`);document.querySelectorAll('.schedule-row-menu').forEach(x=>{if(x!==menu)x.hidden=true;});if(menu)menu.hidden=!menu.hidden;return;}const cancel=e.target.closest('[data-schedule-cancel]');if(cancel)await cancelCampaignSchedule_(cancel.dataset.scheduleCancel,cancel);});}
 
 // ============================================================
