@@ -269,10 +269,82 @@ const DataEngine = (() => {
   }
 
 
+  /*
+   * Compatibility getters
+   * ------------------------------------------------------------
+   * Older dashboard modules (analytics.js / metrics.js / tables.js)
+   * call DataEngine through these public methods.
+   *
+   * V18.2 accidentally exposed only init/getNormalized/getUserById,
+   * which caused:
+   *   DataEngine.getEngagement is not a function
+   *
+   * Keep this public API stable even though the internal store is now
+   * normalized from the V18 relational payload.
+   */
+
+  function getUsers() {
+    return normalized.users;
+  }
+
+  function getCampaignMembers() {
+    return normalized.campaignMembers;
+  }
+
+  function getCampaigns() {
+    return normalized.campaigns;
+  }
+
+  function getJourneys() {
+    return normalized.journeys;
+  }
+
+  function getEmailEvents() {
+    return normalized.emailEvents;
+  }
+
+  function getEngagement() {
+    /*
+     * The dashboard's engagement analytics are event-level.
+     * Email Events contains sent/open/click/reply/unsubscribe and
+     * campaign/sequence/version/segment fields consumed by analytics.js.
+     */
+    return normalized.emailEvents;
+  }
+
+  function getTracking() {
+    return normalized.tracking;
+  }
+
+  function getFollowUps() {
+    return normalized.followUps;
+  }
+
+  function getAnalysis() {
+    return normalized.analysis;
+  }
+
+  function getReports() {
+    return normalized.reports;
+  }
+
+
   return {
     init,
     getNormalized,
-    getUserById
+    getUserById,
+
+    // Historical/public DataEngine API used by the existing dashboard.
+    getUsers,
+    getCampaignMembers,
+    getCampaigns,
+    getJourneys,
+    getEmailEvents,
+    getEngagement,
+    getTracking,
+    getFollowUps,
+    getAnalysis,
+    getReports
   };
 
 })();
