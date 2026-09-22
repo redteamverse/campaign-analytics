@@ -12,7 +12,7 @@
 const DataSource = (() => {
 
   const STORAGE_KEY =
-    'altsec_dashboard_snapshot_v181';
+    'altsec_dashboard_snapshot_v182';
 
   const MEMORY_MAX_AGE_MS =
     60 * 1000;
