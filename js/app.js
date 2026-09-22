@@ -118,6 +118,36 @@ window.addEventListener(
       const current =
         getFilters();
 
+      /*
+       * Validate the incoming snapshot in a temporary way before allowing
+       * it to replace a currently working dashboard. DataSource V18.1
+       * already rejects empty payloads, so this is a second UI safety net.
+       */
+      const relational =
+        rawStore.relational ||
+        rawStore ||
+        {};
+
+      const incomingCoreRows =
+        ['Users', 'Campaign Members', 'Campaigns', 'Email Events']
+          .reduce(
+            (total, key) =>
+              total +
+              (
+                Array.isArray(relational[key])
+                  ? relational[key].length
+                  : 0
+              ),
+            0
+          );
+
+      if (!incomingCoreRows) {
+        console.warn(
+          'Ignored empty background dashboard refresh.'
+        );
+        return;
+      }
+
       DataEngine.init(
         rawStore
       );
@@ -177,6 +207,22 @@ async function initDashboard(forceRefresh = true) {
       const rawStore = await DataSource.loadData(forceRefresh);
 
       DataEngine.init(rawStore);
+
+      const normalized =
+        DataEngine.getNormalized();
+
+      const coreRowCount =
+        (normalized.users || []).length +
+        (normalized.campaignMembers || []).length +
+        (normalized.campaigns || []).length +
+        (normalized.emailEvents || []).length;
+
+      if (!coreRowCount) {
+        throw new Error(
+          'Dashboard connected successfully, but no usable campaign data was loaded.'
+        );
+      }
+
       populateFilterDropdowns(current);
 
       if (!listenersAttached) {

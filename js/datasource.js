@@ -12,7 +12,7 @@
 const DataSource = (() => {
 
   const STORAGE_KEY =
-    'altsec_dashboard_snapshot_v18';
+    'altsec_dashboard_snapshot_v181';
 
   const MEMORY_MAX_AGE_MS =
     60 * 1000;
@@ -30,6 +30,48 @@ const DataSource = (() => {
 
   function nowIso() {
     return new Date().toISOString();
+  }
+
+
+  const REQUIRED_RELATIONAL_KEYS = [
+    'Users',
+    'Campaign Members',
+    'Campaigns',
+    'Email Events'
+  ];
+
+
+  function isRelationalPayload(value) {
+
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      Array.isArray(value)
+    ) {
+      return false;
+    }
+
+    return REQUIRED_RELATIONAL_KEYS.some(
+      key =>
+        Object.prototype.hasOwnProperty.call(
+          value,
+          key
+        )
+    );
+  }
+
+
+  function hasUsefulDashboardData(value) {
+
+    if (!isRelationalPayload(value)) {
+      return false;
+    }
+
+    return REQUIRED_RELATIONAL_KEYS.some(
+      key =>
+        Array.isArray(value[key]) &&
+        value[key].length > 0
+    );
   }
 
 
@@ -165,19 +207,25 @@ const DataSource = (() => {
       response ||
       {};
 
-    const relational =
-      result.data ||
-      result.relational ||
-      result;
+    const candidates = [
+      result.data,
+      result.relational,
+      response?.data,
+      response?.relational,
+      result
+    ];
 
-    if (
-      !relational ||
-      typeof relational !==
-      'object' ||
-      Array.isArray(relational)
-    ) {
+    const relational =
+      candidates.find(
+        candidate =>
+          isRelationalPayload(
+            candidate
+          )
+      );
+
+    if (!relational) {
       throw new Error(
-        'Dashboard API returned an invalid data payload.'
+        'Dashboard API returned a response, but it did not contain relational dashboard data.'
       );
     }
 
@@ -240,11 +288,41 @@ const DataSource = (() => {
         store.serverDurationMs =
           payload.serverDurationMs;
 
-        saveLocal(
-          store
-        );
+        /*
+         * Critical V18.1 guard:
+         * never replace a previously valid dashboard snapshot with
+         * an empty/malformed response. That was the cause of the UI
+         * reporting "Live data ready" while all KPI cards stayed at 0.
+         */
+        if (
+          hasUsefulDashboardData(
+            payload.relational
+          )
+        ) {
+          saveLocal(
+            store
+          );
 
-        return store;
+          return store;
+        }
+
+        const previous =
+          readLocal(
+            FALLBACK_MAX_AGE_MS
+          );
+
+        if (previous) {
+          return {
+            ...previous,
+            sourceWarnings: [
+              'The latest dashboard response contained no usable rows. Showing the most recent successful snapshot.'
+            ]
+          };
+        }
+
+        throw new Error(
+          'Dashboard data loaded, but no usable campaign/contact/event rows were returned.'
+        );
       })();
 
     refreshPromise =
