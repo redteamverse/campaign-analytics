@@ -371,6 +371,21 @@ const DashboardApi = (function () {
 
 
     // ----------------------------------------------------------
+    // DASHBOARD DATA — V18
+    // ----------------------------------------------------------
+
+    getDashboardData(forceRefresh = false) {
+      return post(
+        'get_dashboard_data',
+        {
+          forceRefresh:
+            forceRefresh === true
+        }
+      );
+    },
+
+
+    // ----------------------------------------------------------
     // USERS
     // ----------------------------------------------------------
 

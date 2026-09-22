@@ -1,5 +1,5 @@
 /** CAMPAIGN ANALYTICS - UI CONTROLLER */
-document.addEventListener('DOMContentLoaded', initDashboard);
+document.addEventListener('DOMContentLoaded', () => initDashboard(false));
 
 const FILTER_IDS = ['campaignFilter', 'sequenceFilter', 'versionFilter', 'segmentFilter'];
 let listenersAttached = false;
@@ -98,6 +98,69 @@ function refreshCampaignSchedulesInBackground(delayMs = 900) {
     }
   }, Math.max(0, Number(delayMs) || 0));
 }
+
+window.addEventListener(
+  'altsec-dashboard-data-refreshed',
+  event => {
+
+    const rawStore =
+      event?.detail;
+
+    if (
+      !rawStore ||
+      dashboardInitPromise
+    ) {
+      return;
+    }
+
+    try {
+
+      const current =
+        getFilters();
+
+      DataEngine.init(
+        rawStore
+      );
+
+      populateFilterDropdowns(
+        current
+      );
+
+      populateUserLeadStatusFilter();
+      populateModuleCampaignSelectors();
+
+      renderDashboard();
+      renderMainComposeWorkspace();
+
+      updateLastUpdated(
+        rawStore.lastUpdated
+      );
+
+      const banner =
+        document.getElementById(
+          'dashboardNotice'
+        );
+
+      if (banner) {
+        banner.hidden = true;
+        banner.textContent = '';
+      }
+
+      setDataStatus(
+        'Live data ready',
+        'ready'
+      );
+
+    } catch (error) {
+
+      console.warn(
+        'Could not apply background dashboard refresh:',
+        error
+      );
+    }
+  }
+);
+
 
 async function initDashboard(forceRefresh = true) {
   // Prevent duplicate Refresh clicks / overlapping initialization from
