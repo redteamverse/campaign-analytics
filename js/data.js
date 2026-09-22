@@ -1,5 +1,5 @@
 /**
- * AltSec Outreach DataEngine — V18.2 COMPATIBILITY FIX
+ * AltSec Outreach DataEngine — V18.2.2 BOOLEAN FLAG FIX
  *
  * Accepts both:
  *   - the historical flat relational payload
@@ -146,10 +146,76 @@ const DataEngine = (() => {
         return;
       }
 
-      result[key] = value;
+      /*
+       * Google Sheets returns Y/N style flags as strings.
+       * JavaScript treats every non-empty string as truthy, so the literal
+       * value "N" was incorrectly interpreted as true by code such as:
+       *
+       *   user.unsubscribed ? 'Suppressed' : 'Subscribed'
+       *
+       * Normalize boolean/flag fields here at the data boundary so every
+       * dashboard module receives a real boolean instead of a truthy string.
+       */
+      const booleanKeys = new Set([
+        'unsubscribed',
+        'isOpened',
+        'isReplied'
+      ]);
+
+      if (booleanKeys.has(key)) {
+        result[key] = normalizeBooleanFlag(value);
+      } else {
+        result[key] = value;
+      }
     });
 
     return result;
+  }
+
+
+  function normalizeBooleanFlag(value) {
+
+    if (value === true || value === false) {
+      return value;
+    }
+
+    if (value === 1) {
+      return true;
+    }
+
+    if (value === 0 || value === null || value === undefined) {
+      return false;
+    }
+
+    const text =
+      String(value)
+        .trim()
+        .toUpperCase();
+
+    if (
+      text === 'Y' ||
+      text === 'YES' ||
+      text === 'TRUE' ||
+      text === '1'
+    ) {
+      return true;
+    }
+
+    if (
+      text === '' ||
+      text === 'N' ||
+      text === 'NO' ||
+      text === 'FALSE' ||
+      text === '0'
+    ) {
+      return false;
+    }
+
+    /*
+     * Unknown flag values must fail closed as false for display purposes.
+     * We never infer suppression from an unrecognized non-empty string.
+     */
+    return false;
   }
 
 
