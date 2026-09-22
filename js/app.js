@@ -45,46 +45,138 @@ function showDashboardError(error) {
   }
 }
 
-async function initDashboard(forceRefresh = true) {
-  setDataStatus('Loading data…', 'loading');
-  try {
-    const current = getFilters();
-    const rawStore = await DataSource.loadData(forceRefresh);
-    DataEngine.init(rawStore);
-    populateFilterDropdowns(current);
-    if (!listenersAttached) attachEventListeners();
-    attachUserManagementListeners();
-    attachCampaignManagementListeners();
-  attachCampaignBuilderListeners();
-  attachCampaignComposeListeners();
-  attachMainComposeListeners();
-  attachCampaignFollowupListeners();
-  attachCampaignSettingsListeners();
-  attachCampaignScheduleListeners();
-  attachCampaignReviewListeners();
-    attachCampaignMemberManagementListeners();
-    attachContactAudienceListeners();
-    attachModuleTabListeners();
-    populateUserLeadStatusFilter();
-    populateModuleCampaignSelectors();
-    try { const sr=await DashboardApi.getCampaignSchedules(); const sx=sr?.result?.result||sr?.result||{}; campaignScheduleState.schedules=(sx.schedules||[]).map(normalizeCampaignSchedule); campaignScheduleState.loaded=true; } catch(e) {}
-    renderDashboard();
-    renderMainComposeWorkspace();
-    updateLastUpdated(rawStore.lastUpdated);
+let dashboardInitPromise = null;
+let dashboardScheduleRefreshTimer = null;
 
-    const warning = rawStore.sourceWarnings && rawStore.sourceWarnings[0];
-    const banner = document.getElementById('dashboardNotice');
-    if (banner) {
-      banner.hidden = !warning;
-      banner.className = 'dashboard-notice warning';
-      banner.textContent = warning || '';
-    }
-    switchUserModuleTab(activeUserModuleTab);
-    switchCampaignModuleTab(activeCampaignModuleTab);
-    setDataStatus('Live data ready', 'ready');
-  } catch (error) {
-    showDashboardError(error);
+/**
+ * V17.8.2 PERFORMANCE
+ * Initial dashboard rendering must depend only on the core dashboard data.
+ * Campaign schedules are secondary data and are loaded AFTER the dashboard
+ * is already usable. This prevents a slow Apps Script admin request from
+ * keeping the whole application in "Loading data…" for 30–40 seconds.
+ */
+function refreshCampaignSchedulesInBackground(delayMs = 900) {
+  if (dashboardScheduleRefreshTimer) {
+    clearTimeout(dashboardScheduleRefreshTimer);
   }
+
+  dashboardScheduleRefreshTimer = setTimeout(async () => {
+    dashboardScheduleRefreshTimer = null;
+
+    // If the user is actively loading the Schedule builder, let that flow
+    // own the request instead of starting a duplicate request.
+    if (campaignScheduleState.loading) {
+      return;
+    }
+
+    try {
+      const response = await DashboardApi.getCampaignSchedules();
+      const result =
+        response?.result?.result ||
+        response?.result ||
+        {};
+
+      campaignScheduleState.schedules =
+        (result.schedules || []).map(normalizeCampaignSchedule);
+
+      campaignScheduleState.loaded = true;
+
+      // Refresh only UI that can display schedule information.
+      // Do NOT reload the relational dashboard data.
+      renderDashboard();
+
+      if (campaignBuilderCampaignId) {
+        renderCampaignScheduleList();
+      }
+    } catch (error) {
+      // Schedules are secondary dashboard data. A slow/unavailable schedule
+      // endpoint must never make the main dashboard look unavailable.
+      console.warn(
+        'Background campaign schedule refresh failed:',
+        error
+      );
+    }
+  }, Math.max(0, Number(delayMs) || 0));
+}
+
+async function initDashboard(forceRefresh = true) {
+  // Prevent duplicate Refresh clicks / overlapping initialization from
+  // generating several expensive get_dashboard_data requests at once.
+  if (dashboardInitPromise) {
+    return dashboardInitPromise;
+  }
+
+  dashboardInitPromise = (async () => {
+    setDataStatus('Loading data…', 'loading');
+
+    try {
+      const current = getFilters();
+      const rawStore = await DataSource.loadData(forceRefresh);
+
+      DataEngine.init(rawStore);
+      populateFilterDropdowns(current);
+
+      if (!listenersAttached) {
+        attachEventListeners();
+      }
+
+      attachUserManagementListeners();
+      attachCampaignManagementListeners();
+      attachCampaignBuilderListeners();
+      attachCampaignComposeListeners();
+      attachMainComposeListeners();
+      attachCampaignFollowupListeners();
+      attachCampaignSettingsListeners();
+      attachCampaignScheduleListeners();
+      attachCampaignReviewListeners();
+      attachCampaignMemberManagementListeners();
+      attachContactAudienceListeners();
+      attachModuleTabListeners();
+
+      populateUserLeadStatusFilter();
+      populateModuleCampaignSelectors();
+
+      // IMPORTANT: do not await getCampaignSchedules() here.
+      // The old V17.7 code blocked the entire dashboard on this secondary
+      // Apps Script request, which is the long pending request visible in
+      // DevTools.
+      renderDashboard();
+      renderMainComposeWorkspace();
+      updateLastUpdated(rawStore.lastUpdated);
+
+      const warning =
+        rawStore.sourceWarnings &&
+        rawStore.sourceWarnings[0];
+
+      const banner =
+        document.getElementById('dashboardNotice');
+
+      if (banner) {
+        banner.hidden = !warning;
+        banner.className =
+          'dashboard-notice warning';
+        banner.textContent =
+          warning || '';
+      }
+
+      switchUserModuleTab(activeUserModuleTab);
+      switchCampaignModuleTab(activeCampaignModuleTab);
+
+      // Main dashboard is ready NOW.
+      setDataStatus('Live data ready', 'ready');
+
+      // Secondary schedule information is fetched after first paint.
+      refreshCampaignSchedulesInBackground(900);
+
+    } catch (error) {
+      showDashboardError(error);
+
+    } finally {
+      dashboardInitPromise = null;
+    }
+  })();
+
+  return dashboardInitPromise;
 }
 
 function setOptions(id, firstLabel, values, selectedValue) {
