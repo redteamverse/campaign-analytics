@@ -45,7 +45,8 @@
   <style>
     .campaign-status-info { flex:0 0 auto; align-self:center; margin-left:-5px; padding:4px 6px; border:0; border-radius:50%; background:transparent; color:#667085; font-size:12px; cursor:pointer; }
     .campaign-status-info:hover,.campaign-status-info:focus-visible { background:#f2f4f7; color:#991b1b; }
-    .campaign-status-help-text { margin:9px 0 13px; padding:11px 14px; border:1px solid #d0d5dd; border-radius:8px; background:#fff; color:#344054; font-size:12px; line-height:1.5; }
+    .campaign-status-help-text { position:fixed; z-index:10030; width:min(300px,calc(100vw - 24px)); margin:0; padding:13px 15px; border:1px solid #e5e7eb; border-top:3px solid #b91c1c; border-radius:9px; background:#fff; box-shadow:0 12px 32px rgba(17,24,39,.16); color:#344054; font-size:12px; line-height:1.5; text-align:left; }
+    .campaign-status-help-text strong { display:block; margin-bottom:4px; color:#111827; font-size:13px; }
     .campaign-status-help-text[hidden] { display:none; }
   </style>
 </head>
@@ -1979,7 +1980,7 @@
 
             </div>
 
-            <p id="campaignStatusHelpText" class="campaign-status-help-text" role="status" hidden></p>
+            <div id="campaignStatusHelpText" class="campaign-status-help-text" role="tooltip" hidden></div>
 
 
             <div class="management-toolbar compact-toolbar campaign-management-toolbar">
@@ -3644,7 +3645,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=183"></script>
 
-  <script src="js/app.js?v=190"></script>
+  <script src="js/app.js?v=191"></script>
 
 </body>
 

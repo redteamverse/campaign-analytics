@@ -11783,38 +11783,69 @@ function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }
 
-// Explain each campaign status in the dashboard on hover, focus, or tap.
+// Anchor each status explanation to its own tab, outside the scrolling strip.
 {
-  const help = document.getElementById('campaignStatusHelpText');
+  const tooltip = document.getElementById('campaignStatusHelpText');
   const infoButtons = [...document.querySelectorAll('[data-campaign-status-help]')];
-  const closeHelp = () => {
-    if (help) help.hidden = true;
-    infoButtons.forEach(item => item.setAttribute('aria-expanded', 'false'));
+  let activeButton = null;
+  let pinned = false;
+  let hideTimer = null;
+  const cancelHide = () => { if (hideTimer) clearTimeout(hideTimer); hideTimer = null; };
+  const closeTooltip = () => {
+    cancelHide();
+    if (tooltip) tooltip.hidden = true;
+    activeButton = null;
+    pinned = false;
+    infoButtons.forEach(button => button.setAttribute('aria-expanded', 'false'));
   };
-  const showHelp = (button, pinned) => {
-    if (!help || !button) return;
-    help.textContent = button.dataset.helpText || '';
-    help.hidden = false;
-    infoButtons.forEach(item => item.setAttribute('aria-expanded', String(pinned && item === button)));
+  const positionTooltip = () => {
+    if (!tooltip || tooltip.hidden || !activeButton) return;
+    const anchor = activeButton.previousElementSibling || activeButton;
+    const rect = anchor.getBoundingClientRect();
+    const width = tooltip.offsetWidth;
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    const below = rect.bottom + 8;
+    const above = rect.top - tooltip.offsetHeight - 8;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${below + tooltip.offsetHeight <= window.innerHeight - 12 ? below : Math.max(12, above)}px`;
+  };
+  const showTooltip = (button, keepOpen = false) => {
+    if (!tooltip || !button) return;
+    cancelHide();
+    activeButton = button;
+    pinned = keepOpen;
+    const tab = button.previousElementSibling;
+    const heading = document.createElement('strong');
+    heading.textContent = tab?.textContent?.replace(/\d+/g, '').trim() || 'Campaign status';
+    tooltip.replaceChildren(heading, document.createTextNode(button.dataset.helpText || ''));
+    tooltip.hidden = false;
+    infoButtons.forEach(item => item.setAttribute('aria-expanded', String(keepOpen && item === button)));
+    positionTooltip();
+  };
+  const scheduleHide = () => {
+    if (pinned) return;
+    cancelHide();
+    hideTimer = setTimeout(() => { if (!pinned) closeTooltip(); }, 180);
   };
   infoButtons.forEach(button => {
-    const tab = document.querySelector(`[data-campaign-lifecycle="${button.dataset.campaignStatusHelp}"]`);
+    const tab = button.previousElementSibling;
     [button, tab].filter(Boolean).forEach(target => {
-      target.addEventListener('mouseenter', () => showHelp(button, false));
-      target.addEventListener('focus', () => showHelp(button, false));
+      target.addEventListener('mouseenter', () => showTooltip(button));
+      target.addEventListener('mouseleave', scheduleHide);
+      target.addEventListener('focus', () => showTooltip(button));
     });
     button.addEventListener('click', event => {
       event.stopPropagation();
-      const open = button.getAttribute('aria-expanded') === 'true';
-      if (open) closeHelp();
-      else showHelp(button, true);
+      if (activeButton === button && pinned) closeTooltip();
+      else showTooltip(button, true);
     });
   });
-  document.getElementById('campaignTabAll')?.addEventListener('mouseleave', () => {
-    if (!infoButtons.some(item => item.getAttribute('aria-expanded') === 'true')) closeHelp();
-  });
+  tooltip?.addEventListener('mouseenter', cancelHide);
+  tooltip?.addEventListener('mouseleave', scheduleHide);
   document.addEventListener('click', event => {
-    if (!event.target.closest('[data-campaign-status-help], [data-campaign-lifecycle], #campaignStatusHelpText')) closeHelp();
+    if (!event.target.closest('[data-campaign-status-help], [data-campaign-lifecycle], #campaignStatusHelpText')) closeTooltip();
   });
-  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeHelp(); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeTooltip(); });
+  window.addEventListener('resize', positionTooltip);
+  window.addEventListener('scroll', () => { if (pinned) positionTooltip(); else closeTooltip(); }, true);
 }
