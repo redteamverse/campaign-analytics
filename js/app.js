@@ -361,6 +361,7 @@ function renderDashboard() {
   renderUsersByCampaign();
   renderSubscriptionManagement();
   renderCampaignManagement();
+  renderCampaignHistory();
   renderCampaignMembers();
   renderPrecheckManagement();
 }
@@ -443,6 +444,7 @@ function switchView(viewId) {
   if (viewId === 'templatesView') {
     loadTemplateLibrary(false);
   }
+  if (viewId === 'composeView') renderMainComposeWorkspace();
 
   closeMobileSidebar();
 }
@@ -1812,6 +1814,10 @@ function getCampaignLifecycleActions(
         'Manage members'
     },
     {
+      key: 'history',
+      label: 'View history'
+    },
+    {
       key:
         'duplicate',
       label:
@@ -2317,6 +2323,7 @@ function closeCampaignModal() {
 
   editingCampaignId =
     '';
+  composeCreateMode = false;
 }
 
 
@@ -2436,19 +2443,34 @@ async function submitCampaignForm(
               payload
             );
 
+    if (!wasEditing && [result, result?.result, result?.result?.result].some(value => value?.alreadyExists)) {
+      errorBox.textContent = 'A campaign with this name already exists. Select it from Compose or choose another name.';
+      errorBox.hidden = false;
+      return;
+    }
+
+    const openComposeAfterCreate = composeCreateMode && !wasEditing;
     closeCampaignModal();
 
     await initDashboard(
       true
     );
 
-    switchView(
-      'campaignsView'
-    );
-
-    switchCampaignModuleTab(
-      'all'
-    );
+    if (openComposeAfterCreate) {
+      const createdId = result?.result?.result?.campaign?.campaignId ||
+        result?.result?.campaign?.campaignId || result?.campaign?.campaignId ||
+        getMainComposeCampaigns().find(c => String(c.campaignName).trim().toLowerCase() === payload.campaignName.toLowerCase())?.campaignId;
+      if (createdId) {
+        switchView('composeView');
+        await openMainComposeCampaign(createdId);
+        return;
+      }
+      switchView('composeView');
+      await renderMainComposeWorkspace(true);
+      return;
+    }
+    switchView('campaignsView');
+    switchCampaignModuleTab('all');
 
     showCampaignsNotice(
       wasEditing
@@ -2929,6 +2951,16 @@ async function handleCampaignRowAction(
 
   if (action === 'schedule') { closeAllCampaignMenus(); await openCampaignBuilder(campaignId); switchCampaignBuilderStep('schedule'); return; }
 
+  if (action === 'history') {
+    closeAllCampaignMenus();
+    switchView('campaignsView');
+    switchCampaignModuleTab('history');
+    const select = document.getElementById('campaignHistorySelect');
+    if (select) select.value = campaignId;
+    renderCampaignHistory();
+    return;
+  }
+
   if (
     action ===
     'members'
@@ -2976,7 +3008,7 @@ function attachCampaignManagementListeners() {
 
   campaignManagementAttached =
     true;
-
+  document.getElementById('campaignHistorySelect')?.addEventListener('change', renderCampaignHistory);
 
   document
     .getElementById(
@@ -3218,13 +3250,22 @@ function switchCampaignBuilderStep(step) {
 
 function closeCampaignBuilder() {
   const workspace = document.getElementById('campaignBuilderWorkspace');
-  if (workspace) workspace.hidden = true;
+  if (workspace) {
+    workspace.hidden = true;
+    workspace.classList.remove('compose-only');
+  }
+  const workspaceLabel = document.querySelector('.campaign-builder-workspace-title .detail-eyebrow');
+  if (workspaceLabel) workspaceLabel.textContent = 'Campaign Builder';
+  const exitButton = document.getElementById('campaignBuilderExit');
+  if (exitButton) exitButton.textContent = 'Exit Builder';
   document.body.classList.remove('campaign-builder-open');
+  if (composeOnlyMode) renderMainComposeWorkspace(true);
+  composeOnlyMode = false;
   campaignBuilderCampaignId = '';
   campaignBuilderSelectedUserIds.clear();
 }
 
-async function openCampaignBuilder(campaignId) {
+async function openCampaignBuilder(campaignId, options = {}) {
   campaignBuilderCampaignId = String(campaignId || '');
   campaignBuilderSelectedUserIds.clear();
   const campaign = getCampaignBuilderCampaign();
@@ -3244,9 +3285,15 @@ async function openCampaignBuilder(campaignId) {
   const input = document.getElementById('campaignBuilderNameInput');
   if (input) input.value = campaign.campaignName || '';
 
+  composeOnlyMode = Boolean(options.composeOnly);
+  workspace.classList.toggle('compose-only', composeOnlyMode);
+  const workspaceLabel = document.querySelector('.campaign-builder-workspace-title .detail-eyebrow');
+  if (workspaceLabel) workspaceLabel.textContent = composeOnlyMode ? 'Compose Email' : 'Campaign Builder';
+  const exitButton = document.getElementById('campaignBuilderExit');
+  if (exitButton) exitButton.textContent = composeOnlyMode ? 'Back to Compose' : 'Exit Builder';
   workspace.hidden = false;
   document.body.classList.add('campaign-builder-open');
-  switchCampaignBuilderStep('details');
+  switchCampaignBuilderStep(composeOnlyMode ? 'compose' : 'details');
 
   try {
     await ensureContactAudiencesLoaded();
@@ -3505,6 +3552,8 @@ function attachCampaignBuilderListeners() {
    MAIN COMPOSE WORKSPACE V12.1
    ============================================================ */
 let mainComposeListenersAttached = false;
+let composeOnlyMode = false;
+let composeCreateMode = false;
 
 function getMainComposeCampaigns() {
   const data = DataEngine.getNormalized();
@@ -3601,14 +3650,17 @@ async function renderMainComposeWorkspace(force=false) {
 
 async function openMainComposeCampaign(campaignId) {
   if (!campaignId) return;
-  switchView('campaignsView');
-  await openCampaignBuilder(campaignId);
-  switchCampaignBuilderStep('compose');
+  switchView('composeView');
+  await openCampaignBuilder(campaignId, {composeOnly:true});
 }
 
 function attachMainComposeListeners() {
   if (mainComposeListenersAttached) return;
   mainComposeListenersAttached = true;
+  document.getElementById('composeMainNewCampaign')?.addEventListener('click', () => {
+    composeCreateMode = true;
+    openCampaignModal();
+  });
   document.getElementById('composeMainSearch')?.addEventListener('input', () => renderMainComposeWorkspace());
   document.getElementById('composeMainStatusFilter')?.addEventListener('change', () => renderMainComposeWorkspace());
   document.getElementById('composeMainTableBody')?.addEventListener('click', event => {
@@ -3912,7 +3964,7 @@ async function saveComposeAsTemplate() {
   });
 }
 function attachCampaignComposeListeners() {
-  document.getElementById('campaignComposeBack')?.addEventListener('click',()=>switchCampaignBuilderStep('recipients'));
+  document.getElementById('campaignComposeBack')?.addEventListener('click',()=>composeOnlyMode?closeCampaignBuilder():switchCampaignBuilderStep('recipients'));
   document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
   document.getElementById('campaignComposeSendTest')?.addEventListener('click',sendCampaignComposeTest);
   document.getElementById('campaignComposeSaveTemplate')?.addEventListener('click',saveComposeAsTemplate);
@@ -9783,6 +9835,10 @@ function switchCampaignModuleTab(
   }
 
 
+  if (activeCampaignModuleTab === 'history') {
+    ensureCampaignContentLoaded().then(renderCampaignHistory).catch(renderCampaignHistory);
+  }
+
   if (
     activeCampaignModuleTab ===
     'precheck'
@@ -11848,4 +11904,49 @@ function attachCampaignReviewListeners(){
   document.addEventListener('keydown', event => { if (event.key === 'Escape') closeTooltip(); });
   window.addEventListener('resize', positionTooltip);
   window.addEventListener('scroll', () => { if (pinned) positionTooltip(); else closeTooltip(); }, true);
+}
+
+// Campaign History uses persisted campaign, content, schedule and sent-event records.
+// Older edits are unavailable because the current backend has no audit log.
+function renderCampaignHistory() {
+  const select = document.getElementById('campaignHistorySelect');
+  const summary = document.getElementById('campaignHistorySummary');
+  const timeline = document.getElementById('campaignHistoryTimeline');
+  if (!select || !summary || !timeline) return;
+  const data = DataEngine.getNormalized();
+  const campaigns = data.campaigns || [];
+  const selected = select.value;
+  select.innerHTML = campaigns.map(c => `<option value="${escapeHtml(c.campaignId)}">${escapeHtml(c.campaignName || c.campaignId)}</option>`).join('');
+  select.value = campaigns.some(c => String(c.campaignId) === selected) ? selected : (campaigns[0]?.campaignId || '');
+  const campaign = campaigns.find(c => String(c.campaignId) === select.value);
+  if (!campaign) {
+    summary.textContent = 'Create a campaign to see its history here.';
+    timeline.innerHTML = '';
+    return;
+  }
+  const cid = String(campaign.campaignId);
+  const schedules = (campaignScheduleState?.schedules || []).filter(s => String(s.campaignId) === cid);
+  const sent = (data.emailEvents || []).filter(e => String(e.campaignId) === cid && e.sentTimestamp);
+  const content = getMainComposeContentForCampaign(cid);
+  summary.innerHTML = `<div><span>Current status</span><strong>${escapeHtml(campaignLifecycleLabel(getCampaignLifecycleStatus(campaign)))}</strong></div><div><span>Scheduled times</span><strong>${schedules.length}</strong></div><div><span>Recorded sends</span><strong>${sent.length}</strong></div>`;
+  const items = [];
+  const add = (when, title, detail) => {
+    if (!when) return;
+    const time = new Date(String(when).replace(' ', 'T')).getTime();
+    items.push({when, time:Number.isFinite(time)?time:0, title, detail});
+  };
+  add(campaign.createdAt, 'Campaign created', `Created as ${campaign.campaignName || cid}.`);
+  if (campaign.updatedAt && String(campaign.updatedAt) !== String(campaign.createdAt))
+    add(campaign.updatedAt, 'Campaign last updated', 'Latest saved campaign change. Earlier individual edits are not recorded.');
+  if (content?.updatedAt) add(content.updatedAt, 'Email last saved', content.subject || 'Email content saved.');
+  schedules.forEach(s => {
+    const scheduledFor = `${formatCampaignScheduleDate_(s.startDate)} at ${s.startTime}`;
+    add(s.createdAt, 'Send time added', `Scheduled for ${scheduledFor}.`);
+    if (s.scheduleStatus === 'CANCELED') add(s.canceledAt || s.updatedAt, 'Send time canceled', `Was scheduled for ${scheduledFor}.`);
+    if (s.scheduleStatus === 'COMPLETED') add(s.updatedAt, 'Scheduled time completed', `Scheduled for ${scheduledFor}.`);
+  });
+  sent.forEach(e => add(e.sentTimestamp, 'Email sent', `To ${e.emailAddress || 'recipient'}${e.sequenceStep ? ` · Step ${e.sequenceStep}` : ''}.`));
+  items.sort((a,b) => b.time-a.time);
+  timeline.innerHTML = items.length ? items.slice(0,150).map(item => `<article class="campaign-history-item"><span class="campaign-history-dot" aria-hidden="true"></span><div><time>${escapeHtml(formatCampaignDate(item.when))}</time><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.detail)}</p></div></article>`).join('') : '<p class="campaign-history-empty">No recorded history yet for this campaign.</p>';
+  if (items.length > 150) timeline.insertAdjacentHTML('beforeend', '<p class="campaign-history-note">Showing the 150 most recent records.</p>');
 }

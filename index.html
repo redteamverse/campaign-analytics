@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=188"
+    href="css/dashboard-modules.css?v=192"
   >
 
   <style>
@@ -1583,10 +1583,12 @@
 
           <div class="compose-main-header compose-main-header-clean">
             <div>
-              <h2>Campaign Emails</h2>
-              <p>Write and edit the email content attached to each campaign.</p>
+              <h2>Compose</h2>
+              <p>Select an existing campaign to write its email, or create a new campaign first.</p>
             </div>
+            <button type="button" class="primary-action-button" id="composeMainNewCampaign">+ New Campaign</button>
           </div>
+          <div class="compose-flow-intro"><span><strong>1</strong> Choose a campaign</span><span><strong>2</strong> Write and preview the email</span><span><strong>3</strong> Save the email</span></div>
 
           <div class="compose-main-toolbar">
             <div class="compose-main-search-wrap">
@@ -1618,7 +1620,7 @@
                 <tr>
                   <th>Campaign</th>
                   <th>Subject</th>
-                  <th>Email Status</th>
+                  <th>Email Content</th>
                   <th>Updated</th>
                   <th class="compose-main-action-col">Action</th>
                 </tr>
@@ -1869,6 +1871,10 @@
 
               <button type="button" class="module-tab" data-campaign-tab="performance">
                 Performance
+              </button>
+
+              <button type="button" class="module-tab" data-campaign-tab="history">
+                History
               </button>
 
             </div>
@@ -2333,6 +2339,16 @@
 
             </div>
 
+          </div>
+
+          <div class="module-tab-panel" id="campaignTabHistory" data-campaign-panel="history" hidden>
+            <div class="campaign-history-header">
+              <div><h2>Campaign History</h2><p>Review recorded milestones, scheduled times, and sent messages for one campaign.</p></div>
+              <label for="campaignHistorySelect">Campaign <select id="campaignHistorySelect" aria-label="Choose campaign for history"></select></label>
+            </div>
+            <div id="campaignHistorySummary" class="campaign-history-summary"></div>
+            <div id="campaignHistoryTimeline" class="campaign-history-timeline" aria-live="polite"></div>
+            <p class="campaign-history-note">History shows records currently available in the dashboard. Earlier edits and cleared schedule history are not available as individual events.</p>
           </div>
 
         </section>
@@ -3645,7 +3661,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=183"></script>
 
-  <script src="js/app.js?v=191"></script>
+  <script src="js/app.js?v=192"></script>
 
 </body>
 

@@ -2194,3 +2194,33 @@ body.campaign-builder-open{overflow:hidden}
 .dashboard-confirm-input-wrap input:focus{outline:2px solid #2B2B50;outline-offset:1px}
 .dashboard-confirm-icon{font-size:21px;font-weight:800;background:#F2F3F8;color:#2B2B50}
 .dashboard-confirm-icon.is-destructive{background:#FEF2F2;color:#B91C1C}
+
+/* Focused Compose entry and campaign history */
+.compose-main-header-clean {display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.compose-flow-intro {display:flex;gap:20px;flex-wrap:wrap;margin:14px 0 20px;color:#475467;font-size:12px}
+.compose-flow-intro span {display:inline-flex;align-items:center;gap:7px}
+.compose-flow-intro strong {display:inline-grid;place-items:center;width:21px;height:21px;border-radius:50%;background:#fef2f2;color:#b91c1c;font-size:11px}
+.campaign-builder-workspace.compose-only .campaign-builder-workspace-body {display:block}
+.campaign-builder-workspace.compose-only .campaign-builder-steps {display:none}
+.campaign-builder-workspace.compose-only .campaign-builder-stage {padding:24px}
+.campaign-builder-workspace.compose-only [data-builder-panel="compose"] {max-width:1200px}
+.campaign-builder-workspace.compose-only #campaignComposeBack {display:none}
+.campaign-builder-workspace.compose-only .campaign-builder-workspace-title .detail-eyebrow {font-size:11px}
+.campaign-history-header {display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:18px 0}
+.campaign-history-header h2 {margin:0 0 4px;color:#111827;font-size:18px}
+.campaign-history-header p,.campaign-history-note {margin:0;color:#667085;font-size:12px;line-height:1.5}
+.campaign-history-header label {display:grid;gap:6px;color:#344054;font-size:12px;font-weight:600}
+.campaign-history-header select {min-width:230px;padding:9px 11px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;color:#111827}
+.campaign-history-summary {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0}
+.campaign-history-summary > div {display:grid;gap:6px;padding:16px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
+.campaign-history-summary span {color:#667085;font-size:11px}
+.campaign-history-summary strong {color:#111827;font-size:17px}
+.campaign-history-timeline {padding:8px 18px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:12px}
+.campaign-history-item {display:flex;gap:14px;padding:16px 0;border-bottom:1px solid #eaecf0}
+.campaign-history-item:last-child {border-bottom:0}
+.campaign-history-dot {width:9px;height:9px;margin-top:6px;flex:0 0 9px;border-radius:50%;background:#b91c1c}
+.campaign-history-item time {display:block;color:#667085;font-size:11px}
+.campaign-history-item strong {display:block;margin-top:4px;color:#111827;font-size:13px}
+.campaign-history-item p {margin:5px 0 0;color:#475467;font-size:12px}
+.campaign-history-empty {color:#667085;font-size:12px}
+@media(max-width:650px){.campaign-history-summary{grid-template-columns:1fr}.campaign-history-header select{min-width:0;width:100%}}
