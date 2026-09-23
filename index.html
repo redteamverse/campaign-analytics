@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=185"
+    href="css/dashboard-modules.css?v=187"
   >
 </head>
 
@@ -3087,7 +3087,7 @@
 
           <section class="campaign-builder-stage-panel" data-builder-panel="review">
             <div class="builder-stage-heading">
-              <div><span class="detail-eyebrow">Step 7</span><h3>Review Campaign</h3><p>Check the complete campaign before it can be launched or handed to the Send Queue.</p></div>
+              <div><span class="detail-eyebrow">Step 7</span><h3>Review Campaign</h3><p>Check recipients, content and delivery settings before choosing when to send.</p></div>
             </div>
             <div id="campaignReviewNotice" class="dashboard-notice" hidden></div>
             <div class="campaign-review-hero">
@@ -3095,6 +3095,17 @@
               <div class="campaign-review-score"><strong id="campaignReviewScore">—</strong><span>required checks</span></div>
             </div>
             <div class="campaign-review-grid" id="campaignReviewChecks"></div>
+            <section class="campaign-review-delivery" aria-labelledby="campaignReviewDeliveryHeading">
+              <div class="campaign-review-delivery-heading"><h4 id="campaignReviewDeliveryHeading">Delivery plan</h4><span id="campaignReviewTimezone"></span></div>
+              <div id="campaignReviewSchedules" class="campaign-review-schedules">Loading scheduled times…</div>
+              <p id="campaignReviewQueueNote" class="campaign-review-queue-note"></p>
+              <div id="campaignReviewScheduleForm" class="campaign-review-schedule-form" hidden>
+                <label class="form-field"><span>Send date</span><input type="date" id="campaignReviewScheduleDate"></label>
+                <label class="form-field"><span>Send time</span><input type="time" id="campaignReviewScheduleTime"></label>
+                <button type="button" class="primary-action-button" id="campaignReviewScheduleSave">Save Schedule</button>
+                <button type="button" class="secondary-action-button" id="campaignReviewScheduleCancel">Cancel</button>
+              </div>
+            </section>
             <div class="campaign-review-launch-note" id="campaignReviewLaunchNote">
               <strong>Launch is protected by readiness checks</strong>
               <span>Sending uses the protected Send Queue and follows campaign rules.</span>
@@ -3103,7 +3114,8 @@
               <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
               <div class="builder-footer-actions">
                 <button type="button" class="secondary-action-button" id="campaignReviewRecheck">Recheck Campaign</button>
-                <button type="button" class="secondary-action-button" id="campaignReviewSchedule">Schedule Send</button>
+                <button type="button" class="secondary-action-button" id="campaignReviewDraft">Save as Draft</button>
+                <button type="button" class="secondary-action-button" id="campaignReviewSchedule">Add Schedule</button>
                 <button type="button" class="primary-action-button" id="campaignReviewLaunch" disabled>Send Now</button>
               </div>
             </div>

@@ -2166,3 +2166,18 @@ body.campaign-builder-open{overflow:hidden}
 .template-library-preview-body{min-height:90px;max-height:320px;overflow:auto;overflow-wrap:anywhere;background:#fff;border:1px solid #E5E7EB;border-radius:6px;padding:12px}
 .template-library-editor-actions{display:flex;justify-content:flex-end;gap:9px;padding-top:14px;border-top:1px solid #E5E7EB}
 @media(max-width:700px){.template-library-header,.template-library-toolbar{align-items:stretch;flex-direction:column}.template-library-toolbar span{white-space:normal}.campaign-schedule-filter-label{margin-left:0;width:100%}.campaign-schedule-filter-label select{max-width:none;flex:1}}
+
+/* V18.5 Review delivery plan */
+.campaign-review-delivery{margin-top:16px;padding:18px;border:1px solid #E5E7EB;border-radius:12px;background:#fff}
+.campaign-review-delivery-heading{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.campaign-review-delivery-heading h4{margin:0;color:#111827;font-size:15px}
+.campaign-review-delivery-heading span{font-size:11px;color:#6B7280}
+.campaign-review-schedules{margin-top:12px}.campaign-review-schedules p{margin:0;color:#6B7280;font-size:12px;line-height:1.6}
+.campaign-review-schedule-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 0;border-top:1px solid #E5E7EB}
+.campaign-review-schedule-row div{display:flex;flex-direction:column;gap:3px}.campaign-review-schedule-row strong{color:#111827;font-size:12px}.campaign-review-schedule-row div span{color:#6B7280;font-size:11px}
+.campaign-review-schedule-form{display:flex;align-items:end;flex-wrap:wrap;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid #E5E7EB}
+.campaign-review-schedule-form[hidden]{display:none!important}.campaign-review-schedule-form .form-field{display:flex;flex-direction:column;gap:5px;margin:0}.campaign-review-schedule-form .form-field span{font-size:11px;font-weight:700;color:#374151}
+.campaign-review-schedule-form input{height:36px;box-sizing:border-box;border:1px solid #E5E7EB;border-radius:7px;padding:0 9px;color:#111827}
+@media(max-width:700px){.campaign-review-schedule-form .form-field{width:100%}.campaign-review-schedule-form input{width:100%}}
+
+.campaign-review-queue-note{margin:10px 0 0;color:#6B7280;font-size:11px;line-height:1.5}

@@ -6278,10 +6278,6 @@ function renderCampaignMembers() {
               </td>
 
               <td class="actions-column campaign-primary-actions-cell">
-                <div class="campaign-primary-actions">
-                  <button type="button" class="secondary-action-button campaign-build-direct" data-campaign-direct="builder" data-campaign-id="${escapeHtml(campaignId)}">Build Campaign</button>
-                  <button type="button" class="primary-action-button campaign-send-direct" data-campaign-direct="send-now" data-campaign-id="${escapeHtml(campaignId)}">Send Now</button>
-                </div>
                 <div class="row-menu">
 
                   <button
@@ -11659,6 +11655,44 @@ function attachCampaignScheduleListeners(){if(campaignScheduleListenersAttached)
 let campaignReviewLoading=false;
 function escapeReviewHtml_(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 function showCampaignReviewNotice(message,type='success'){const n=document.getElementById('campaignReviewNotice');if(!n)return;n.hidden=!message;n.className=`dashboard-notice ${type}`;n.textContent=message||'';}
+function renderReviewSchedules_(){
+  const host=document.getElementById('campaignReviewSchedules');if(!host)return;
+  const rows=(campaignScheduleState.schedules||[]).filter(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));
+  const timezone=getCurrentCampaignSettings()?.timezone||'Campaign time zone';
+  setText('campaignReviewTimezone',timezone);
+  host.innerHTML=rows.length?rows.map(x=>`<div class="campaign-review-schedule-row"><div><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))} · ${escapeHtml(x.startTime)}</strong><span>${escapeHtml(timezone)}</span></div><span class="status-badge badge-warning">Upcoming</span></div>`).join(''):'<p>No upcoming send is scheduled. You can send now, add a future time here, or save as a draft.</p>';
+  const button=document.getElementById('campaignReviewSchedule');if(button)button.textContent=rows.length?'Add Another Schedule':'Schedule Send';
+}
+async function saveReviewSchedule_(event){
+  const startDate=document.getElementById('campaignReviewScheduleDate')?.value||'';
+  const startTime=document.getElementById('campaignReviewScheduleTime')?.value||'';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(startDate)||!/^\d{2}:\d{2}$/.test(startTime)){showCampaignReviewNotice('Choose a valid future date and time.','error');return;}
+  const tz=getCurrentCampaignSettings()?.timezone||'UTC';
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date());
+  const v=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+  if(`${startDate} ${startTime}`<=`${v.year}-${v.month}-${v.day} ${v.hour}:${v.minute}`){showCampaignReviewNotice('Choose a time in the future in the campaign time zone.','error');return;}
+  await withActionButtonBusy(event.currentTarget,'Saving…',async()=>{
+    try{
+      await DashboardApi.saveCampaignSchedule({campaignId:campaignBuilderCampaignId,startDate,startTime});
+      campaignScheduleState.loaded=false;
+      const response=await DashboardApi.getCampaignSchedules();const result=response?.result?.result||response?.result||{};
+      campaignScheduleState.schedules=(result.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;
+      document.getElementById('campaignReviewScheduleForm').hidden=true;
+      renderReviewSchedules_();renderCampaignManagement();await loadCampaignReview();
+      showCampaignReviewNotice('Scheduled time saved. Recipients will enter the Send Queue when this time becomes due and automatic sending is enabled.','success');
+    }catch(error){showCampaignReviewNotice(error?.message||'Could not save the scheduled time.','error');}
+  });
+}
+async function saveReviewedDraft_(){
+  const campaign=getCampaignBuilderCampaign();if(!campaign)return;
+  const upcoming=(campaignScheduleState.schedules||[]).some(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING');
+  if(upcoming){showCampaignReviewNotice('Cancel upcoming scheduled sends before saving this campaign as a draft.','error');return;}
+  const button=document.getElementById('campaignReviewDraft');
+  await withActionButtonBusy(button,'Saving…',async()=>{
+    try{const response=await DashboardApi.getCampaignQueueStatus(campaign.campaignId);const status=response?.result?.result||response?.result||{};if(Number(status.total||0)>0)throw new Error('This campaign already has Send Queue items. Review its queue before changing it to Draft.');await DashboardApi.updateCampaign({campaignId:campaign.campaignId,campaignName:campaign.campaignName,campaignStatus:'DRAFT'});closeCampaignBuilder();await initDashboard(true);switchView('campaignsView');showCampaignsNotice('Campaign saved as draft.','success');}
+    catch(error){showCampaignReviewNotice(error?.message||'Could not save as draft.','error');}
+  });
+}
 function renderCampaignReview(result){
   const title=document.getElementById('campaignReviewTitle');
   const subtitle=document.getElementById('campaignReviewSubtitle');
@@ -11666,8 +11700,10 @@ function renderCampaignReview(result){
   const grid=document.getElementById('campaignReviewChecks');
   const launch=document.getElementById('campaignReviewLaunch');
   if(title)title.textContent=result.ready?'Campaign is ready for launch':'Campaign needs attention';
-  if(subtitle)subtitle.textContent=result.ready?'All required checks passed. No email has been queued or sent.':'Fix the items marked below, then recheck the campaign.';
+  if(subtitle)subtitle.textContent=result.ready?'All required checks passed. No email has been queued or sent.':'Fix the required items marked below, then recheck the campaign.';
   if(score)score.textContent=`${result.requiredPassed}/${result.requiredTotal}`;
+  renderReviewSchedules_();
+  const queueNote=document.getElementById('campaignReviewQueueNote');if(queueNote){const count=Math.max(0,Number(result.activeRecipients||0)-Number(result.blockedRecipients||0));queueNote.textContent=count?`${count} currently eligible recipient${count===1?'':'s'}. Scheduled recipients enter the Send Queue only when their time becomes due.`:'Eligible recipients will be checked again when the scheduled time becomes due.';}
   if(grid)grid.innerHTML=(result.checks||[]).map(c=>`<article class="campaign-review-check ${c.passed?'passed':'failed'}"><div class="campaign-review-check-icon">${c.passed?'✓':'!'}</div><div><div class="campaign-review-check-heading"><strong>${escapeReviewHtml_(c.label)}</strong>${c.required?'':'<span class="review-optional">Optional</span>'}</div><p>${escapeReviewHtml_(c.description||'')}</p><small>${escapeReviewHtml_(c.detail||'')}</small></div></article>`).join('');
   if(launch){
     launch.disabled=!result.ready;
@@ -11677,7 +11713,7 @@ function renderCampaignReview(result){
   const note=document.getElementById('campaignReviewLaunchNote');
   if(note){
     note.innerHTML=result.ready
-      ? '<strong>Ready to send</strong><span>Send Now queues eligible recipients for immediate processing. Upcoming schedules remain in place.</span>'
+      ? '<strong>Ready to send</strong><span>Send Now queues eligible recipients for processing under your sending rules. Scheduled recipients enter the queue when their time becomes due. Upcoming schedules remain in place.</span>'
       : '<strong>Launch is blocked</strong><span>Complete all required checks before this campaign can enter the Send Queue.</span>';
   }
 }
@@ -11685,7 +11721,7 @@ async function loadCampaignReview(){
   if(!campaignBuilderCampaignId||campaignReviewLoading)return;
   campaignReviewLoading=true; showCampaignReviewNotice('','success');
   const grid=document.getElementById('campaignReviewChecks'); if(grid)grid.innerHTML='<div class="campaign-review-loading">Checking campaign readiness…</div>';
-  try{const response=await DashboardApi.checkCampaignReadiness(campaignBuilderCampaignId);const result=response?.result?.result||response?.result||response;if(!result||!Array.isArray(result.checks))throw new Error('Readiness response is invalid.');renderCampaignReview(result);}
+  try{if(!campaignScheduleState.loaded){const schedules=await DashboardApi.getCampaignSchedules();const data=schedules?.result?.result||schedules?.result||{};campaignScheduleState.schedules=(data.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}renderReviewSchedules_();const response=await DashboardApi.checkCampaignReadiness(campaignBuilderCampaignId);const result=response?.result?.result||response?.result||response;if(!result||!Array.isArray(result.checks))throw new Error('Readiness response is invalid.');renderCampaignReview(result);}
   catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');if(grid)grid.innerHTML='';}
   finally{campaignReviewLoading=false;}
 }
@@ -11696,7 +11732,7 @@ async function launchReviewedCampaign(){
   if(!campaign)return;
 
   const hasSchedule=(campaignScheduleState.schedules||[]).some(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING');
-  const confirmed=await openDashboardConfirm({title:'Send now?',message:`Send "${campaign.campaignName}" to currently eligible recipients? Sending now will not cancel ${hasSchedule?'this campaign’s upcoming scheduled send.':'any future scheduled sends.'}`,confirmLabel:'Send Now'});
+  const confirmed=await openDashboardConfirm({title:'Send now?',message:`Queue currently eligible recipients for "${campaign.campaignName}"? Sending follows your configured days, hours and limits. Sending now will not cancel ${hasSchedule?'this campaign’s upcoming scheduled send.':'any future scheduled sends.'}`,confirmLabel:'Send Now'});
   if(!confirmed)return;
 
   await withActionButtonBusy(button,'Launching…',async()=>{
@@ -11730,6 +11766,9 @@ async function launchReviewedCampaign(){
 function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewBack')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
   document.getElementById('campaignReviewRecheck')?.addEventListener('click',loadCampaignReview);
-  document.getElementById('campaignReviewSchedule')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
+  document.getElementById('campaignReviewSchedule')?.addEventListener('click',()=>{document.getElementById('campaignReviewScheduleForm').hidden=false;document.getElementById('campaignReviewScheduleDate')?.focus();});
+  document.getElementById('campaignReviewScheduleCancel')?.addEventListener('click',()=>{document.getElementById('campaignReviewScheduleForm').hidden=true;});
+  document.getElementById('campaignReviewScheduleSave')?.addEventListener('click',saveReviewSchedule_);
+  document.getElementById('campaignReviewDraft')?.addEventListener('click',saveReviewedDraft_);
   document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }
