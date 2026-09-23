@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=187"
+    href="css/dashboard-modules.css?v=188"
   >
 </head>
 
@@ -2460,14 +2460,7 @@
         aria-label="Close"
       >×</button>
 
-      <div class="dashboard-confirm-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 6h18"/>
-          <path d="M8 6V4h8v2"/>
-          <path d="M19 6l-1 14H6L5 6"/>
-          <path d="M10 11v5M14 11v5"/>
-        </svg>
-      </div>
+      <div class="dashboard-confirm-icon" id="dashboardConfirmIcon" aria-hidden="true">?</div>
 
       <div class="dashboard-confirm-eyebrow" id="dashboardConfirmEyebrow">
         Please confirm
@@ -2476,6 +2469,7 @@
       <h3 id="dashboardConfirmTitle">Confirm action</h3>
 
       <p id="dashboardConfirmMessage"></p>
+      <label class="dashboard-confirm-input-wrap" id="dashboardConfirmInputWrap" hidden><span id="dashboardConfirmInputLabel"></span><input id="dashboardConfirmInput" type="text" autocomplete="off"></label>
 
       <div class="dashboard-confirm-actions">
         <button
@@ -3080,7 +3074,8 @@
               </div>
               <div class="builder-content-card campaign-schedule-summary"><h4>Sending rules</h4><div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div><div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div><div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div><p class="builder-card-help">Scheduled sends still obey Campaign Settings. Send Now is separate from this schedule list.</p></div>
             </div>
-            <div class="builder-content-card campaign-schedule-list-card"><div class="schedule-list-heading"><div><h4>Scheduled times</h4><p>All scheduled times for this campaign.</p></div><span id="campaignScheduleCount" class="status-badge badge-muted">0</span></div><div id="campaignScheduleList" class="campaign-schedule-list"><div class="schedule-empty">No scheduled times yet.</div></div></div>
+            <div class="builder-content-card campaign-schedule-list-card"><div class="schedule-list-heading"><div><h4>Scheduled times</h4><p>All scheduled times for this campaign.</p></div><span id="campaignScheduleCount" class="status-badge badge-muted">0</span></div><div id="campaignScheduleList" class="campaign-schedule-list"><div class="schedule-empty">No upcoming times.</div></div></div>
+            <div class="builder-content-card campaign-schedule-history-card"><div class="schedule-list-heading"><div><h4>Schedule history</h4><p>Completed and canceled times. Clearing hides them from this view; records remain for audit.</p></div><button type="button" class="secondary-action-button" id="campaignScheduleClearAll" hidden>Clear All History</button></div><div id="campaignScheduleHistory" class="campaign-schedule-list"></div></div>
             <div class="builder-stage-footer"><button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button><div class="builder-footer-actions"><button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button></div></div>
           </section>
 

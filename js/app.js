@@ -1350,7 +1350,7 @@ async function toggleUserSubscription(userId, nextState, button) {
   if (!user) return;
   const unsubscribed = nextState === 'Y';
   const action = unsubscribed ? 'unsubscribe' : 'resubscribe';
-  if (!window.confirm(`Are you sure you want to ${action} ${user.emailAddress}?`)) return;
+  if (!await openDashboardConfirm({title:`${unsubscribed?"Suppress":"Resubscribe"} contact?`,message:`${action} ${user.emailAddress}?`,confirmLabel:unsubscribed?"Suppress":"Resubscribe",destructive:unsubscribed})) return;
 
   await withActionButtonBusy(
     button,
@@ -2620,9 +2620,7 @@ async function updateCampaignLifecycle(
   if (destructive) {
 
     const confirmed =
-      window.confirm(
-        `Cancel "${campaign.campaignName}"? This campaign will no longer be treated as active.`
-      );
+      await openDashboardConfirm({title:"Cancel campaign?",message:`"${campaign.campaignName}" will no longer be treated as active.`,confirmLabel:"Cancel Campaign",destructive:true});
 
     if (!confirmed) {
       return;
@@ -3790,7 +3788,7 @@ function renderComposeSavedTemplates() {
  if(!ts.length){c.innerHTML='<div class="compose-template-empty"><strong>No saved templates yet</strong><span>Write an email and choose <b>Save as Template</b> to reuse it in future campaigns.</span></div>';return;}
  c.innerHTML=ts.map(t=>`<article class="compose-saved-template-card"><div class="compose-saved-template-main"><strong>${escapeHtml(t.name||'Untitled template')}</strong><span class="compose-template-subject">${escapeHtml(t.subject||'No subject')}</span><small>${escapeHtml(formatComposeTemplateDate(t.updatedAt))}</small></div><div class="compose-saved-template-actions"><button type="button" class="secondary-action-button" data-compose-use-template="${escapeHtml(t.templateId)}">Use Template</button><button type="button" class="icon-action-button" title="Archive template" data-compose-archive-template="${escapeHtml(t.templateId)}">•••</button></div></article>`).join('');
 }
-function applyComposeTemplateById(id,ask=true){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t){showCampaignComposeNotice('Template could not be found.','error');return false;}if(ask&&!window.confirm(`Use "${t.name}"? This will replace the current subject and email body in the editor.`))return false;const s=document.getElementById('campaignComposeTemplateSelect');if(s)s.value=t.templateId;document.getElementById('campaignComposeSubject').value=t.subject||'';document.getElementById('campaignComposePlainBody').value=t.plainBody||'';document.getElementById('campaignComposeHtmlBody').value=t.htmlBody||'';renderCampaignComposePreview();showCampaignComposeNotice(`Template "${t.name}" is now in the editor. Choose Save Compose to save it to this campaign.`,'success');return true;}
+async function applyComposeTemplateById(id,ask=true){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t){showCampaignComposeNotice('Template could not be found.','error');return false;}if(ask&&!await openDashboardConfirm({title:"Use template?",message:`"${t.name}" will replace the subject and body currently in the editor.`,confirmLabel:"Use Template"}))return false;const s=document.getElementById('campaignComposeTemplateSelect');if(s)s.value=t.templateId;document.getElementById('campaignComposeSubject').value=t.subject||'';document.getElementById('campaignComposePlainBody').value=t.plainBody||'';document.getElementById('campaignComposeHtmlBody').value=t.htmlBody||'';renderCampaignComposePreview();showCampaignComposeNotice(`Template "${t.name}" is now in the editor. Choose Save Compose to save it to this campaign.`,'success');return true;}
 async function archiveComposeTemplate(id,button){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t||!await openDashboardConfirm({eyebrow:"Template library",title:"Archive template?",message:`"${t.name}" will be removed from the active template library and will no longer appear when preparing campaigns. Existing campaigns using this template will not be changed.`,confirmLabel:"Archive Template",destructive:true}))return;await withActionButtonBusy(button,'…',async()=>{try{await DashboardApi.archiveEmailTemplate(id);await ensureCampaignContentLoaded(true);populateComposeTemplates();renderComposeSavedTemplates();showCampaignComposeNotice(`Template "${t.name}" archived.`,'success');}catch(e){showCampaignComposeNotice(e?.message||'Could not archive the template.','error');}});}
 
 function populateComposePreviewRecipients() {
@@ -3871,10 +3869,7 @@ async function sendCampaignComposeTest() {
   const validation = validateCampaignCompose();
   if (!validation.valid) return;
 
-  const testEmail = window.prompt(
-    'Send this email as a test to which address?',
-    ''
-  );
+  const testEmail = await openDashboardConfirm({title:'Send test email',message:'Enter the address that should receive the test.',inputLabel:'Email address',confirmLabel:'Send Test'});
 
   if (testEmail === null) return;
 
@@ -3904,7 +3899,7 @@ async function sendCampaignComposeTest() {
 
 async function saveComposeAsTemplate() {
   const validation=validateCampaignCompose(); if(!validation.valid)return;
-  const name=window.prompt('Template name'); if(!name?.trim())return;
+  const name=await openDashboardConfirm({title:'Save as template',message:'Name this reusable email.',inputLabel:'Template name',confirmLabel:'Save Template'}); if(!name?.trim())return;
   const button=document.getElementById('campaignComposeSaveTemplate');
   await withActionButtonBusy(button,'Saving template…',async()=>{
     try {
@@ -3947,7 +3942,9 @@ function openDashboardConfirm({
   title = 'Confirm action',
   message = '',
   confirmLabel = 'Confirm',
-  destructive = false
+  destructive = false,
+  inputLabel = '',
+  inputValue = ''
 } = {}) {
   const backdrop = document.getElementById('dashboardConfirmBackdrop');
   if (!backdrop) return Promise.resolve(false);
@@ -3956,6 +3953,12 @@ function openDashboardConfirm({
   setText('dashboardConfirmTitle', title);
   setText('dashboardConfirmMessage', message);
 
+  const inputWrap=document.getElementById('dashboardConfirmInputWrap');
+  const input=document.getElementById('dashboardConfirmInput');
+  if(inputWrap)inputWrap.hidden=!inputLabel;
+  setText('dashboardConfirmInputLabel',inputLabel);
+  if(input)input.value=inputValue;
+  document.getElementById('dashboardConfirmIcon')?.classList.toggle('is-destructive',destructive);
   const confirmButton = document.getElementById('dashboardConfirmButton');
   if (confirmButton) {
     confirmButton.textContent = confirmLabel;
@@ -3967,11 +3970,14 @@ function openDashboardConfirm({
 
   return new Promise(resolve => {
     dashboardConfirmResolver = resolve;
-    confirmButton?.focus();
+    (inputLabel?input:confirmButton)?.focus();
   });
 }
 
 function closeDashboardConfirm(result=false) {
+  const inputWrap=document.getElementById('dashboardConfirmInputWrap');
+  const input=document.getElementById('dashboardConfirmInput');
+  if(result&&inputWrap&&!inputWrap.hidden&&!input?.value.trim()){input?.focus();return;}
   const backdrop = document.getElementById('dashboardConfirmBackdrop');
   if (backdrop) {
     backdrop.classList.remove('is-open');
@@ -3980,7 +3986,7 @@ function closeDashboardConfirm(result=false) {
 
   const resolve = dashboardConfirmResolver;
   dashboardConfirmResolver = null;
-  if (resolve) resolve(Boolean(result));
+  if(resolve)resolve(inputWrap&&!inputWrap.hidden?(result?input.value.trim():null):Boolean(result));
 }
 
 function attachDashboardConfirmListeners() {
@@ -3992,6 +3998,7 @@ function attachDashboardConfirmListeners() {
 
   document.getElementById('dashboardConfirmButton')
     ?.addEventListener('click', () => closeDashboardConfirm(true));
+  document.getElementById('dashboardConfirmInput')?.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();closeDashboardConfirm(true);}});
 
   document.getElementById('dashboardConfirmBackdrop')
     ?.addEventListener('click', event => {
@@ -4426,10 +4433,7 @@ async function duplicateTemplateLibraryItem(templateId) {
   if (!template) return;
 
   let name =
-    window.prompt(
-      'Name for the duplicated template',
-      `${template.name || 'Template'} Copy`
-    );
+    await openDashboardConfirm({title:'Duplicate template',message:'Choose a name for the copy.',inputLabel:'Template name',inputValue:`${template.name || 'Template'} Copy`,confirmLabel:'Duplicate'});
 
   if (name === null) return;
 
@@ -5584,9 +5588,7 @@ async function deleteCampaignFollowup(
 
 
   if (
-    !window.confirm(
-      `Remove this follow-up?\n\n${step.subject}`
-    )
+    !await openDashboardConfirm({title:"Remove follow-up?",message:step.subject,confirmLabel:"Remove Follow-up",destructive:true})
   ) {
     return;
   }
@@ -7087,9 +7089,7 @@ async function runCampaignPrecheck() {
 
 
   if (
-    !window.confirm(
-      `Run pre-check for all ${activeMembers.length} ACTIVE member(s) in ${campaign.campaignName || campaign.campaignId}?`
-    )
+    !await openDashboardConfirm({title:"Run recipient pre-check?",message:`Check all ${activeMembers.length} active recipients in ${campaign.campaignName || campaign.campaignId}.`,confirmLabel:"Run Pre-check"})
   ) {
 
     return;
@@ -7228,9 +7228,7 @@ async function setCampaignMemberStatus(
 
 
   if (
-    !window.confirm(
-      `Are you sure you want to ${actionLabel} ${identity}?`
-    )
+    !await openDashboardConfirm({title:`${actionLabel} recipient?`,message:identity,confirmLabel:actionLabel,destructive:actionLabel.toLowerCase()==="deactivate"})
   ) {
 
     return;
@@ -8283,9 +8281,7 @@ async function deleteSelectedContactList() {
     );
 
   const confirmed =
-    window.confirm(
-      `Delete "${list?.name || 'this contact list'}"? Contacts themselves will not be deleted.`
-    );
+    await openDashboardConfirm({title:"Delete contact list?",message:`"${list?.name || 'this contact list'}" will be deleted. Contacts themselves will remain.`,confirmLabel:"Delete List",destructive:true});
 
   if (!confirmed) {
     return;
@@ -8552,9 +8548,7 @@ async function deleteContactSegment(
     );
 
   const confirmed =
-    window.confirm(
-      `Delete "${segment?.name || 'this segment'}"?`
-    );
+    await openDashboardConfirm({title:"Delete segment?",message:`"${segment?.name || 'this segment'}" will be deleted.`,confirmLabel:"Delete Segment",destructive:true});
 
   if (!confirmed) {
     return;
@@ -10892,9 +10886,7 @@ async function runPrecheckModuleCampaign() {
 
 
   if (
-    !window.confirm(
-      `Run pre-check for all ${activeCount} ACTIVE member(s) in ${campaign?.campaignName || campaignId}?`
-    )
+    !await openDashboardConfirm({title:"Run recipient pre-check?",message:`Check all ${activeCount} active recipients in ${campaign?.campaignName || campaignId}.`,confirmLabel:"Run Pre-check"})
   ) {
 
     return;
@@ -11641,13 +11633,31 @@ function showCampaignScheduleNotice(m,t='success'){const e=document.getElementBy
 function formatCampaignScheduleDate_(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]} ${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]]} ${m[1]}`:String(v||'');}
 function updateCampaignScheduleUi(){const s=getCurrentCampaignSettings(),tz=s?.timezone||'Save Campaign Settings first';setText('campaignScheduleInlineTimezone',tz);setText('campaignScheduleSummaryTimezone',tz);setText('campaignScheduleSummaryHours',s?.windowStart&&s?.windowEnd?`${s.windowStart} – ${s.windowEnd}`:'Save Campaign Settings first');setText('campaignScheduleSummaryDays',(s?.sendingDays||[]).length?s.sendingDays.join(', '):'Save Campaign Settings first');}
 function scheduleStatusBadge_(s){const st=String(s||'').toUpperCase();if(st==='UPCOMING')return '<span class="status-badge badge-warning">Upcoming</span>';if(st==='COMPLETED')return '<span class="status-badge badge-success">Completed</span>';if(st==='CANCELED')return '<span class="status-badge badge-danger">Canceled</span>';return `<span class="status-badge badge-muted">${escapeHtml(st||'—')}</span>`;}
-function renderCampaignScheduleList(){const list=document.getElementById('campaignScheduleList'),rows=getCampaignSchedulesForCurrent_();setText('campaignScheduleCount',String(rows.length));if(!list)return;if(!rows.length){list.innerHTML='<div class="schedule-empty">No scheduled times yet. Continue to Review to send or add a schedule.</div>';return;}list.innerHTML=rows.map(s=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(s.campaignScheduleId)}</small>${scheduleStatusBadge_(s.scheduleStatus)}</div><div class="schedule-row-actions">${s.scheduleStatus==='UPCOMING'?`<button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(s.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(s.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(s.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(s.campaignScheduleId)}">Cancel Schedule</button></div>`:''}</div></div>`).join('');}
+function renderCampaignScheduleList(){
+ const list=document.getElementById('campaignScheduleList'),history=document.getElementById('campaignScheduleHistory');
+ const rows=getCampaignSchedulesForCurrent_(),upcoming=rows.filter(x=>x.scheduleStatus==='UPCOMING'),past=rows.filter(x=>['COMPLETED','CANCELED'].includes(x.scheduleStatus));
+ setText('campaignScheduleCount',String(upcoming.length));
+ if(list)list.innerHTML=upcoming.length?upcoming.map(x=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))}</strong><span>${escapeHtml(x.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(x.campaignScheduleId)}</small>${scheduleStatusBadge_(x.scheduleStatus)}</div><div class="schedule-row-actions"><button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(x.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(x.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(x.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(x.campaignScheduleId)}">Cancel Schedule</button></div></div></div>`).join(''):'<div class="schedule-empty">No upcoming times. You can send now or schedule from Review.</div>';
+ if(history)history.innerHTML=past.length?past.map(x=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))}</strong><span>${escapeHtml(x.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(x.campaignScheduleId)}</small>${scheduleStatusBadge_(x.scheduleStatus)}</div><div class="schedule-row-actions"><button type="button" class="secondary-action-button compact" data-schedule-clear="${escapeHtml(x.campaignScheduleId)}">Clear from History</button></div></div>`).join(''):'<div class="schedule-empty">No completed or canceled times in this view.</div>';
+ const all=document.getElementById('campaignScheduleClearAll');if(all)all.hidden=!past.length;
+}
+async function clearCampaignScheduleHistory_(id,button){
+ const row=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id),single=Boolean(id);
+ const confirmed=await openDashboardConfirm({eyebrow:'Schedule history',title:single?'Clear this history item?':'Clear all schedule history?',message:single?`${formatCampaignScheduleDate_(row?.startDate)} at ${row?.startTime} will be hidden from this view. Its original record remains for audit.`:'All completed and canceled times for this campaign will be hidden from this view. Original records remain for audit. Upcoming schedules stay visible.',confirmLabel:single?'Clear Item':'Clear All History',destructive:true});if(!confirmed)return;
+ await withActionButtonBusy(button,'Clearing…',async()=>{try{await DashboardApi.clearCampaignScheduleHistory({campaignId:campaignBuilderCampaignId,campaignScheduleId:id||''});campaignScheduleState.loaded=false;await loadCampaignSchedule(true);showCampaignScheduleNotice(single?'History item cleared.':'Past schedule history cleared.','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not clear history.','error');}});
+}
+
 function resetCampaignScheduleForm_(){const id=document.getElementById('campaignScheduleEditId'),d=document.getElementById('campaignScheduleStartDate'),t=document.getElementById('campaignScheduleStartTime'),c=document.getElementById('campaignScheduleCancelEdit'),b=document.getElementById('campaignScheduleSave');if(id)id.value='';if(d)d.value='';if(t)t.value='';if(c)c.hidden=true;if(b)b.textContent='Add Schedule';setText('campaignScheduleFormTitle','Add scheduled time');}
 async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
 async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{await DashboardApi.saveCampaignSchedule(p);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
 function editCampaignSchedule_(id){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||s.scheduleStatus!=='UPCOMING')return;document.getElementById('campaignScheduleEditId').value=s.campaignScheduleId;document.getElementById('campaignScheduleStartDate').value=s.startDate;document.getElementById('campaignScheduleStartTime').value=s.startTime;document.getElementById('campaignScheduleCancelEdit').hidden=false;document.getElementById('campaignScheduleSave').textContent='Update Schedule';setText('campaignScheduleFormTitle','Edit scheduled time');}
-async function cancelCampaignSchedule_(id,button){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||!confirm(`Cancel the ${s.startTime} schedule on ${formatCampaignScheduleDate_(s.startDate)}?\n\nThis cancels only this scheduled time, not the campaign.`))return;await withActionButtonBusy(button,'Canceling…',async()=>{try{await DashboardApi.cancelCampaignSchedule(id);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);showCampaignScheduleNotice('Schedule canceled.','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not cancel schedule.','error');}});}
-function attachCampaignScheduleListeners(){if(campaignScheduleListenersAttached)return;campaignScheduleListenersAttached=true;document.getElementById('campaignScheduleBack')?.addEventListener('click',()=>switchCampaignBuilderStep('settings'));document.getElementById('campaignScheduleSave')?.addEventListener('click',saveCampaignSchedule);document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('review'));document.getElementById('campaignScheduleCancelEdit')?.addEventListener('click',resetCampaignScheduleForm_);document.getElementById('campaignScheduleList')?.addEventListener('click',async e=>{const edit=e.target.closest('[data-schedule-edit]');if(edit){editCampaignSchedule_(edit.dataset.scheduleEdit);return;}const trig=e.target.closest('[data-schedule-menu-trigger]');if(trig){const menu=document.querySelector(`[data-schedule-menu="${CSS.escape(trig.dataset.scheduleMenuTrigger)}"]`);document.querySelectorAll('.schedule-row-menu').forEach(x=>{if(x!==menu)x.hidden=true;});if(menu)menu.hidden=!menu.hidden;return;}const cancel=e.target.closest('[data-schedule-cancel]');if(cancel)await cancelCampaignSchedule_(cancel.dataset.scheduleCancel,cancel);});}
+async function cancelCampaignSchedule_(id,button){
+ const row=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!row)return;
+ const confirmed=await openDashboardConfirm({eyebrow:'Campaign schedule',title:'Cancel scheduled send?',message:`Cancel ${formatCampaignScheduleDate_(row.startDate)} at ${row.startTime}? Only this time will be canceled. The campaign and its other schedules remain.`,confirmLabel:'Cancel Schedule',destructive:true});if(!confirmed)return;
+ await withActionButtonBusy(button,'Canceling…',async()=>{try{await DashboardApi.cancelCampaignSchedule(id);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);showCampaignScheduleNotice('Schedule canceled.','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not cancel schedule.','error');}});
+}
+
+function attachCampaignScheduleListeners(){if(campaignScheduleListenersAttached)return;campaignScheduleListenersAttached=true;document.getElementById('campaignScheduleBack')?.addEventListener('click',()=>switchCampaignBuilderStep('settings'));document.getElementById('campaignScheduleSave')?.addEventListener('click',saveCampaignSchedule);document.getElementById('campaignScheduleContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('review'));document.getElementById('campaignScheduleCancelEdit')?.addEventListener('click',resetCampaignScheduleForm_);document.getElementById('campaignScheduleClearAll')?.addEventListener('click',e=>clearCampaignScheduleHistory_('',e.currentTarget));document.getElementById('campaignScheduleHistory')?.addEventListener('click',e=>{const b=e.target.closest('[data-schedule-clear]');if(b)clearCampaignScheduleHistory_(b.dataset.scheduleClear,b);});document.getElementById('campaignScheduleList')?.addEventListener('click',async e=>{const edit=e.target.closest('[data-schedule-edit]');if(edit){editCampaignSchedule_(edit.dataset.scheduleEdit);return;}const trig=e.target.closest('[data-schedule-menu-trigger]');if(trig){const menu=document.querySelector(`[data-schedule-menu="${CSS.escape(trig.dataset.scheduleMenuTrigger)}"]`);document.querySelectorAll('.schedule-row-menu').forEach(x=>{if(x!==menu)x.hidden=true;});if(menu)menu.hidden=!menu.hidden;return;}const cancel=e.target.closest('[data-schedule-cancel]');if(cancel)await cancelCampaignSchedule_(cancel.dataset.scheduleCancel,cancel);});}
 
 // ============================================================
 // CAMPAIGN REVIEW & READINESS — V15
@@ -11689,7 +11699,7 @@ async function saveReviewedDraft_(){
   if(upcoming){showCampaignReviewNotice('Cancel upcoming scheduled sends before saving this campaign as a draft.','error');return;}
   const button=document.getElementById('campaignReviewDraft');
   await withActionButtonBusy(button,'Saving…',async()=>{
-    try{const response=await DashboardApi.getCampaignQueueStatus(campaign.campaignId);const status=response?.result?.result||response?.result||{};if(Number(status.total||0)>0)throw new Error('This campaign already has Send Queue items. Review its queue before changing it to Draft.');await DashboardApi.updateCampaign({campaignId:campaign.campaignId,campaignName:campaign.campaignName,campaignStatus:'DRAFT'});closeCampaignBuilder();await initDashboard(true);switchView('campaignsView');showCampaignsNotice('Campaign saved as draft.','success');}
+    try{const response=await DashboardApi.getCampaignQueueStatus(campaign.campaignId);const status=response?.result?.result||response?.result||{};if(Number(status.pending||0)+Number(status.processing||0)>0)throw new Error('This campaign has pending Send Queue work. Complete or resolve it before saving as Draft.');await DashboardApi.updateCampaign({campaignId:campaign.campaignId,campaignName:campaign.campaignName,campaignStatus:'DRAFT'});closeCampaignBuilder();await initDashboard(true);switchView('campaignsView');showCampaignsNotice('Campaign saved as draft.','success');}
     catch(error){showCampaignReviewNotice(error?.message||'Could not save as draft.','error');}
   });
 }

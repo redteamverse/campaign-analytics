@@ -2181,3 +2181,16 @@ body.campaign-builder-open{overflow:hidden}
 @media(max-width:700px){.campaign-review-schedule-form .form-field{width:100%}.campaign-review-schedule-form input{width:100%}}
 
 .campaign-review-queue-note{margin:10px 0 0;color:#6B7280;font-size:11px;line-height:1.5}
+
+/* V18.7 schedule history and dashboard dialog inputs */
+.campaign-schedule-history-card{margin-top:14px}
+.campaign-schedule-history-card .schedule-list-heading{align-items:center}
+.campaign-schedule-history-card .schedule-list-heading p{max-width:650px}
+.campaign-schedule-history-card .schedule-row-actions{display:flex;justify-content:flex-end}
+.campaign-schedule-history-card [data-schedule-clear]{color:#B91C1C}
+.dashboard-confirm-input-wrap{display:flex;flex-direction:column;gap:6px;margin-top:16px;color:#374151;font-size:11px;font-weight:700}
+.dashboard-confirm-input-wrap[hidden]{display:none!important}
+.dashboard-confirm-input-wrap input{min-height:38px;border:1px solid #E5E7EB;border-radius:7px;padding:0 11px;color:#111827;font:inherit;font-size:12px}
+.dashboard-confirm-input-wrap input:focus{outline:2px solid #2B2B50;outline-offset:1px}
+.dashboard-confirm-icon{font-size:21px;font-weight:800;background:#F2F3F8;color:#2B2B50}
+.dashboard-confirm-icon.is-destructive{background:#FEF2F2;color:#B91C1C}
