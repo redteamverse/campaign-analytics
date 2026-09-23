@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=183"
+    href="css/dashboard-modules.css?v=184"
   >
 </head>
 
@@ -1572,44 +1572,65 @@
              =================================================== -->
 
         <section class="view" id="composeView">
-          <div class="compose-main-header">
+
+          <div class="compose-main-header compose-main-header-clean">
             <div>
-              <h2>Compose</h2>
-              <p>Write and manage the first email for every campaign from one place.</p>
+              <h2>Campaign Emails</h2>
+              <p>Write and edit the email content attached to each campaign.</p>
             </div>
-            <button type="button" class="primary-action-button" id="composeMainCreateButton">+ Create Email</button>
           </div>
 
           <div class="compose-main-toolbar">
             <div class="compose-main-search-wrap">
-              <input type="search" id="composeMainSearch" placeholder="Search campaign or subject…" aria-label="Search campaign emails">
+              <input
+                type="search"
+                id="composeMainSearch"
+                placeholder="Search campaign or subject…"
+                aria-label="Search campaign emails"
+              >
             </div>
-            <select id="composeMainStatusFilter" aria-label="Filter by campaign status">
-              <option value="all">All campaign statuses</option>
+
+            <select
+              id="composeMainStatusFilter"
+              aria-label="Filter by email status"
+            >
+              <option value="all">All emails</option>
+              <option value="ready">Ready</option>
+              <option value="not-written">Not written</option>
             </select>
           </div>
 
-          <div class="compose-main-summary" id="composeMainSummary">Loading campaign emails…</div>
+          <div class="compose-main-summary" id="composeMainSummary">
+            Loading campaign emails…
+          </div>
 
           <div class="compose-main-table-wrap">
-            <table class="compose-main-table">
+            <table class="compose-main-table compose-main-table-clean">
               <thead>
                 <tr>
                   <th>Campaign</th>
                   <th>Subject</th>
-                  <th>Email</th>
-                  <th>Campaign Status</th>
+                  <th>Email Status</th>
                   <th>Updated</th>
                   <th class="compose-main-action-col">Action</th>
                 </tr>
               </thead>
               <tbody id="composeMainTableBody">
-                <tr><td colspan="6" class="compose-main-empty">Loading campaign emails…</td></tr>
+                <tr>
+                  <td colspan="5" class="compose-main-empty">
+                    Loading campaign emails…
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
-        </section>
 
+          <div class="compose-main-help">
+            <strong>Need reusable content?</strong>
+            Create it in <button type="button" class="compose-template-link" data-open-template-library>Templates</button>, then select that template while preparing a campaign.
+          </div>
+
+        </section>
 
 
         <!-- ===================================================
@@ -2404,6 +2425,64 @@
 
     </main>
 
+  </div>
+
+
+
+  <!-- =========================================================
+       DASHBOARD CONFIRMATION MODAL
+       ========================================================= -->
+
+  <div
+    class="dashboard-confirm-backdrop"
+    id="dashboardConfirmBackdrop"
+    hidden
+  >
+    <div
+      class="dashboard-confirm-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dashboardConfirmTitle"
+      aria-describedby="dashboardConfirmMessage"
+    >
+      <button
+        type="button"
+        class="dashboard-confirm-close"
+        id="dashboardConfirmClose"
+        aria-label="Close"
+      >×</button>
+
+      <div class="dashboard-confirm-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 6h18"/>
+          <path d="M8 6V4h8v2"/>
+          <path d="M19 6l-1 14H6L5 6"/>
+          <path d="M10 11v5M14 11v5"/>
+        </svg>
+      </div>
+
+      <div class="dashboard-confirm-eyebrow" id="dashboardConfirmEyebrow">
+        Please confirm
+      </div>
+
+      <h3 id="dashboardConfirmTitle">Confirm action</h3>
+
+      <p id="dashboardConfirmMessage"></p>
+
+      <div class="dashboard-confirm-actions">
+        <button
+          type="button"
+          class="secondary-action-button"
+          id="dashboardConfirmCancel"
+        >Cancel</button>
+
+        <button
+          type="button"
+          class="dashboard-confirm-primary"
+          id="dashboardConfirmButton"
+        >Confirm</button>
+      </div>
+    </div>
   </div>
 
 
@@ -3519,7 +3598,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=183"></script>
 
-  <script src="js/app.js?v=183"></script>
+  <script src="js/app.js?v=184"></script>
 
 </body>
 

@@ -472,6 +472,10 @@ function attachEventListeners() {
   });
 
   attachTemplateLibraryListeners();
+  attachDashboardConfirmListeners();
+
+  document.querySelector('[data-open-template-library]')
+    ?.addEventListener('click', () => switchView('templatesView'));
 }
 
 function updateLastUpdated(date) {
@@ -3512,46 +3516,75 @@ function populateMainComposeStatusFilter() {
   const select = document.getElementById('composeMainStatusFilter');
   if (!select) return;
   const current = select.value || 'all';
-  const statuses = [...new Set(getMainComposeCampaigns().map(c => String(c.campaignStatus || c.status || 'DRAFT').toUpperCase()))].filter(Boolean).sort();
-  select.innerHTML = '<option value="all">All campaign statuses</option>' + statuses.map(status => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`).join('');
-  select.value = statuses.includes(current) ? current : 'all';
+  select.innerHTML = `
+    <option value="all">All emails</option>
+    <option value="ready">Ready</option>
+    <option value="not-written">Not written</option>
+  `;
+  select.value = ['all','ready','not-written'].includes(current) ? current : 'all';
 }
 
 async function renderMainComposeWorkspace(force=false) {
   const body = document.getElementById('composeMainTableBody');
   if (!body) return;
+
   try {
     await ensureCampaignContentLoaded(force);
     populateMainComposeStatusFilter();
+
     const search = String(document.getElementById('composeMainSearch')?.value || '').trim().toLowerCase();
-    const status = String(document.getElementById('composeMainStatusFilter')?.value || 'all').toUpperCase();
+    const emailState = String(document.getElementById('composeMainStatusFilter')?.value || 'all').toLowerCase();
+
     const campaigns = getMainComposeCampaigns().filter(campaign => {
-      const campaignStatus = String(campaign.campaignStatus || campaign.status || 'DRAFT').toUpperCase();
       const content = getMainComposeContentForCampaign(campaign.campaignId);
+      const hasContent = Boolean(content && (content.subject || content.plainBody || content.htmlBody));
       const haystack = `${campaign.campaignName || ''} ${content?.subject || ''}`.toLowerCase();
-      return (!search || haystack.includes(search)) && (status === 'ALL' || campaignStatus === status);
+
+      if (search && !haystack.includes(search)) return false;
+      if (emailState === 'ready' && !hasContent) return false;
+      if (emailState === 'not-written' && hasContent) return false;
+      return true;
     });
-    const written = campaigns.filter(c => getMainComposeContentForCampaign(c.campaignId)).length;
-    setText('composeMainSummary', `${campaigns.length} campaign${campaigns.length===1?'':'s'} · ${written} with email content`);
+
+    const readyCount = campaigns.filter(c => {
+      const content = getMainComposeContentForCampaign(c.campaignId);
+      return Boolean(content && (content.subject || content.plainBody || content.htmlBody));
+    }).length;
+
+    setText(
+      'composeMainSummary',
+      `${campaigns.length} campaign${campaigns.length===1?'':'s'} · ${readyCount} email${readyCount===1?'':'s'} ready · ${campaigns.length-readyCount} not written`
+    );
+
     if (!campaigns.length) {
-      body.innerHTML = '<tr><td colspan="6" class="compose-main-empty"><strong>No campaign emails found.</strong><span>Try another search or create a campaign first.</span></td></tr>';
+      body.innerHTML = '<tr><td colspan="5" class="compose-main-empty"><strong>No campaign emails found.</strong><span>Try another search or email-status filter.</span></td></tr>';
       return;
     }
+
     body.innerHTML = campaigns.map(campaign => {
       const content = getMainComposeContentForCampaign(campaign.campaignId);
-      const campaignStatus = String(campaign.campaignStatus || campaign.status || 'DRAFT').toUpperCase();
       const hasContent = Boolean(content && (content.subject || content.plainBody || content.htmlBody));
+
       return `<tr>
-        <td><div class="compose-main-campaign"><strong>${escapeHtml(campaign.campaignName || 'Untitled Campaign')}</strong><span>${escapeHtml(campaign.campaignId || '')}</span></div></td>
+        <td>
+          <div class="compose-main-campaign">
+            <strong>${escapeHtml(campaign.campaignName || 'Untitled Campaign')}</strong>
+          </div>
+        </td>
         <td>${content?.subject ? escapeHtml(content.subject) : '<span class="compose-main-muted">No subject yet</span>'}</td>
-        <td><span class="compose-email-state ${hasContent?'is-written':'is-empty'}">${hasContent?'Written':'Not written'}</span></td>
-        <td><span class="status-badge">${escapeHtml(campaignStatus)}</span></td>
+        <td><span class="compose-email-state ${hasContent?'is-written':'is-empty'}">${hasContent?'Ready':'Not written'}</span></td>
         <td>${escapeHtml(formatMainComposeUpdated(content?.updatedAt))}</td>
-        <td class="compose-main-action-col"><button type="button" class="secondary-action-button compose-main-open" data-campaign-id="${escapeHtml(campaign.campaignId || '')}">${hasContent?'Open Compose':'Write Email'}</button></td>
+        <td class="compose-main-action-col">
+          <button
+            type="button"
+            class="${hasContent?'secondary-action-button':'primary-action-button'} compose-main-open"
+            data-campaign-id="${escapeHtml(campaign.campaignId || '')}"
+          >${hasContent?'Edit Email':'Write Email'}</button>
+        </td>
       </tr>`;
     }).join('');
   } catch (error) {
-    body.innerHTML = `<tr><td colspan="6" class="compose-main-empty"><strong>Could not load campaign emails.</strong><span>${escapeHtml(error?.message || String(error))}</span></td></tr>`;
+    body.innerHTML = `<tr><td colspan="5" class="compose-main-empty"><strong>Could not load campaign emails.</strong><span>${escapeHtml(error?.message || String(error))}</span></td></tr>`;
   }
 }
 
@@ -3570,16 +3603,6 @@ function attachMainComposeListeners() {
   document.getElementById('composeMainTableBody')?.addEventListener('click', event => {
     const button = event.target.closest('.compose-main-open');
     if (button) openMainComposeCampaign(button.dataset.campaignId);
-  });
-  document.getElementById('composeMainCreateButton')?.addEventListener('click', () => {
-    const campaigns = getMainComposeCampaigns();
-    const target = campaigns.find(c => !getMainComposeContentForCampaign(c.campaignId)) || campaigns[0];
-    if (!target) {
-      switchView('campaignsView');
-      document.getElementById('addCampaignButton')?.click();
-      return;
-    }
-    openMainComposeCampaign(target.campaignId);
   });
 }
 
@@ -3899,6 +3922,82 @@ function attachCampaignComposeListeners() {
 
 
 
+
+/* ============================================================
+   DASHBOARD CONFIRMATION MODAL — V18.4
+   ============================================================ */
+
+let dashboardConfirmResolver = null;
+
+function openDashboardConfirm({
+  eyebrow = 'Please confirm',
+  title = 'Confirm action',
+  message = '',
+  confirmLabel = 'Confirm',
+  destructive = false
+} = {}) {
+  const backdrop = document.getElementById('dashboardConfirmBackdrop');
+  if (!backdrop) return Promise.resolve(false);
+
+  setText('dashboardConfirmEyebrow', eyebrow);
+  setText('dashboardConfirmTitle', title);
+  setText('dashboardConfirmMessage', message);
+
+  const confirmButton = document.getElementById('dashboardConfirmButton');
+  if (confirmButton) {
+    confirmButton.textContent = confirmLabel;
+    confirmButton.classList.toggle('is-destructive', destructive);
+  }
+
+  backdrop.hidden = false;
+  requestAnimationFrame(() => backdrop.classList.add('is-open'));
+
+  return new Promise(resolve => {
+    dashboardConfirmResolver = resolve;
+    confirmButton?.focus();
+  });
+}
+
+function closeDashboardConfirm(result=false) {
+  const backdrop = document.getElementById('dashboardConfirmBackdrop');
+  if (backdrop) {
+    backdrop.classList.remove('is-open');
+    backdrop.hidden = true;
+  }
+
+  const resolve = dashboardConfirmResolver;
+  dashboardConfirmResolver = null;
+  if (resolve) resolve(Boolean(result));
+}
+
+function attachDashboardConfirmListeners() {
+  document.getElementById('dashboardConfirmCancel')
+    ?.addEventListener('click', () => closeDashboardConfirm(false));
+
+  document.getElementById('dashboardConfirmClose')
+    ?.addEventListener('click', () => closeDashboardConfirm(false));
+
+  document.getElementById('dashboardConfirmButton')
+    ?.addEventListener('click', () => closeDashboardConfirm(true));
+
+  document.getElementById('dashboardConfirmBackdrop')
+    ?.addEventListener('click', event => {
+      if (event.target.id === 'dashboardConfirmBackdrop') {
+        closeDashboardConfirm(false);
+      }
+    });
+
+  document.addEventListener('keydown', event => {
+    if (
+      event.key === 'Escape' &&
+      !document.getElementById('dashboardConfirmBackdrop')?.hidden
+    ) {
+      closeDashboardConfirm(false);
+    }
+  });
+}
+
+
 /* ============================================================
    TEMPLATE LIBRARY — V18.3
    ============================================================ */
@@ -3977,10 +4076,9 @@ function renderTemplateLibrary() {
           >Duplicate</button>
           <button
             type="button"
-            class="icon-action-button"
-            title="Archive template"
+            class="template-archive-action"
             data-template-archive="${escapeHtml(template.templateId)}"
-          >•••</button>
+          >Archive</button>
         </td>
       </tr>
     `).join('');
@@ -4353,19 +4451,19 @@ async function duplicateTemplateLibraryItem(templateId) {
 async function archiveTemplateLibraryItem(templateId) {
   const template =
     (campaignContentState.templates || [])
-      .find(item =>
-        String(item.templateId) === String(templateId)
-      );
+      .find(item => String(item.templateId) === String(templateId));
 
   if (!template) return;
 
-  if (
-    !window.confirm(
-      `Archive "${template.name}"? It will no longer appear when preparing campaigns.`
-    )
-  ) {
-    return;
-  }
+  const confirmed = await openDashboardConfirm({
+    eyebrow: 'Template library',
+    title: 'Archive template?',
+    message: `"${template.name}" will be removed from the active template library and will no longer appear when preparing campaigns. Existing campaign content will not be changed.`,
+    confirmLabel: 'Archive Template',
+    destructive: true
+  });
+
+  if (!confirmed) return;
 
   try {
     await DashboardApi.archiveEmailTemplate(templateId);
@@ -4373,10 +4471,7 @@ async function archiveTemplateLibraryItem(templateId) {
     campaignContentState.loaded = false;
     await loadTemplateLibrary(true);
 
-    if (
-      String(templateLibraryEditingId) ===
-      String(templateId)
-    ) {
+    if (String(templateLibraryEditingId) === String(templateId)) {
       templateLibraryResetEditor();
     }
 
