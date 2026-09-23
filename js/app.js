@@ -1459,6 +1459,7 @@ function attachUserManagementListeners() {
 let campaignManagementAttached = false;
 let editingCampaignId = '';
 let activeCampaignLifecycleFilter = 'all';
+let activeCampaignScheduleFilter = 'all';
 let campaignBuilderCampaignId = '';
 let campaignBuilderActiveStep = 'details';
 let campaignBuilderRecipientSource = 'all';
@@ -1535,7 +1536,8 @@ function getCampaignLifecycleStatus(
     return 'RUNNING';
   }
 
-  return raw;
+  // Older records may still store SCHEDULED; schedules are tracked separately.
+  return raw === 'SCHEDULED' ? 'READY' : raw;
 }
 
 
@@ -1556,7 +1558,7 @@ function campaignLifecycleLabel(
     READY:
       'Ready',
     SCHEDULED:
-      'Scheduled',
+      'Ready',
     RUNNING:
       'Running',
     ACTIVE:
@@ -1592,7 +1594,7 @@ function campaignLifecycleBadge(
     READY:
       'campaign-status-ready',
     SCHEDULED:
-      'campaign-status-scheduled',
+      'campaign-status-ready',
     RUNNING:
       'campaign-status-running',
     PAUSED:
@@ -1661,6 +1663,14 @@ function getCampaignManagementRows() {
           activeCampaignLifecycleFilter
         )
     )
+    .filter(campaign => {
+      const hasUpcoming = (campaignScheduleState.schedules || []).some(schedule =>
+        String(schedule.campaignId) === String(campaign.campaignId) &&
+        String(schedule.scheduleStatus).toUpperCase() === 'UPCOMING'
+      );
+      return activeCampaignScheduleFilter === 'all' ||
+        (activeCampaignScheduleFilter === 'upcoming' ? hasUpcoming : !hasUpcoming);
+    })
     .filter(
       campaign => {
 
@@ -1747,8 +1757,8 @@ function updateCampaignLifecycleCounts(
   );
 
   setText(
-    'campaignLifecycleScheduledCount',
-    count('SCHEDULED').toLocaleString()
+    'campaignLifecycleReadyCount',
+    count('READY').toLocaleString()
   );
 
   setText(
@@ -1911,7 +1921,6 @@ function getCampaignLifecycleActions(
 
 
 function renderCampaignNextSchedule_(campaignId){const rows=(campaignScheduleState?.schedules||[]).filter(s=>String(s.campaignId)===String(campaignId)&&String(s.scheduleStatus).toUpperCase()==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));if(!rows.length)return '<span class="muted-id">—</span>';const s=rows[0],more=rows.length-1;return `<div class="campaign-next-schedule"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}${more?` · +${more} more`:''}</span></div>`;}
-async function sendCampaignNow_(campaignId,button){const c=getCampaignById(campaignId);if(!c)return;if(!confirm(`Send "${c.campaignName}" now?\n\nThis is an immediate send action and does not change or cancel future schedules.`))return;await withActionButtonBusy(button,'Starting…',async()=>{try{const r=await DashboardApi.launchCampaign(campaignId),x=r?.result?.result||r?.result||r;showCampaignsNotice(x?.message||'Campaign made available for immediate processing.','success');await initDashboard(true);}catch(e){showCampaignsNotice(e?.message||'Could not start campaign.','error');}});}
 
 function renderCampaignManagement() {
 
@@ -2044,8 +2053,7 @@ function renderCampaignManagement() {
 
               <td class="actions-column campaign-primary-actions-cell">
                 <div class="campaign-primary-actions">
-                  <button type="button" class="secondary-action-button campaign-build-direct" data-campaign-direct="builder" data-campaign-id="${escapeHtml(campaignId)}">Build Campaign</button>
-                  <button type="button" class="primary-action-button campaign-send-direct" data-campaign-direct="send-now" data-campaign-id="${escapeHtml(campaignId)}">Send Now</button>
+                  <button type="button" class="secondary-action-button campaign-build-direct" data-campaign-direct="builder" data-campaign-id="${escapeHtml(campaignId)}">Edit Campaign</button>
                 </div>
                 <div class="row-menu">
 
@@ -3039,6 +3047,11 @@ function attachCampaignManagementListeners() {
     );
 
 
+  document.getElementById('campaignScheduleFilter')?.addEventListener('change', event => {
+    activeCampaignScheduleFilter = event.target.value;
+    renderCampaignManagement();
+  });
+
   document
     .getElementById(
       'campaignSearchInput'
@@ -3078,7 +3091,7 @@ function attachCampaignManagementListeners() {
       async event => {
 
         const directButton=event.target.closest('[data-campaign-direct]');
-        if(directButton){event.stopPropagation();const action=directButton.dataset.campaignDirect,id=directButton.dataset.campaignId;if(action==='builder')await openCampaignBuilder(id);if(action==='send-now')await sendCampaignNow_(id,directButton);return;}
+        if(directButton){event.stopPropagation();const action=directButton.dataset.campaignDirect,id=directButton.dataset.campaignId;if(action==='builder')await openCampaignBuilder(id);return;}
 
         const nameButton =
           event.target.closest(
@@ -3778,7 +3791,7 @@ function renderComposeSavedTemplates() {
  c.innerHTML=ts.map(t=>`<article class="compose-saved-template-card"><div class="compose-saved-template-main"><strong>${escapeHtml(t.name||'Untitled template')}</strong><span class="compose-template-subject">${escapeHtml(t.subject||'No subject')}</span><small>${escapeHtml(formatComposeTemplateDate(t.updatedAt))}</small></div><div class="compose-saved-template-actions"><button type="button" class="secondary-action-button" data-compose-use-template="${escapeHtml(t.templateId)}">Use Template</button><button type="button" class="icon-action-button" title="Archive template" data-compose-archive-template="${escapeHtml(t.templateId)}">•••</button></div></article>`).join('');
 }
 function applyComposeTemplateById(id,ask=true){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t){showCampaignComposeNotice('Template could not be found.','error');return false;}if(ask&&!window.confirm(`Use "${t.name}"? This will replace the current subject and email body in the editor.`))return false;const s=document.getElementById('campaignComposeTemplateSelect');if(s)s.value=t.templateId;document.getElementById('campaignComposeSubject').value=t.subject||'';document.getElementById('campaignComposePlainBody').value=t.plainBody||'';document.getElementById('campaignComposeHtmlBody').value=t.htmlBody||'';renderCampaignComposePreview();showCampaignComposeNotice(`Template "${t.name}" is now in the editor. Choose Save Compose to save it to this campaign.`,'success');return true;}
-async function archiveComposeTemplate(id,button){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t||!window.confirm(`Archive "${t.name}"? It will no longer appear in your saved templates.`))return;await withActionButtonBusy(button,'…',async()=>{try{await DashboardApi.archiveEmailTemplate(id);await ensureCampaignContentLoaded(true);populateComposeTemplates();renderComposeSavedTemplates();showCampaignComposeNotice(`Template "${t.name}" archived.`,'success');}catch(e){showCampaignComposeNotice(e?.message||'Could not archive the template.','error');}});}
+async function archiveComposeTemplate(id,button){const t=(campaignContentState.templates||[]).find(x=>x.templateId===id);if(!t||!await openDashboardConfirm({eyebrow:"Template library",title:"Archive template?",message:`"${t.name}" will be removed from the active template library and will no longer appear when preparing campaigns. Existing campaigns using this template will not be changed.`,confirmLabel:"Archive Template",destructive:true}))return;await withActionButtonBusy(button,'…',async()=>{try{await DashboardApi.archiveEmailTemplate(id);await ensureCampaignContentLoaded(true);populateComposeTemplates();renderComposeSavedTemplates();showCampaignComposeNotice(`Template "${t.name}" archived.`,'success');}catch(e){showCampaignComposeNotice(e?.message||'Could not archive the template.','error');}});}
 
 function populateComposePreviewRecipients() {
   const select=document.getElementById('campaignComposePreviewRecipient');
@@ -11632,7 +11645,7 @@ function showCampaignScheduleNotice(m,t='success'){const e=document.getElementBy
 function formatCampaignScheduleDate_(v){const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?`${m[3]} ${['','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m[2]]} ${m[1]}`:String(v||'');}
 function updateCampaignScheduleUi(){const s=getCurrentCampaignSettings(),tz=s?.timezone||'Save Campaign Settings first';setText('campaignScheduleInlineTimezone',tz);setText('campaignScheduleSummaryTimezone',tz);setText('campaignScheduleSummaryHours',s?.windowStart&&s?.windowEnd?`${s.windowStart} – ${s.windowEnd}`:'Save Campaign Settings first');setText('campaignScheduleSummaryDays',(s?.sendingDays||[]).length?s.sendingDays.join(', '):'Save Campaign Settings first');}
 function scheduleStatusBadge_(s){const st=String(s||'').toUpperCase();if(st==='UPCOMING')return '<span class="status-badge badge-warning">Upcoming</span>';if(st==='COMPLETED')return '<span class="status-badge badge-success">Completed</span>';if(st==='CANCELED')return '<span class="status-badge badge-danger">Canceled</span>';return `<span class="status-badge badge-muted">${escapeHtml(st||'—')}</span>`;}
-function renderCampaignScheduleList(){const list=document.getElementById('campaignScheduleList'),rows=getCampaignSchedulesForCurrent_();setText('campaignScheduleCount',String(rows.length));if(!list)return;if(!rows.length){list.innerHTML='<div class="schedule-empty">No scheduled times yet. You can still use Send Now from the Campaigns screen.</div>';return;}list.innerHTML=rows.map(s=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(s.campaignScheduleId)}</small>${scheduleStatusBadge_(s.scheduleStatus)}</div><div class="schedule-row-actions">${s.scheduleStatus==='UPCOMING'?`<button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(s.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(s.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(s.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(s.campaignScheduleId)}">Cancel Schedule</button></div>`:''}</div></div>`).join('');}
+function renderCampaignScheduleList(){const list=document.getElementById('campaignScheduleList'),rows=getCampaignSchedulesForCurrent_();setText('campaignScheduleCount',String(rows.length));if(!list)return;if(!rows.length){list.innerHTML='<div class="schedule-empty">No scheduled times yet. Continue to Review to send or add a schedule.</div>';return;}list.innerHTML=rows.map(s=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(s.campaignScheduleId)}</small>${scheduleStatusBadge_(s.scheduleStatus)}</div><div class="schedule-row-actions">${s.scheduleStatus==='UPCOMING'?`<button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(s.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(s.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(s.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(s.campaignScheduleId)}">Cancel Schedule</button></div>`:''}</div></div>`).join('');}
 function resetCampaignScheduleForm_(){const id=document.getElementById('campaignScheduleEditId'),d=document.getElementById('campaignScheduleStartDate'),t=document.getElementById('campaignScheduleStartTime'),c=document.getElementById('campaignScheduleCancelEdit'),b=document.getElementById('campaignScheduleSave');if(id)id.value='';if(d)d.value='';if(t)t.value='';if(c)c.hidden=true;if(b)b.textContent='Add Schedule';setText('campaignScheduleFormTitle','Add scheduled time');}
 async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
 async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{await DashboardApi.saveCampaignSchedule(p);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
@@ -11658,13 +11671,13 @@ function renderCampaignReview(result){
   if(grid)grid.innerHTML=(result.checks||[]).map(c=>`<article class="campaign-review-check ${c.passed?'passed':'failed'}"><div class="campaign-review-check-icon">${c.passed?'✓':'!'}</div><div><div class="campaign-review-check-heading"><strong>${escapeReviewHtml_(c.label)}</strong>${c.required?'':'<span class="review-optional">Optional</span>'}</div><p>${escapeReviewHtml_(c.description||'')}</p><small>${escapeReviewHtml_(c.detail||'')}</small></div></article>`).join('');
   if(launch){
     launch.disabled=!result.ready;
-    launch.title=result.ready?'Add this approved campaign to the Send Queue. No email will be sent yet.':'Complete all required readiness checks first.';
-    launch.textContent=result.ready?'Launch Campaign':'Launch Campaign';
+    launch.title=result.ready?'Queue eligible recipients for immediate processing.':'Complete all required readiness checks first.';
+    launch.textContent='Send Now';
   }
   const note=document.getElementById('campaignReviewLaunchNote');
   if(note){
     note.innerHTML=result.ready
-      ? '<strong>Ready to launch</strong><span>Launch will create protected Send Queue items only. V16 does not send email.</span>'
+      ? '<strong>Ready to send</strong><span>Send Now queues eligible recipients for immediate processing. Upcoming schedules remain in place.</span>'
       : '<strong>Launch is blocked</strong><span>Complete all required checks before this campaign can enter the Send Queue.</span>';
   }
 }
@@ -11682,9 +11695,8 @@ async function launchReviewedCampaign(){
   const button=document.getElementById('campaignReviewLaunch');
   if(!campaign)return;
 
-  const confirmed=window.confirm(
-    `Launch "${campaign.campaignName}" into the Send Queue?\n\nThis creates queue items only. V16 will NOT send any email.`
-  );
+  const hasSchedule=(campaignScheduleState.schedules||[]).some(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING');
+  const confirmed=await openDashboardConfirm({title:'Send now?',message:`Send "${campaign.campaignName}" to currently eligible recipients? Sending now will not cancel ${hasSchedule?'this campaign’s upcoming scheduled send.':'any future scheduled sends.'}`,confirmLabel:'Send Now'});
   if(!confirmed)return;
 
   await withActionButtonBusy(button,'Launching…',async()=>{
@@ -11694,16 +11706,16 @@ async function launchReviewedCampaign(){
       const response=await DashboardApi.launchCampaign(campaignBuilderCampaignId);
       const result=response?.result?.result||response?.result||response;
       showCampaignReviewNotice(
-        result?.message || 'Campaign added to the Send Queue. No email has been sent.',
+        result?.message || 'Eligible recipients added to the Send Queue for processing.',
         'success'
       );
       if(button){
         button.disabled=true;
-        button.textContent='Added to Send Queue';
+        button.textContent='Queued for Sending';
       }
       const note=document.getElementById('campaignReviewLaunchNote');
       if(note){
-        note.innerHTML=`<strong>Send Queue created</strong><span>${escapeReviewHtml_(result?.queueTotal||0)} queue item${Number(result?.queueTotal||0)===1?'':'s'} created. Sending remains disabled until the queue processor is built.</span>`;
+        note.innerHTML=`<strong>Send Queue created</strong><span>${escapeReviewHtml_(result?.queueTotal||0)} queue item${Number(result?.queueTotal||0)===1?'':'s'} created for processing. Upcoming schedules remain in place.</span>`;
       }
       await initDashboard(true);
       // initDashboard refreshes normalized data; restore this builder and Review.
@@ -11718,5 +11730,6 @@ async function launchReviewedCampaign(){
 function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewBack')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
   document.getElementById('campaignReviewRecheck')?.addEventListener('click',loadCampaignReview);
+  document.getElementById('campaignReviewSchedule')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
   document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }

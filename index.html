@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=184"
+    href="css/dashboard-modules.css?v=185"
   >
 </head>
 
@@ -1907,10 +1907,10 @@
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
-                data-campaign-lifecycle="scheduled"
+                data-campaign-lifecycle="ready"
               >
-                Scheduled
-                <span id="campaignLifecycleScheduledCount">0</span>
+                Ready
+                <span id="campaignLifecycleReadyCount">0</span>
               </button>
 
               <button
@@ -1964,6 +1964,14 @@
                 >
 
               </div>
+
+              <label class="campaign-schedule-filter-label" for="campaignScheduleFilter">Schedule
+                <select id="campaignScheduleFilter" aria-label="Filter campaigns by upcoming schedule">
+                  <option value="all">All campaigns</option>
+                  <option value="upcoming">Has upcoming schedule</option>
+                  <option value="none">No upcoming schedule</option>
+                </select>
+              </label>
 
               <div class="campaign-toolbar-meta">
                 <strong id="campaignsShowingCount">0</strong>
@@ -3089,13 +3097,14 @@
             <div class="campaign-review-grid" id="campaignReviewChecks"></div>
             <div class="campaign-review-launch-note" id="campaignReviewLaunchNote">
               <strong>Launch is protected by readiness checks</strong>
-              <span>V16 creates Send Queue items only. No campaign email is sent by this stage.</span>
+              <span>Sending uses the protected Send Queue and follows campaign rules.</span>
             </div>
             <div class="builder-stage-footer">
               <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
               <div class="builder-footer-actions">
                 <button type="button" class="secondary-action-button" id="campaignReviewRecheck">Recheck Campaign</button>
-                <button type="button" class="primary-action-button" id="campaignReviewLaunch" disabled>Launch Campaign</button>
+                <button type="button" class="secondary-action-button" id="campaignReviewSchedule">Schedule Send</button>
+                <button type="button" class="primary-action-button" id="campaignReviewLaunch" disabled>Send Now</button>
               </div>
             </div>
           </section>
