@@ -1526,18 +1526,18 @@ function getCampaignLifecycleStatus(
       campaign
     );
 
-  // Existing ACTIVE campaigns remain operationally compatible
-  // with the current mailer, but the dashboard presents them
-  // as RUNNING.
-  if (
-    raw ===
-    'ACTIVE'
-  ) {
-    return 'RUNNING';
+  // A schedule is the source of truth for the campaign list's Running tab.
+  // ACTIVE remains the backend sender status; it does not imply that a
+  // future scheduled send still exists.
+  if (['ACTIVE', 'RUNNING', 'READY', 'SCHEDULED'].includes(raw)) {
+    const upcoming = (campaignScheduleState?.schedules || []).some(schedule =>
+      String(schedule.campaignId) === String(campaign.campaignId) &&
+      String(schedule.scheduleStatus).toUpperCase() === 'UPCOMING'
+    );
+    return upcoming ? 'RUNNING' : 'READY';
   }
 
-  // Older records may still store SCHEDULED; schedules are tracked separately.
-  return raw === 'SCHEDULED' ? 'READY' : raw;
+  return raw;
 }
 
 
@@ -1788,9 +1788,9 @@ function getCampaignLifecycleActions(
 ) {
 
   const status =
-    getCampaignLifecycleStatus(
-      campaign
-    );
+    getRawCampaignStatus(campaign) === 'ACTIVE'
+      ? 'RUNNING'
+      : getCampaignLifecycleStatus(campaign);
 
   const actions = [
     {
@@ -11648,7 +11648,7 @@ async function clearCampaignScheduleHistory_(id,button){
 }
 
 function resetCampaignScheduleForm_(){const id=document.getElementById('campaignScheduleEditId'),d=document.getElementById('campaignScheduleStartDate'),t=document.getElementById('campaignScheduleStartTime'),c=document.getElementById('campaignScheduleCancelEdit'),b=document.getElementById('campaignScheduleSave');if(id)id.value='';if(d)d.value='';if(t)t.value='';if(c)c.hidden=true;if(b)b.textContent='Add Schedule';setText('campaignScheduleFormTitle','Add scheduled time');}
-async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
+async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();renderCampaignManagement();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
 async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{await DashboardApi.saveCampaignSchedule(p);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
 function editCampaignSchedule_(id){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||s.scheduleStatus!=='UPCOMING')return;document.getElementById('campaignScheduleEditId').value=s.campaignScheduleId;document.getElementById('campaignScheduleStartDate').value=s.startDate;document.getElementById('campaignScheduleStartTime').value=s.startTime;document.getElementById('campaignScheduleCancelEdit').hidden=false;document.getElementById('campaignScheduleSave').textContent='Update Schedule';setText('campaignScheduleFormTitle','Edit scheduled time');}
 async function cancelCampaignSchedule_(id,button){
