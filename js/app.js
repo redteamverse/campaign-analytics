@@ -11782,3 +11782,39 @@ function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewDraft')?.addEventListener('click',saveReviewedDraft_);
   document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }
+
+// Explain each campaign status in the dashboard on hover, focus, or tap.
+{
+  const help = document.getElementById('campaignStatusHelpText');
+  const infoButtons = [...document.querySelectorAll('[data-campaign-status-help]')];
+  const closeHelp = () => {
+    if (help) help.hidden = true;
+    infoButtons.forEach(item => item.setAttribute('aria-expanded', 'false'));
+  };
+  const showHelp = (button, pinned) => {
+    if (!help || !button) return;
+    help.textContent = button.dataset.helpText || '';
+    help.hidden = false;
+    infoButtons.forEach(item => item.setAttribute('aria-expanded', String(pinned && item === button)));
+  };
+  infoButtons.forEach(button => {
+    const tab = document.querySelector(`[data-campaign-lifecycle="${button.dataset.campaignStatusHelp}"]`);
+    [button, tab].filter(Boolean).forEach(target => {
+      target.addEventListener('mouseenter', () => showHelp(button, false));
+      target.addEventListener('focus', () => showHelp(button, false));
+    });
+    button.addEventListener('click', event => {
+      event.stopPropagation();
+      const open = button.getAttribute('aria-expanded') === 'true';
+      if (open) closeHelp();
+      else showHelp(button, true);
+    });
+  });
+  document.getElementById('campaignTabAll')?.addEventListener('mouseleave', () => {
+    if (!infoButtons.some(item => item.getAttribute('aria-expanded') === 'true')) closeHelp();
+  });
+  document.addEventListener('click', event => {
+    if (!event.target.closest('[data-campaign-status-help], [data-campaign-lifecycle], #campaignStatusHelpText')) closeHelp();
+  });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape') closeHelp(); });
+}

@@ -41,6 +41,13 @@
     rel="stylesheet"
     href="css/dashboard-modules.css?v=188"
   >
+
+  <style>
+    .campaign-status-info { flex:0 0 auto; align-self:center; margin-left:-5px; padding:4px 6px; border:0; border-radius:50%; background:transparent; color:#667085; font-size:12px; cursor:pointer; }
+    .campaign-status-info:hover,.campaign-status-info:focus-visible { background:#f2f4f7; color:#991b1b; }
+    .campaign-status-help-text { margin:9px 0 13px; padding:11px 14px; border:1px solid #d0d5dd; border-radius:8px; background:#fff; color:#344054; font-size:12px; line-height:1.5; }
+    .campaign-status-help-text[hidden] { display:none; }
+  </style>
 </head>
 
 
@@ -1890,68 +1897,89 @@
                 type="button"
                 class="campaign-lifecycle-filter active"
                 data-campaign-lifecycle="all"
+                data-help-text="All campaign records, including drafts, scheduled campaigns, paused campaigns, completed campaigns, and archived campaigns. A campaign appears here when it is created."
+                aria-description="All campaign records, including drafts, scheduled campaigns, paused campaigns, completed campaigns, and archived campaigns. A campaign appears here when it is created."
               >
                 All
                 <span id="campaignLifecycleAllCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="all" data-help-text="All campaign records, including drafts, scheduled campaigns, paused campaigns, completed campaigns, and archived campaigns. A campaign appears here when it is created." aria-label="About all campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="draft"
+                data-help-text="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending."
+                aria-description="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending."
               >
                 Drafts
                 <span id="campaignLifecycleDraftCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="draft" data-help-text="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending." aria-label="About draft campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="ready"
+                data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue."
+                aria-description="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue."
               >
                 Ready
                 <span id="campaignLifecycleReadyCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="ready" data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue." aria-label="About ready campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="running"
+                data-help-text="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately."
+                aria-description="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately."
               >
                 Running
                 <span id="campaignLifecycleRunningCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="running" data-help-text="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately." aria-label="About running campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="paused"
+                data-help-text="Campaigns explicitly paused from the campaign actions menu. Resume from the same menu. A paused campaign stays here even if it has an upcoming scheduled time."
+                aria-description="Campaigns explicitly paused from the campaign actions menu. Resume from the same menu. A paused campaign stays here even if it has an upcoming scheduled time."
               >
                 Paused
                 <span id="campaignLifecyclePausedCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="paused" data-help-text="Campaigns explicitly paused from the campaign actions menu. Resume from the same menu. A paused campaign stays here even if it has an upcoming scheduled time." aria-label="About paused campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="completed"
+                data-help-text="Campaigns explicitly marked Completed from the campaign actions menu. A completed send time alone does not mark the whole campaign Completed."
+                aria-description="Campaigns explicitly marked Completed from the campaign actions menu. A completed send time alone does not mark the whole campaign Completed."
               >
                 Completed
                 <span id="campaignLifecycleCompletedCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="completed" data-help-text="Campaigns explicitly marked Completed from the campaign actions menu. A completed send time alone does not mark the whole campaign Completed." aria-label="About completed campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="archived"
+                data-help-text="Campaigns moved to Archive from the campaign actions menu after completion or cancellation. Archived campaigns remain available as records."
+                aria-description="Campaigns moved to Archive from the campaign actions menu after completion or cancellation. Archived campaigns remain available as records."
               >
                 Archived
                 <span id="campaignLifecycleArchivedCount">0</span>
               </button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="archived" data-help-text="Campaigns moved to Archive from the campaign actions menu after completion or cancellation. Archived campaigns remain available as records." aria-label="About archived campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
             </div>
 
-            <p class="campaign-status-explainer">Running: an upcoming scheduled send. Ready: no upcoming scheduled send. Drafts, paused, completed, and archived campaigns keep their own status. The Send Queue shows delivery work separately.</p>
+            <p id="campaignStatusHelpText" class="campaign-status-help-text" role="status" hidden></p>
 
 
             <div class="management-toolbar compact-toolbar campaign-management-toolbar">
@@ -3616,7 +3644,7 @@
   <!-- Admin API must load before app.js -->
   <script src="js/dashboard-api.js?v=183"></script>
 
-  <script src="js/app.js?v=189"></script>
+  <script src="js/app.js?v=190"></script>
 
 </body>
 
