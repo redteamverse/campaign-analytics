@@ -419,6 +419,10 @@ function switchView(viewId) {
     composeView: {
       title: 'Compose',
       subtitle: 'Write and manage campaign emails from one workspace'
+    },
+    templatesView: {
+      title: 'Templates',
+      subtitle: 'Create reusable email templates for future campaigns'
     }
   };
 
@@ -435,6 +439,10 @@ function switchView(viewId) {
     'pageSubtitle',
     page.subtitle
   );
+
+  if (viewId === 'templatesView') {
+    loadTemplateLibrary(false);
+  }
 
   closeMobileSidebar();
 }
@@ -462,6 +470,8 @@ function attachEventListeners() {
       switchView(item.dataset.view);
     });
   });
+
+  attachTemplateLibraryListeners();
 }
 
 function updateLastUpdated(date) {
@@ -3600,13 +3610,80 @@ function normalizeEmailTemplateRecord(row) {
 }
 async function ensureCampaignContentLoaded(force=false) {
   if (campaignContentState.loaded && !force) return campaignContentState;
-  const response = await DashboardApi.getCampaignContent();
-  const result = response?.result || {};
+
+  const [contentResult, templateResult] =
+    await Promise.allSettled([
+      DashboardApi.getCampaignContent(),
+      DashboardApi.getEmailTemplates()
+    ]);
+
+  let campaignContent = [];
+  let templates = [];
+
+  if (contentResult.status === 'fulfilled') {
+    const response = contentResult.value || {};
+    const result =
+      response.result ||
+      response.data?.result ||
+      response.data ||
+      {};
+
+    campaignContent =
+      Array.isArray(result.campaignContent)
+        ? result.campaignContent.map(normalizeCampaignContentRecord)
+        : [];
+  }
+
+  if (templateResult.status === 'fulfilled') {
+    const response = templateResult.value || {};
+    const result =
+      response.result ||
+      response.data?.result ||
+      response.data ||
+      [];
+
+    const rows =
+      Array.isArray(result)
+        ? result
+        : (
+            Array.isArray(result.templates)
+              ? result.templates
+              : []
+          );
+
+    templates = rows.map(normalizeEmailTemplateRecord);
+  } else if (contentResult.status === 'fulfilled') {
+    // Backward-compatible fallback for an older Apps Script deployment.
+    const response = contentResult.value || {};
+    const result =
+      response.result ||
+      response.data?.result ||
+      response.data ||
+      {};
+
+    templates =
+      Array.isArray(result.templates)
+        ? result.templates.map(normalizeEmailTemplateRecord)
+        : [];
+  }
+
+  if (
+    contentResult.status === 'rejected' &&
+    templateResult.status === 'rejected'
+  ) {
+    throw (
+      contentResult.reason ||
+      templateResult.reason ||
+      new Error('Could not load campaign content or templates.')
+    );
+  }
+
   campaignContentState = {
-    loaded:true,
-    campaignContent:(result.campaignContent || []).map(normalizeCampaignContentRecord),
-    templates:(result.templates || []).map(normalizeEmailTemplateRecord)
+    loaded: true,
+    campaignContent,
+    templates
   };
+
   return campaignContentState;
 }
 function getCurrentCampaignComposeContent() {
@@ -3818,6 +3895,660 @@ function attachCampaignComposeListeners() {
   });
   document.querySelectorAll('[data-compose-mode]').forEach(button=>button.addEventListener('click',()=>switchComposeMode(button.dataset.composeMode)));
   document.getElementById('campaignPersonalizationToolbar')?.addEventListener('click',event=>{const b=event.target.closest('[data-insert-variable]');if(b)insertComposeVariable(b.dataset.insertVariable);});
+}
+
+
+
+/* ============================================================
+   TEMPLATE LIBRARY — V18.3
+   ============================================================ */
+
+let templateLibraryAttached = false;
+let templateLibraryEditingId = '';
+
+function templateLibraryActiveRows() {
+  const query =
+    String(
+      document.getElementById('templateLibrarySearch')?.value || ''
+    )
+      .trim()
+      .toLowerCase();
+
+  return (campaignContentState.templates || [])
+    .filter(template => template.status !== 'ARCHIVED')
+    .filter(template => {
+      if (!query) return true;
+      return [
+        template.name,
+        template.subject,
+        template.plainBody,
+        template.htmlBody
+      ].some(value =>
+        String(value || '')
+          .toLowerCase()
+          .includes(query)
+      );
+    })
+    .sort((a, b) =>
+      String(b.updatedAt || '')
+        .localeCompare(String(a.updatedAt || ''))
+    );
+}
+
+function renderTemplateLibrary() {
+  const body =
+    document.getElementById('templateLibraryTableBody');
+
+  if (!body) return;
+
+  const rows =
+    templateLibraryActiveRows();
+
+  setText(
+    'templateLibrarySummary',
+    `${rows.length} reusable template${rows.length === 1 ? '' : 's'}`
+  );
+
+  if (!rows.length) {
+    body.innerHTML =
+      '<tr><td colspan="5" class="compose-main-empty">No saved templates found. Choose <strong>+ New Template</strong> to create one.</td></tr>';
+    return;
+  }
+
+  body.innerHTML =
+    rows.map(template => `
+      <tr>
+        <td>
+          <strong>${escapeHtml(template.name || 'Untitled template')}</strong>
+        </td>
+        <td>${escapeHtml(template.subject || '—')}</td>
+        <td>${template.plainBody ? 'Plain Text' : ''}${template.plainBody && template.htmlBody ? ' + ' : ''}${template.htmlBody ? 'HTML' : ''}</td>
+        <td>${escapeHtml(formatComposeTemplateDate(template.updatedAt))}</td>
+        <td class="template-library-actions">
+          <button
+            type="button"
+            class="secondary-action-button"
+            data-template-edit="${escapeHtml(template.templateId)}"
+          >Edit</button>
+          <button
+            type="button"
+            class="secondary-action-button"
+            data-template-duplicate="${escapeHtml(template.templateId)}"
+          >Duplicate</button>
+          <button
+            type="button"
+            class="icon-action-button"
+            title="Archive template"
+            data-template-archive="${escapeHtml(template.templateId)}"
+          >•••</button>
+        </td>
+      </tr>
+    `).join('');
+}
+
+function templateLibraryResetEditor() {
+  templateLibraryEditingId = '';
+
+  const title =
+    document.getElementById('templateLibraryEditorTitle');
+  if (title) title.textContent = 'New Template';
+
+  const name =
+    document.getElementById('templateLibraryName');
+  const subject =
+    document.getElementById('templateLibrarySubject');
+  const plain =
+    document.getElementById('templateLibraryPlainBody');
+  const html =
+    document.getElementById('templateLibraryHtmlBody');
+
+  if (name) name.value = '';
+  if (subject) subject.value = '';
+  if (plain) plain.value = '';
+  if (html) html.value = '';
+
+  const archive =
+    document.getElementById('templateLibraryArchiveButton');
+  if (archive) archive.hidden = true;
+
+  showTemplateLibraryNotice('');
+  renderTemplateLibraryPreview();
+  name?.focus();
+}
+
+function templateLibraryOpenEditor(templateId) {
+  const template =
+    (campaignContentState.templates || [])
+      .find(item =>
+        String(item.templateId) === String(templateId)
+      );
+
+  if (!template) {
+    showTemplateLibraryNotice(
+      'Template could not be found.',
+      'error'
+    );
+    return;
+  }
+
+  templateLibraryEditingId =
+    template.templateId;
+
+  setText(
+    'templateLibraryEditorTitle',
+    `Edit ${template.name || 'Template'}`
+  );
+
+  document.getElementById('templateLibraryName').value =
+    template.name || '';
+
+  document.getElementById('templateLibrarySubject').value =
+    template.subject || '';
+
+  document.getElementById('templateLibraryPlainBody').value =
+    template.plainBody || '';
+
+  document.getElementById('templateLibraryHtmlBody').value =
+    template.htmlBody || '';
+
+  const archive =
+    document.getElementById('templateLibraryArchiveButton');
+
+  if (archive) archive.hidden = false;
+
+  showTemplateLibraryNotice('');
+  renderTemplateLibraryPreview();
+}
+
+function templateLibraryValidate() {
+  const name =
+    String(
+      document.getElementById('templateLibraryName')?.value || ''
+    ).trim();
+
+  const subject =
+    String(
+      document.getElementById('templateLibrarySubject')?.value || ''
+    ).trim();
+
+  const plain =
+    String(
+      document.getElementById('templateLibraryPlainBody')?.value || ''
+    ).trim();
+
+  const html =
+    String(
+      document.getElementById('templateLibraryHtmlBody')?.value || ''
+    ).trim();
+
+  const text =
+    [subject, plain, html].join('\n');
+
+  const allowed =
+    new Set([
+      'firstname',
+      'first_name',
+      'email',
+      'company',
+      'campaignname',
+      'campaign_name'
+    ]);
+
+  const unknown =
+    new Set();
+
+  for (
+    const match of
+    text.matchAll(/\{\{\s*([a-zA-Z0-9_]+)/g)
+  ) {
+    if (
+      !allowed.has(
+        String(match[1]).toLowerCase()
+      )
+    ) {
+      unknown.add(match[1]);
+    }
+  }
+
+  const issues = [];
+
+  if (!name) issues.push('Add a template name.');
+  if (!subject) issues.push('Add a subject line.');
+  if (!plain && !html) issues.push('Add an email body.');
+  if (unknown.size) {
+    issues.push(
+      `Unknown variable${unknown.size > 1 ? 's' : ''}: ${[...unknown].join(', ')}.`
+    );
+  }
+
+  const box =
+    document.getElementById('templateLibraryValidation');
+
+  if (box) {
+    box.className =
+      `compose-validation ${issues.length ? 'has-issues' : 'is-valid'}`;
+
+    box.innerHTML =
+      issues.length
+        ? issues
+            .map(issue =>
+              `<span>⚠ ${escapeHtml(issue)}</span>`
+            )
+            .join('')
+        : '<span>✓ Template is ready to save.</span>';
+  }
+
+  return {
+    valid: !issues.length,
+    issues
+  };
+}
+
+function renderTemplateLibraryPreview() {
+  templateLibraryValidate();
+
+  const subject =
+    document.getElementById('templateLibrarySubject')?.value || '';
+
+  const plain =
+    document.getElementById('templateLibraryPlainBody')?.value || '';
+
+  const html =
+    document.getElementById('templateLibraryHtmlBody')?.value || '';
+
+  const sampleUser = {
+    firstName: 'Alex',
+    emailAddress: 'alex@example.com',
+    company: 'Example Company'
+  };
+
+  const sampleCampaign = {
+    campaignName: 'Sample Campaign'
+  };
+
+  setText(
+    'templateLibraryPreviewSubject',
+    renderPersonalizedText(
+      subject,
+      sampleUser,
+      sampleCampaign
+    ) || '—'
+  );
+
+  const body =
+    document.getElementById('templateLibraryPreviewBody');
+
+  if (!body) return;
+
+  if (html.trim()) {
+    body.innerHTML =
+      '<iframe class="compose-preview-frame" title="Template preview" sandbox="allow-popups"></iframe>';
+
+    const frame =
+      body.querySelector('iframe');
+
+    if (frame) {
+      frame.srcdoc =
+        renderPersonalizedText(
+          html,
+          sampleUser,
+          sampleCampaign
+        );
+    }
+  } else {
+    body.innerHTML =
+      `<div class="compose-plain-preview">${
+        escapeHtml(
+          renderPersonalizedText(
+            plain,
+            sampleUser,
+            sampleCampaign
+          )
+        ).replace(/\n/g, '<br>')
+      }</div>`;
+  }
+}
+
+function showTemplateLibraryNotice(message, type='success') {
+  const notice =
+    document.getElementById('templateLibraryNotice');
+
+  if (!notice) return;
+
+  notice.hidden = !message;
+  notice.className =
+    `dashboard-notice ${type}`;
+  notice.textContent =
+    message || '';
+}
+
+async function loadTemplateLibrary(force=false) {
+  const body =
+    document.getElementById('templateLibraryTableBody');
+
+  if (body && (!campaignContentState.loaded || force)) {
+    body.innerHTML =
+      '<tr><td colspan="5" class="compose-main-empty">Loading templates…</td></tr>';
+  }
+
+  try {
+    await ensureCampaignContentLoaded(force);
+    renderTemplateLibrary();
+
+    // Keep campaign Compose in sync with the same library.
+    populateComposeTemplates();
+    renderComposeSavedTemplates();
+  } catch (error) {
+    if (body) {
+      body.innerHTML =
+        '<tr><td colspan="5" class="compose-main-empty">Could not load templates.</td></tr>';
+    }
+
+    showTemplateLibraryNotice(
+      error?.message || 'Could not load templates.',
+      'error'
+    );
+  }
+}
+
+async function saveTemplateLibraryEditor() {
+  const validation =
+    templateLibraryValidate();
+
+  if (!validation.valid) return;
+
+  const payload = {
+    templateName:
+      document.getElementById('templateLibraryName')?.value.trim() || '',
+    subject:
+      document.getElementById('templateLibrarySubject')?.value || '',
+    plainBody:
+      document.getElementById('templateLibraryPlainBody')?.value || '',
+    htmlBody:
+      document.getElementById('templateLibraryHtmlBody')?.value || ''
+  };
+
+  const button =
+    document.getElementById('templateLibrarySaveButton');
+
+  await withActionButtonBusy(
+    button,
+    'Saving…',
+    async () => {
+      try {
+        if (templateLibraryEditingId) {
+          await DashboardApi.updateEmailTemplate({
+            templateId: templateLibraryEditingId,
+            ...payload
+          });
+        } else {
+          await DashboardApi.createEmailTemplate(payload);
+        }
+
+        campaignContentState.loaded = false;
+        await loadTemplateLibrary(true);
+
+        const savedName = payload.templateName;
+        templateLibraryResetEditor();
+
+        showTemplateLibraryNotice(
+          `Template "${savedName}" saved. It is now available when preparing a campaign.`,
+          'success'
+        );
+      } catch (error) {
+        showTemplateLibraryNotice(
+          error?.message || 'Could not save template.',
+          'error'
+        );
+      }
+    }
+  );
+}
+
+async function duplicateTemplateLibraryItem(templateId) {
+  const template =
+    (campaignContentState.templates || [])
+      .find(item =>
+        String(item.templateId) === String(templateId)
+      );
+
+  if (!template) return;
+
+  let name =
+    window.prompt(
+      'Name for the duplicated template',
+      `${template.name || 'Template'} Copy`
+    );
+
+  if (name === null) return;
+
+  name =
+    String(name || '').trim();
+
+  if (!name) return;
+
+  try {
+    await DashboardApi.createEmailTemplate({
+      templateName: name,
+      subject: template.subject || '',
+      plainBody: template.plainBody || '',
+      htmlBody: template.htmlBody || ''
+    });
+
+    campaignContentState.loaded = false;
+    await loadTemplateLibrary(true);
+
+    showTemplateLibraryNotice(
+      `Template duplicated as "${name}".`,
+      'success'
+    );
+  } catch (error) {
+    showTemplateLibraryNotice(
+      error?.message || 'Could not duplicate template.',
+      'error'
+    );
+  }
+}
+
+async function archiveTemplateLibraryItem(templateId) {
+  const template =
+    (campaignContentState.templates || [])
+      .find(item =>
+        String(item.templateId) === String(templateId)
+      );
+
+  if (!template) return;
+
+  if (
+    !window.confirm(
+      `Archive "${template.name}"? It will no longer appear when preparing campaigns.`
+    )
+  ) {
+    return;
+  }
+
+  try {
+    await DashboardApi.archiveEmailTemplate(templateId);
+
+    campaignContentState.loaded = false;
+    await loadTemplateLibrary(true);
+
+    if (
+      String(templateLibraryEditingId) ===
+      String(templateId)
+    ) {
+      templateLibraryResetEditor();
+    }
+
+    showTemplateLibraryNotice(
+      `Template "${template.name}" archived.`,
+      'success'
+    );
+  } catch (error) {
+    showTemplateLibraryNotice(
+      error?.message || 'Could not archive template.',
+      'error'
+    );
+  }
+}
+
+function insertTemplateLibraryVariable(variable) {
+  const active =
+    document.activeElement;
+
+  const editor =
+    (
+      active &&
+      [
+        'templateLibrarySubject',
+        'templateLibraryPlainBody',
+        'templateLibraryHtmlBody'
+      ].includes(active.id)
+    )
+      ? active
+      : document.getElementById('templateLibraryPlainBody');
+
+  if (!editor) return;
+
+  const start =
+    editor.selectionStart ?? editor.value.length;
+
+  const end =
+    editor.selectionEnd ?? start;
+
+  editor.value =
+    editor.value.slice(0, start) +
+    variable +
+    editor.value.slice(end);
+
+  editor.focus();
+
+  editor.setSelectionRange(
+    start + variable.length,
+    start + variable.length
+  );
+
+  renderTemplateLibraryPreview();
+}
+
+function attachTemplateLibraryListeners() {
+  if (templateLibraryAttached) return;
+  templateLibraryAttached = true;
+
+  document
+    .getElementById('templateLibraryNewButton')
+    ?.addEventListener(
+      'click',
+      templateLibraryResetEditor
+    );
+
+  document
+    .getElementById('templateLibrarySaveButton')
+    ?.addEventListener(
+      'click',
+      saveTemplateLibraryEditor
+    );
+
+  document
+    .getElementById('templateLibraryCancelButton')
+    ?.addEventListener(
+      'click',
+      templateLibraryResetEditor
+    );
+
+  document
+    .getElementById('templateLibraryArchiveButton')
+    ?.addEventListener(
+      'click',
+      () => {
+        if (templateLibraryEditingId) {
+          archiveTemplateLibraryItem(
+            templateLibraryEditingId
+          );
+        }
+      }
+    );
+
+  document
+    .getElementById('templateLibrarySearch')
+    ?.addEventListener(
+      'input',
+      renderTemplateLibrary
+    );
+
+  document
+    .getElementById('templateLibraryTableBody')
+    ?.addEventListener(
+      'click',
+      event => {
+        const edit =
+          event.target.closest(
+            '[data-template-edit]'
+          );
+
+        if (edit) {
+          templateLibraryOpenEditor(
+            edit.dataset.templateEdit
+          );
+          return;
+        }
+
+        const duplicate =
+          event.target.closest(
+            '[data-template-duplicate]'
+          );
+
+        if (duplicate) {
+          duplicateTemplateLibraryItem(
+            duplicate.dataset.templateDuplicate
+          );
+          return;
+        }
+
+        const archive =
+          event.target.closest(
+            '[data-template-archive]'
+          );
+
+        if (archive) {
+          archiveTemplateLibraryItem(
+            archive.dataset.templateArchive
+          );
+        }
+      }
+    );
+
+  document
+    .getElementById('templateLibraryPersonalization')
+    ?.addEventListener(
+      'click',
+      event => {
+        const button =
+          event.target.closest(
+            '[data-template-variable]'
+          );
+
+        if (button) {
+          insertTemplateLibraryVariable(
+            button.dataset.templateVariable
+          );
+        }
+      }
+    );
+
+  [
+    'templateLibraryName',
+    'templateLibrarySubject',
+    'templateLibraryPlainBody',
+    'templateLibraryHtmlBody'
+  ].forEach(id => {
+    document
+      .getElementById(id)
+      ?.addEventListener(
+        'input',
+        renderTemplateLibraryPreview
+      );
+  });
 }
 
 

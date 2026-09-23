@@ -569,11 +569,17 @@ const DashboardApi = (function () {
     getCampaignContent() {
       return post('get_campaign_content', {});
     },
+    getEmailTemplates() {
+      return post('get_email_templates', {});
+    },
     saveCampaignContent(payload) {
       return post('save_campaign_content', payload);
     },
     createEmailTemplate(payload) {
       return post('create_email_template', payload);
+    },
+    updateEmailTemplate(payload) {
+      return post('update_email_template', payload);
     },
     archiveEmailTemplate(templateId) {
       return post('archive_email_template', {templateId});

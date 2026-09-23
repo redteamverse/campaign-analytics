@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=178"
+    href="css/dashboard-modules.css?v=183"
   >
 </head>
 
@@ -269,6 +269,30 @@
 
           <span>
             Compose
+          </span>
+
+        </a>
+
+
+        <a
+          href="#templates"
+          class="nav-item"
+          data-view="templatesView"
+        >
+
+          <svg
+            class="nav-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M4 4h16v16H4z"/>
+            <path d="M8 8h8M8 12h8M8 16h5"/>
+          </svg>
+
+          <span>
+            Templates
           </span>
 
         </a>
@@ -1584,6 +1608,204 @@
               </tbody>
             </table>
           </div>
+        </section>
+
+
+
+        <!-- ===================================================
+             TEMPLATES — REUSABLE EMAIL LIBRARY
+             =================================================== -->
+
+        <section class="view" id="templatesView">
+
+          <div class="template-library-header">
+            <div>
+              <h2>Email Templates</h2>
+              <p>Create reusable emails once, then use them while preparing any campaign.</p>
+            </div>
+
+            <button
+              type="button"
+              class="primary-action-button"
+              id="templateLibraryNewButton"
+            >
+              + New Template
+            </button>
+          </div>
+
+          <div
+            id="templateLibraryNotice"
+            class="dashboard-notice"
+            hidden
+          ></div>
+
+          <div class="template-library-layout">
+
+            <div class="template-library-list-panel">
+
+              <div class="template-library-toolbar">
+                <input
+                  type="search"
+                  id="templateLibrarySearch"
+                  placeholder="Search templates…"
+                  aria-label="Search templates"
+                >
+                <span id="templateLibrarySummary">Loading templates…</span>
+              </div>
+
+              <div class="template-library-table-wrap">
+                <table class="template-library-table">
+                  <thead>
+                    <tr>
+                      <th>Template</th>
+                      <th>Subject</th>
+                      <th>Format</th>
+                      <th>Updated</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="templateLibraryTableBody">
+                    <tr>
+                      <td colspan="5" class="compose-main-empty">
+                        Open Templates to load your saved library.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+
+
+            <div class="template-library-editor-panel">
+
+              <div class="template-library-editor-heading">
+                <div>
+                  <span class="detail-eyebrow">Template editor</span>
+                  <h3 id="templateLibraryEditorTitle">New Template</h3>
+                </div>
+
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="templateLibraryArchiveButton"
+                  hidden
+                >
+                  Archive
+                </button>
+              </div>
+
+              <label class="form-field form-field-strong">
+                <span>Template Name <strong>*</strong></span>
+                <input
+                  type="text"
+                  id="templateLibraryName"
+                  maxlength="120"
+                  placeholder="e.g. Security Training Introduction"
+                >
+              </label>
+
+              <label class="form-field form-field-strong">
+                <span>Subject <strong>*</strong></span>
+                <input
+                  type="text"
+                  id="templateLibrarySubject"
+                  maxlength="240"
+                  placeholder='e.g. A quick note for {{firstName | "there"}}'
+                >
+              </label>
+
+              <div
+                class="personalization-toolbar"
+                id="templateLibraryPersonalization"
+              >
+                <span>Insert personalization</span>
+
+                <button
+                  type="button"
+                  data-template-variable='{{firstName | "there"}}'
+                >First name</button>
+
+                <button
+                  type="button"
+                  data-template-variable='{{company | "your team"}}'
+                >Company</button>
+
+                <button
+                  type="button"
+                  data-template-variable='{{email}}'
+                >Email</button>
+
+                <button
+                  type="button"
+                  data-template-variable='{{campaignName}}'
+                >Campaign</button>
+              </div>
+
+              <label class="form-field">
+                <span>Plain Text</span>
+                <textarea
+                  id="templateLibraryPlainBody"
+                  class="compose-body-editor template-library-body"
+                  rows="10"
+                  placeholder="Write the reusable email body…"
+                ></textarea>
+              </label>
+
+              <label class="form-field">
+                <span>HTML <small>Optional</small></span>
+                <textarea
+                  id="templateLibraryHtmlBody"
+                  class="compose-body-editor code-editor template-library-body"
+                  rows="8"
+                  placeholder="Optional HTML email body…"
+                ></textarea>
+              </label>
+
+              <div
+                class="compose-validation"
+                id="templateLibraryValidation"
+              ></div>
+
+              <div class="template-library-preview">
+                <div class="template-library-preview-heading">
+                  <span class="detail-eyebrow">Preview</span>
+                  <small>Sample personalization is used here.</small>
+                </div>
+
+                <div class="compose-preview-subject">
+                  <span>Subject</span>
+                  <strong id="templateLibraryPreviewSubject">—</strong>
+                </div>
+
+                <div
+                  class="compose-preview-body template-library-preview-body"
+                  id="templateLibraryPreviewBody"
+                ></div>
+              </div>
+
+              <div class="template-library-editor-actions">
+                <button
+                  type="button"
+                  class="secondary-action-button"
+                  id="templateLibraryCancelButton"
+                >
+                  Clear
+                </button>
+
+                <button
+                  type="button"
+                  class="primary-action-button"
+                  id="templateLibrarySaveButton"
+                >
+                  Save Template
+                </button>
+              </div>
+
+            </div>
+
+          </div>
+
         </section>
 
 
@@ -3287,17 +3509,17 @@
     src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.min.js"
   ></script>
 
-  <script src="js/datasource.js?v=182"></script>
-  <script src="js/data.js?v=182"></script>
+  <script src="js/datasource.js?v=183"></script>
+  <script src="js/data.js?v=183"></script>
   <script src="js/metrics.js"></script>
   <script src="js/analytics.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=182"></script>
+  <script src="js/dashboard-api.js?v=183"></script>
 
-  <script src="js/app.js?v=182"></script>
+  <script src="js/app.js?v=183"></script>
 
 </body>
 
