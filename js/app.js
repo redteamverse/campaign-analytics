@@ -11751,17 +11751,17 @@ function renderCampaignReview(result){
   if(subtitle)subtitle.textContent=result.ready?'All required checks passed. No email has been queued or sent.':'Fix the required items marked below, then recheck the campaign.';
   if(score)score.textContent=`${result.requiredPassed}/${result.requiredTotal}`;
   renderReviewSchedules_();
-  const queueNote=document.getElementById('campaignReviewQueueNote');if(queueNote){const count=Math.max(0,Number(result.activeRecipients||0)-Number(result.blockedRecipients||0));queueNote.textContent=count?`${count} currently eligible recipient${count===1?'':'s'}. Scheduled recipients enter the Send Queue only when their time becomes due.`:'Eligible recipients will be checked again when the scheduled time becomes due.';}
+  const queueNote=document.getElementById('campaignReviewQueueNote');if(queueNote){const count=Math.max(0,Number(result.activeRecipients||0));queueNote.textContent=count?`${count} active recipient${count===1?'':'s'} selected. Mailbox pre-check is optional. Recipients enter the Send Queue when their scheduled time becomes due.`:'Add an active recipient to send or schedule this campaign.';}
   if(grid)grid.innerHTML=(result.checks||[]).map(c=>`<article class="campaign-review-check ${c.passed?'passed':'failed'}"><div class="campaign-review-check-icon">${c.passed?'✓':'!'}</div><div><div class="campaign-review-check-heading"><strong>${escapeReviewHtml_(c.label)}</strong>${c.required?'':'<span class="review-optional">Optional</span>'}</div><p>${escapeReviewHtml_(c.description||'')}</p><small>${escapeReviewHtml_(c.detail||'')}</small></div></article>`).join('');
   if(launch){
     launch.disabled=!result.ready;
-    launch.title=result.ready?'Queue eligible recipients for immediate processing.':'Complete all required readiness checks first.';
+    launch.title=result.ready?'Queue active recipients for immediate processing.':'Complete all required readiness checks first.';
     launch.textContent='Send Now';
   }
   const note=document.getElementById('campaignReviewLaunchNote');
   if(note){
     note.innerHTML=result.ready
-      ? '<strong>Ready to send</strong><span>Send Now queues eligible recipients for processing under your sending rules. Scheduled recipients enter the queue when their time becomes due. Upcoming schedules remain in place.</span>'
+      ? '<strong>Ready to send</strong><span>Send Now queues active recipients for processing under your sending rules. Scheduled recipients enter the queue when their time becomes due. Upcoming schedules remain in place.</span>'
       : '<strong>Launch is blocked</strong><span>Complete all required checks before this campaign can enter the Send Queue.</span>';
   }
 }
@@ -11780,7 +11780,7 @@ async function launchReviewedCampaign(){
   if(!campaign)return;
 
   const hasSchedule=(campaignScheduleState.schedules||[]).some(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING');
-  const confirmed=await openDashboardConfirm({title:'Send now?',message:`Queue currently eligible recipients for "${campaign.campaignName}"? Sending follows your configured days, hours and limits. Sending now will not cancel ${hasSchedule?'this campaign’s upcoming scheduled send.':'any future scheduled sends.'}`,confirmLabel:'Send Now'});
+  const confirmed=await openDashboardConfirm({title:'Send now?',message:`Queue active recipients for "${campaign.campaignName}"? Sending follows your configured days, hours and limits. Sending now will not cancel ${hasSchedule?'this campaign’s upcoming scheduled send.':'any future scheduled sends.'}`,confirmLabel:'Send Now'});
   if(!confirmed)return;
 
   await withActionButtonBusy(button,'Launching…',async()=>{
@@ -11790,7 +11790,7 @@ async function launchReviewedCampaign(){
       const response=await DashboardApi.launchCampaign(campaignBuilderCampaignId);
       const result=response?.result?.result||response?.result||response;
       showCampaignReviewNotice(
-        result?.message || 'Eligible recipients added to the Send Queue for processing.',
+        result?.message || 'Active recipients added to the Send Queue for processing.',
         'success'
       );
       if(button){
