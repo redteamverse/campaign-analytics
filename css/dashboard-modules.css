@@ -2269,3 +2269,12 @@ body.campaign-builder-open{overflow:hidden}
 .compose-workspace-tab.active{background:#fff;border-color:#e0d7d7;color:#9e1b1b;box-shadow:0 2px 8px rgba(16,24,40,.1)}
 .compose-workspace-tab:focus-visible{outline:3px solid #cf3434;outline-offset:2px}
 @media(max-width:640px){.compose-flow-intro{grid-template-columns:1fr}.compose-workspace-tabs{width:100%}.compose-workspace-tab{flex:1;padding:12px 8px;font-size:13px}}
+
+/* Upcoming schedules are a distinct, visible campaign state. */
+.campaign-status-badge.campaign-status-scheduled{border-color:#c4b5fd;background:#f5f3ff;color:#6d28d9;font-size:11px;padding:5px 10px}
+.campaign-status-badge.campaign-status-checking{border-color:#d0d5dd;background:#f9fafb;color:#475467}
+.campaign-status-checking .campaign-status-dot{animation:campaign-schedule-pulse 1.2s ease-in-out infinite}
+@keyframes campaign-schedule-pulse{50%{opacity:.25;transform:scale(.7)}}
+.campaign-schedule-pending{display:inline-flex;align-items:center;color:#667085;font-size:11px}
+.campaign-lifecycle-filter[data-campaign-lifecycle="scheduled"].active{background:#f5f3ff;color:#6d28d9;border-color:#c4b5fd}
+.campaign-review-schedule-row .badge-warning{background:#f5f3ff;color:#6d28d9}

@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=195"
+    href="css/dashboard-modules.css?v=196"
   >
 
   <style>
@@ -1946,37 +1946,40 @@
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="draft"
-                data-help-text="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending."
-                aria-description="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending."
+                data-help-text="Campaigns without an upcoming send that were saved as Draft. A future scheduled time moves the campaign to Scheduled."
+                aria-description="Campaigns without an upcoming send that were saved as Draft. A future scheduled time moves the campaign to Scheduled."
               >
                 Drafts
                 <span id="campaignLifecycleDraftCount">0</span>
               </button>
-              <button type="button" class="campaign-status-info" data-campaign-status-help="draft" data-help-text="Campaigns saved without an upcoming send. Create a campaign or choose Save as Draft in Review. Drafts need preparation before sending." aria-label="About draft campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="draft" data-help-text="Campaigns without an upcoming send that were saved as Draft. A future scheduled time moves the campaign to Scheduled." aria-label="About draft campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="ready"
-                data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue."
-                aria-description="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue."
+                data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue."
+                aria-description="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue."
               >
                 Ready
                 <span id="campaignLifecycleReadyCount">0</span>
               </button>
-              <button type="button" class="campaign-status-info" data-campaign-status-help="ready" data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Running. Ready does not mean recipients have entered the Send Queue." aria-label="About ready campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="ready" data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue." aria-label="About ready campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+
+              <button type="button" class="campaign-lifecycle-filter" data-campaign-lifecycle="scheduled" data-help-text="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then." aria-description="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then.">Scheduled <span id="campaignLifecycleScheduledCount">…</span></button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="scheduled" data-help-text="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then." aria-label="About scheduled campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="running"
-                data-help-text="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately."
-                aria-description="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately."
+                data-help-text="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready."
+                aria-description="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready."
               >
                 Running
                 <span id="campaignLifecycleRunningCount">0</span>
               </button>
-              <button type="button" class="campaign-status-info" data-campaign-status-help="running" data-help-text="Campaigns with at least one upcoming scheduled send. Save a future time in Schedule or Review to place an eligible campaign here. When its last upcoming time is completed or canceled, it moves to Ready. Send Queue delivery is tracked separately." aria-label="About running campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="running" data-help-text="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready." aria-label="About running campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
@@ -3185,6 +3188,7 @@
             </div>
             <div class="builder-stage-footer">
               <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
+              <button type="button" class="secondary-action-button" id="campaignReviewDone">Done · View Campaigns</button>
               <div class="builder-footer-actions">
                 <button type="button" class="secondary-action-button" id="campaignReviewRecheck">Recheck Campaign</button>
                 <button type="button" class="secondary-action-button" id="campaignReviewDraft">Save as Draft</button>
@@ -3690,9 +3694,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=195"></script>
+  <script src="js/dashboard-api.js?v=196"></script>
 
-  <script src="js/app.js?v=195"></script>
+  <script src="js/app.js?v=196"></script>
 
 </body>
 

@@ -80,6 +80,7 @@ function refreshCampaignSchedulesInBackground(delayMs = 900) {
         (result.schedules || []).map(normalizeCampaignSchedule);
 
       campaignScheduleState.loaded = true;
+      campaignScheduleState.error = null;
 
       // Refresh only UI that can display schedule information.
       // Do NOT reload the relational dashboard data.
@@ -91,6 +92,8 @@ function refreshCampaignSchedulesInBackground(delayMs = 900) {
     } catch (error) {
       // Schedules are secondary dashboard data. A slow/unavailable schedule
       // endpoint must never make the main dashboard look unavailable.
+      campaignScheduleState.error = error;
+      renderCampaignManagement();
       console.warn(
         'Background campaign schedule refresh failed:',
         error
@@ -1523,29 +1526,17 @@ function getRawCampaignStatus(
 }
 
 
-function getCampaignLifecycleStatus(
-  campaign
-) {
-
-  const raw =
-    getRawCampaignStatus(
-      campaign
-    );
-
-  // A schedule is the source of truth for the campaign list's Running tab.
-  // ACTIVE remains the backend sender status; it does not imply that a
-  // future scheduled send still exists.
-  if (['ACTIVE', 'RUNNING', 'READY', 'SCHEDULED'].includes(raw)) {
-    const upcoming = (campaignScheduleState?.schedules || []).some(schedule =>
-      String(schedule.campaignId) === String(campaign.campaignId) &&
-      String(schedule.scheduleStatus).toUpperCase() === 'UPCOMING'
-    );
-    return upcoming ? 'RUNNING' : 'READY';
-  }
-
-  return raw;
+function getCampaignLifecycleStatus(campaign) {
+  const raw=getRawCampaignStatus(campaign);
+  if(['PAUSED','COMPLETED','CANCELED','ARCHIVED'].includes(raw))return raw;
+  if(!campaignScheduleState.loaded)return campaignScheduleState.error?'SCHEDULE_UNAVAILABLE':'CHECKING';
+  const upcoming=(campaignScheduleState.schedules||[]).some(schedule=>
+    String(schedule.campaignId)===String(campaign.campaignId) &&
+    String(schedule.scheduleStatus).toUpperCase()==='UPCOMING');
+  if(upcoming)return 'SCHEDULED';
+  if(raw==='DRAFT')return 'DRAFT';
+  return 'READY';
 }
-
 
 function campaignLifecycleLabel(
   status
@@ -1564,7 +1555,11 @@ function campaignLifecycleLabel(
     READY:
       'Ready',
     SCHEDULED:
-      'Ready',
+      'Scheduled',
+    CHECKING:
+      'Checking schedule…',
+    SCHEDULE_UNAVAILABLE:
+      'Schedule unavailable',
     RUNNING:
       'Running',
     ACTIVE:
@@ -1600,7 +1595,11 @@ function campaignLifecycleBadge(
     READY:
       'campaign-status-ready',
     SCHEDULED:
-      'campaign-status-ready',
+      'campaign-status-scheduled',
+    CHECKING:
+      'campaign-status-checking',
+    SCHEDULE_UNAVAILABLE:
+      'campaign-status-checking',
     RUNNING:
       'campaign-status-running',
     PAUSED:
@@ -1767,6 +1766,8 @@ function updateCampaignLifecycleCounts(
     count('READY').toLocaleString()
   );
 
+  setText('campaignLifecycleScheduledCount',campaignScheduleState.loaded?count('SCHEDULED').toLocaleString():'…');
+
   setText(
     'campaignLifecycleRunningCount',
     count('RUNNING').toLocaleString()
@@ -1930,7 +1931,7 @@ function getCampaignLifecycleActions(
 }
 
 
-function renderCampaignNextSchedule_(campaignId){const rows=(campaignScheduleState?.schedules||[]).filter(s=>String(s.campaignId)===String(campaignId)&&String(s.scheduleStatus).toUpperCase()==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));if(!rows.length)return '<span class="muted-id">—</span>';const s=rows[0],more=rows.length-1;return `<div class="campaign-next-schedule"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}${more?` · +${more} more`:''}</span></div>`;}
+function renderCampaignNextSchedule_(campaignId){if(!campaignScheduleState.loaded)return `<span class="campaign-schedule-pending">${campaignScheduleState.error?'Schedule unavailable':'Checking schedule…'}</span>`;const rows=(campaignScheduleState?.schedules||[]).filter(s=>String(s.campaignId)===String(campaignId)&&String(s.scheduleStatus).toUpperCase()==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));if(!rows.length)return '<span class="muted-id">—</span>';const s=rows[0],more=rows.length-1;return `<div class="campaign-next-schedule"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}${more?` · +${more} more`:''}</span></div>`;}
 
 function renderCampaignManagement() {
 
@@ -2112,6 +2113,7 @@ function renderCampaignManagement() {
 }
 
 
+let campaignsNoticeTimer=null;
 function showCampaignsNotice(
   message,
   type = 'success'
@@ -2135,6 +2137,8 @@ function showCampaignsNotice(
   notice.textContent =
     message ||
     '';
+  if(campaignsNoticeTimer)clearTimeout(campaignsNoticeTimer);
+  if(message)campaignsNoticeTimer=setTimeout(()=>{notice.hidden=true;notice.textContent='';campaignsNoticeTimer=null;},6500);
 }
 
 
@@ -3237,6 +3241,8 @@ function showCampaignBuilderNotice(message, type = 'success') {
 }
 
 function switchCampaignBuilderStep(step) {
+  showCampaignReviewNotice('');
+  showCampaignScheduleNotice('');
   campaignBuilderActiveStep = step;
   document.querySelectorAll('[data-builder-step]').forEach(button =>
     button.classList.toggle('active', button.dataset.builderStep === step)
@@ -3266,6 +3272,8 @@ function closeCampaignBuilder() {
   if (composeOnlyMode) renderMainComposeWorkspace(true);
   composeOnlyMode = false;
   campaignBuilderCampaignId = '';
+  showCampaignReviewNotice('');
+  showCampaignScheduleNotice('');
   campaignBuilderSelectedUserIds.clear();
 }
 
@@ -11664,7 +11672,7 @@ function attachCampaignSettingsListeners() {
 /* ============================================================
    CAMPAIGN SCHEDULE — V17.7 MULTI-SCHEDULE
    ============================================================ */
-let campaignScheduleState={loaded:false,loading:false,schedules:[]}; let campaignScheduleListenersAttached=false;
+let campaignScheduleState={loaded:false,loading:false,schedules:[],error:null}; let campaignScheduleListenersAttached=false;
 function normalizeCampaignSchedule(x={}){return{campaignScheduleId:String(x.campaignScheduleId||''),campaignId:String(x.campaignId||''),campaignName:String(x.campaignName||''),startDate:String(x.startDate||''),startTime:String(x.startTime||''),scheduleStatus:String(x.scheduleStatus||'UPCOMING').toUpperCase(),createdAt:x.createdAt||'',updatedAt:x.updatedAt||'',canceledAt:x.canceledAt||''};}
 function getCampaignSchedulesForCurrent_(){return campaignScheduleState.schedules.filter(x=>String(x.campaignId)===String(campaignBuilderCampaignId)).sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));}
 function showCampaignScheduleNotice(m,t='success'){const e=document.getElementById('campaignScheduleNotice');if(!e)return;e.hidden=!m;e.className=`dashboard-notice ${t}`;e.textContent=m||'';}
@@ -11686,7 +11694,7 @@ async function clearCampaignScheduleHistory_(id,button){
 }
 
 function resetCampaignScheduleForm_(){const id=document.getElementById('campaignScheduleEditId'),d=document.getElementById('campaignScheduleStartDate'),t=document.getElementById('campaignScheduleStartTime'),c=document.getElementById('campaignScheduleCancelEdit'),b=document.getElementById('campaignScheduleSave');if(id)id.value='';if(d)d.value='';if(t)t.value='';if(c)c.hidden=true;if(b)b.textContent='Add Schedule';setText('campaignScheduleFormTitle','Add scheduled time');}
-async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}updateCampaignScheduleUi();renderCampaignScheduleList();renderCampaignManagement();showCampaignScheduleNotice('','success');}catch(e){showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
+async function loadCampaignSchedule(force=false){if(!campaignBuilderCampaignId||campaignScheduleState.loading)return;campaignScheduleState.loading=true;try{if(!campaignSettingsState.loaded)await loadCampaignSettings();if(force||!campaignScheduleState.loaded){const r=await DashboardApi.getCampaignSchedules(),x=r?.result?.result||r?.result||{};campaignScheduleState.schedules=(x.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;campaignScheduleState.error=null;}updateCampaignScheduleUi();renderCampaignScheduleList();renderCampaignManagement();showCampaignScheduleNotice('','success');}catch(e){campaignScheduleState.error=e;renderCampaignManagement();showCampaignScheduleNotice(e?.message||'Could not load schedules.','error');}finally{campaignScheduleState.loading=false;}}
 async function saveCampaignSchedule(e){const p={campaignId:campaignBuilderCampaignId,campaignScheduleId:document.getElementById('campaignScheduleEditId')?.value||'',startDate:document.getElementById('campaignScheduleStartDate')?.value||'',startTime:document.getElementById('campaignScheduleStartTime')?.value||''};if(!/^\d{4}-\d{2}-\d{2}$/.test(p.startDate)||!/^\d{2}:\d{2}$/.test(p.startTime)){showCampaignScheduleNotice('Choose a valid date and time.','error');return;}await withActionButtonBusy(e?.currentTarget||document.getElementById('campaignScheduleSave'),'Saving…',async()=>{try{await DashboardApi.saveCampaignSchedule(p);campaignScheduleState.loaded=false;await loadCampaignSchedule(true);resetCampaignScheduleForm_();showCampaignScheduleNotice(p.campaignScheduleId?'Schedule updated.':'Schedule added.','success');}catch(err){showCampaignScheduleNotice(err?.message||'Could not save schedule.','error');}});}
 function editCampaignSchedule_(id){const s=campaignScheduleState.schedules.find(x=>x.campaignScheduleId===id);if(!s||s.scheduleStatus!=='UPCOMING')return;document.getElementById('campaignScheduleEditId').value=s.campaignScheduleId;document.getElementById('campaignScheduleStartDate').value=s.startDate;document.getElementById('campaignScheduleStartTime').value=s.startTime;document.getElementById('campaignScheduleCancelEdit').hidden=false;document.getElementById('campaignScheduleSave').textContent='Update Schedule';setText('campaignScheduleFormTitle','Edit scheduled time');}
 async function cancelCampaignSchedule_(id,button){
@@ -11710,6 +11718,7 @@ function renderReviewSchedules_(){
   setText('campaignReviewTimezone',timezone);
   host.innerHTML=rows.length?rows.map(x=>`<div class="campaign-review-schedule-row"><div><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))} · ${escapeHtml(x.startTime)}</strong><span>${escapeHtml(timezone)}</span></div><span class="status-badge badge-warning">Upcoming</span></div>`).join(''):'<p>No upcoming send is scheduled. You can send now, add a future time here, or save as a draft.</p>';
   const button=document.getElementById('campaignReviewSchedule');if(button)button.textContent=rows.length?'Add Another Schedule':'Schedule Send';
+  const done=document.getElementById('campaignReviewDone');if(done)done.textContent=rows.length?'Done · View Scheduled Campaign':'Done · View Campaigns';
 }
 async function saveReviewSchedule_(event){
   const startDate=document.getElementById('campaignReviewScheduleDate')?.value||'';
@@ -11724,7 +11733,7 @@ async function saveReviewSchedule_(event){
       await DashboardApi.saveCampaignSchedule({campaignId:campaignBuilderCampaignId,startDate,startTime});
       campaignScheduleState.loaded=false;
       const response=await DashboardApi.getCampaignSchedules();const result=response?.result?.result||response?.result||{};
-      campaignScheduleState.schedules=(result.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;
+      campaignScheduleState.schedules=(result.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;campaignScheduleState.error=null;
       document.getElementById('campaignReviewScheduleForm').hidden=true;
       renderReviewSchedules_();renderCampaignManagement();await loadCampaignReview();
       showCampaignReviewNotice('Scheduled time saved. Recipients will enter the Send Queue when this time becomes due and automatic sending is enabled.','success');
@@ -11769,7 +11778,7 @@ async function loadCampaignReview(){
   if(!campaignBuilderCampaignId||campaignReviewLoading)return;
   campaignReviewLoading=true; showCampaignReviewNotice('','success');
   const grid=document.getElementById('campaignReviewChecks'); if(grid)grid.innerHTML='<div class="campaign-review-loading">Checking campaign readiness…</div>';
-  try{if(!campaignScheduleState.loaded){const schedules=await DashboardApi.getCampaignSchedules();const data=schedules?.result?.result||schedules?.result||{};campaignScheduleState.schedules=(data.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;}renderReviewSchedules_();const response=await DashboardApi.checkCampaignReadiness(campaignBuilderCampaignId);const result=response?.result?.result||response?.result||response;if(!result||!Array.isArray(result.checks))throw new Error('Readiness response is invalid.');renderCampaignReview(result);}
+  try{if(!campaignScheduleState.loaded){const schedules=await DashboardApi.getCampaignSchedules();const data=schedules?.result?.result||schedules?.result||{};campaignScheduleState.schedules=(data.schedules||[]).map(normalizeCampaignSchedule);campaignScheduleState.loaded=true;campaignScheduleState.error=null;}renderReviewSchedules_();const response=await DashboardApi.checkCampaignReadiness(campaignBuilderCampaignId);const result=response?.result?.result||response?.result||response;if(!result||!Array.isArray(result.checks))throw new Error('Readiness response is invalid.');renderCampaignReview(result);}
   catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');if(grid)grid.innerHTML='';}
   finally{campaignReviewLoading=false;}
 }
@@ -11817,6 +11826,7 @@ function attachCampaignReviewListeners(){
   document.getElementById('campaignReviewSchedule')?.addEventListener('click',()=>{document.getElementById('campaignReviewScheduleForm').hidden=false;document.getElementById('campaignReviewScheduleDate')?.focus();});
   document.getElementById('campaignReviewScheduleCancel')?.addEventListener('click',()=>{document.getElementById('campaignReviewScheduleForm').hidden=true;});
   document.getElementById('campaignReviewScheduleSave')?.addEventListener('click',saveReviewSchedule_);
+  document.getElementById('campaignReviewDone')?.addEventListener('click',()=>{const scheduled=(campaignScheduleState.schedules||[]).some(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING');closeCampaignBuilder();switchView('campaignsView');activeCampaignLifecycleFilter=scheduled?'scheduled':'all';renderCampaignManagement();showCampaignsNotice(scheduled?'Campaign scheduled. It will enter the Send Queue when the scheduled time arrives.':'Campaign saved. You can return to edit or send it later.','success');});
   document.getElementById('campaignReviewDraft')?.addEventListener('click',saveReviewedDraft_);
   document.getElementById('campaignReviewLaunch')?.addEventListener('click',launchReviewedCampaign);
 }
