@@ -444,7 +444,10 @@ function switchView(viewId) {
   if (viewId === 'templatesView') {
     loadTemplateLibrary(false);
   }
-  if (viewId === 'composeView') renderMainComposeWorkspace();
+  if (viewId === 'composeView') {
+    if (composeWorkspaceMode === 'direct') loadDirectCompose_();
+    else renderMainComposeWorkspace();
+  }
 
   closeMobileSidebar();
 }
@@ -475,6 +478,7 @@ function attachEventListeners() {
 
   attachTemplateLibraryListeners();
   attachDashboardConfirmListeners();
+  attachDirectComposeListeners_();
 
   document.querySelector('[data-open-template-library]')
     ?.addEventListener('click', () => switchView('templatesView'));
@@ -6295,11 +6299,7 @@ function renderCampaignMembers() {
               ? 'Deactivate'
               : 'Activate';
 
-          const precheckStatus =
-            String(
-              member.preDeliveryCheckStatus ||
-              ''
-            ).trim();
+          const precheckStatus = getPrecheckDisplayStatus(member) === 'NOT_CHECKED' ? '' : getPrecheckDisplayStatus(member);
 
           const memberId =
             escapeHtml(
@@ -10474,8 +10474,14 @@ function getPrecheckDisplayStatus(
       .toUpperCase();
 
 
-  return value ||
-    'NOT_CHECKED';
+  if (['VALID','RISKY'].includes(value)) {
+    const raw=String(member.preDeliveryCheckAt||'').trim();
+    const uk=raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:[ ,T]+(\d{1,2}):(\d{2}))?/);
+    const checked=uk?new Date(+uk[3],+uk[2]-1,+uk[1],+(uk[4]||0),+(uk[5]||0)):new Date(raw.replace(' ','T'));
+    const age=Date.now()-checked.getTime();
+    if (!Number.isFinite(age)||age<0||age>30*24*60*60*1000)return 'EXPIRED';
+  }
+  return value || 'NOT_CHECKED';
 }
 
 
@@ -11949,4 +11955,106 @@ function renderCampaignHistory() {
   items.sort((a,b) => b.time-a.time);
   timeline.innerHTML = items.length ? items.slice(0,150).map(item => `<article class="campaign-history-item"><span class="campaign-history-dot" aria-hidden="true"></span><div><time>${escapeHtml(formatCampaignDate(item.when))}</time><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.detail)}</p></div></article>`).join('') : '<p class="campaign-history-empty">No recorded history yet for this campaign.</p>';
   if (items.length > 150) timeline.insertAdjacentHTML('beforeend', '<p class="campaign-history-note">Showing the 150 most recent records.</p>');
+}
+
+/* Direct Compose: one-off Gmail sends kept separate from campaign email content. */
+let directComposeAttached = false;
+let directComposeRequestId = '';
+let composeWorkspaceMode = 'campaign';
+function showDirectComposeNotice(message,type='success') {
+  const box=document.getElementById('directComposeNotice');
+  if(!box)return;
+  box.hidden=!message;box.className=`dashboard-notice ${type}`;box.textContent=message||'';
+}
+function directComposeAddresses_() {
+  const entered=String(document.getElementById('directComposeAddresses')?.value||'').split(/[,;\n]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
+  const listId=document.getElementById('directComposeList')?.value||'';
+  const saved=(contactAudienceState.listMembers||[]).filter(x=>x.listId===listId).map(x=>String(x.emailAddress||'').trim().toLowerCase()).filter(Boolean);
+  return [...new Set([...entered,...saved])];
+}
+function renderDirectComposeRecipients_() {
+  const count=directComposeAddresses_().length;
+  setText('directComposeRecipients',count?`${count} unique recipient${count===1?'':'s'} selected. ${count>20?'Choose no more than 20.':''}`:'Add an address, contact, or list.');
+}
+async function loadDirectCompose_() {
+  const directory=document.getElementById('directComposeDirectoryOptions');
+  const select=document.getElementById('directComposeList');
+  if(directory) directory.innerHTML=(DataEngine.getNormalized().users||[])
+    .filter(u=>u.emailAddress&&!u.unsubscribed)
+    .map(u=>`<option value="${escapeHtml(u.emailAddress)}">${escapeHtml((u.firstName||'Contact')+' - '+u.emailAddress)}</option>`).join('');
+  try {
+    await ensureContactAudiencesLoaded();
+    if(select) {
+      const prior=select.value;
+      select.innerHTML='<option value="">Choose a list (optional)</option>'+(contactAudienceState.lists||[])
+        .filter(x=>String(x.status||'ACTIVE').toUpperCase()==='ACTIVE')
+        .map(x=>`<option value="${escapeHtml(x.listId)}">${escapeHtml(x.name)}</option>`).join('');
+      if([...select.options].some(x=>x.value===prior))select.value=prior;
+    }
+    renderDirectComposeRecipients_();
+  } catch(error) {showDirectComposeNotice(error?.message||'Could not load saved lists.','error');}
+  try {
+    const response=await DashboardApi.getDirectMailHistory();
+    const rows=(response?.result?.result||response?.result||{}).messages||[];
+    const host=document.getElementById('directComposeHistory');
+    if(host)host.innerHTML=rows.length?rows.slice(0,20).map(x=>`<div class="direct-compose-history-row"><strong>${escapeHtml(x.emailAddress)}</strong><span>${escapeHtml(x.subject)}</span><small>${escapeHtml(x.status)} · ${escapeHtml(formatMainComposeUpdated(x.sentAt||x.createdAt))}</small>${x.error?`<small class="direct-compose-history-error">${escapeHtml(x.error)}</small>`:''}</div>`).join(''):'<p>No direct emails recorded yet.</p>';
+  } catch(error) {
+    const host=document.getElementById('directComposeHistory');
+    if(host)host.textContent=error?.message||'Direct email history unavailable.';
+  }
+}
+function switchComposeWorkspace_(mode) {
+  composeWorkspaceMode=mode==='direct'?'direct':'campaign';
+  document.getElementById('composeCampaignPanel').hidden=composeWorkspaceMode!=='campaign';
+  document.getElementById('composeDirectPanel').hidden=composeWorkspaceMode!=='direct';
+  const newCampaign=document.getElementById('composeMainNewCampaign');
+  if(newCampaign)newCampaign.hidden=composeWorkspaceMode==='direct';
+  document.querySelectorAll('[data-compose-workspace]').forEach(button=>{
+    const active=button.dataset.composeWorkspace===composeWorkspaceMode;
+    button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active));
+  });
+  if(composeWorkspaceMode==='direct')loadDirectCompose_();
+  else renderMainComposeWorkspace();
+}
+async function sendDirectCompose_(button) {
+  const recipients=directComposeAddresses_();
+  const subject=document.getElementById('directComposeSubject')?.value.trim()||'';
+  const body=document.getElementById('directComposeBody')?.value||'';
+  const listId=document.getElementById('directComposeList')?.value||'';
+  if(!recipients.length||recipients.length>20){showDirectComposeNotice('Choose 1 to 20 recipients.','error');return;}
+  if(recipients.some(email=>!/^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/.test(email))){showDirectComposeNotice('Correct the invalid email address before sending.','error');return;}
+  if(!subject||!body.trim()){showDirectComposeNotice('Add a subject and message before sending.','error');return;}
+  const confirmed=await openDashboardConfirm({title:'Send direct email?',message:`Send "${subject}" separately to ${recipients.length} recipient${recipients.length===1?'':'s'}? Unverified addresses will be checked first.`,confirmLabel:'Send Email'});
+  if(!confirmed)return;
+  if(!directComposeRequestId)directComposeRequestId='DM'+crypto.randomUUID().replace(/-/g,'');
+  await withActionButtonBusy(button,'Sending…',async()=>{
+    try {
+      const response=await DashboardApi.sendDirectMail({requestId:directComposeRequestId,addresses:recipients.filter(email=>!(contactAudienceState.listMembers||[]).some(x=>x.listId===listId&&String(x.emailAddress||'').toLowerCase()===email)),listId,subject,plainBody:body});
+      const result=response?.result?.result||response?.result||response;
+      const sent=Number(result.sent||0),total=Number(result.total||result.results?.length||0);
+      showDirectComposeNotice(result.alreadySubmitted?`This request was already submitted. ${sent} of ${total} recorded as sent. Review Direct Email history before trying again.`:`${sent} of ${total} email${total===1?'':'s'} sent. ${total-sent?'Review failed recipients in history.':''}`,sent===total?'success':'warning');
+      if(!result.alreadySubmitted&&sent===total){
+        document.getElementById('directComposeAddresses').value='';
+        document.getElementById('directComposeList').value='';
+        document.getElementById('directComposeSubject').value='';
+        document.getElementById('directComposeBody').value='';
+        directComposeRequestId='';
+      }
+      await loadDirectCompose_();
+    }catch(error){showDirectComposeNotice(error?.message||'Direct send failed. Retry with the same request, then check history.','error');}
+  });
+}
+function attachDirectComposeListeners_() {
+  if(directComposeAttached)return;directComposeAttached=true;
+  document.querySelectorAll('[data-compose-workspace]').forEach(button=>button.addEventListener('click',()=>switchComposeWorkspace_(button.dataset.composeWorkspace)));
+  ['directComposeAddresses','directComposeSubject','directComposeBody','directComposeList'].forEach(id=>document.getElementById(id)?.addEventListener(id==='directComposeList'?'change':'input',()=>{directComposeRequestId='';renderDirectComposeRecipients_();}));
+  document.getElementById('directComposeAddContact')?.addEventListener('click',()=>{
+    const field=document.getElementById('directComposeDirectory');
+    const email=String(field?.value||'').trim().toLowerCase();
+    if(!(DataEngine.getNormalized().users||[]).some(u=>String(u.emailAddress||'').toLowerCase()===email&&!u.unsubscribed)){showDirectComposeNotice('Select an active contact from the directory.','error');return;}
+    const input=document.getElementById('directComposeAddresses');
+    input.value+=(input.value.trim()?'\n':'')+email;
+    field.value='';directComposeRequestId='';renderDirectComposeRecipients_();showDirectComposeNotice('','success');
+  });
+  document.getElementById('directComposeSend')?.addEventListener('click',event=>sendDirectCompose_(event.currentTarget));
 }

@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=192"
+    href="css/dashboard-modules.css?v=193"
   >
 
   <style>
@@ -1590,6 +1590,11 @@
           </div>
           <div class="compose-flow-intro"><span><strong>1</strong> Choose a campaign</span><span><strong>2</strong> Write and preview the email</span><span><strong>3</strong> Save the email</span></div>
 
+          <div class="compose-workspace-tabs" role="tablist" aria-label="Compose mode">
+            <button type="button" class="compose-workspace-tab active" data-compose-workspace="campaign" aria-selected="true">Campaign Emails</button>
+            <button type="button" class="compose-workspace-tab" data-compose-workspace="direct" aria-selected="false">Direct Email</button>
+          </div>
+          <div id="composeCampaignPanel">
           <div class="compose-main-toolbar">
             <div class="compose-main-search-wrap">
               <input
@@ -1640,6 +1645,30 @@
             Create it in <button type="button" class="compose-template-link" data-open-template-library>Templates</button>, then select that template while preparing a campaign.
           </div>
 
+          </div>
+          <div id="composeDirectPanel" class="direct-compose-panel" hidden>
+            <div class="direct-compose-heading"><div><h3>New direct email</h3><p>Send one email to entered addresses, directory contacts, or an existing list. No campaign setup is needed.</p></div></div>
+            <div class="direct-compose-layout">
+              <div class="direct-compose-form">
+                <label for="directComposeAddresses">To <span class="direct-compose-optional">Enter addresses separated by commas or new lines</span></label>
+                <textarea id="directComposeAddresses" rows="2" placeholder="name@example.com" aria-label="Direct email recipients"></textarea>
+                <div class="direct-compose-source-row">
+                  <div><label for="directComposeDirectory">Add from contacts</label><input id="directComposeDirectory" list="directComposeDirectoryOptions" placeholder="Search name or email" autocomplete="off"><datalist id="directComposeDirectoryOptions"></datalist></div>
+                  <button type="button" class="secondary-action-button" id="directComposeAddContact">Add Contact</button>
+                </div>
+                <label for="directComposeList">Or add a saved list</label>
+                <select id="directComposeList"><option value="">Choose a list (optional)</option></select>
+                <div id="directComposeRecipients" class="direct-compose-recipient-summary" aria-live="polite">Add an address, contact, or list.</div>
+                <label for="directComposeSubject">Subject</label>
+                <input id="directComposeSubject" maxlength="240" placeholder="Subject">
+                <label for="directComposeBody">Message</label>
+                <textarea id="directComposeBody" rows="12" placeholder="Write your message…"></textarea>
+                <div id="directComposeNotice" class="dashboard-notice" hidden></div>
+                <div class="direct-compose-actions"><span>Valid checks are reused for 30 days. Unverified addresses are checked before sending.</span><button type="button" class="primary-action-button" id="directComposeSend">Send Email</button></div>
+              </div>
+              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Suppressed contacts are blocked. One send supports up to 20 recipients.</p><p>These sends appear below and in Gmail Sent. They are separate from Campaign History and campaign analytics.</p><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div></aside>
+            </div>
+          </div>
         </section>
 
 
@@ -2242,6 +2271,7 @@
                 <option value="INVALID">Invalid</option>
                 <option value="UNKNOWN">Unknown</option>
                 <option value="ERROR">Error</option>
+                <option value="EXPIRED">Expired (over 30 days)</option>
                 <option value="NOT_CHECKED">Not Checked</option>
               </select>
 
@@ -3659,9 +3689,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=183"></script>
+  <script src="js/dashboard-api.js?v=193"></script>
 
-  <script src="js/app.js?v=192"></script>
+  <script src="js/app.js?v=193"></script>
 
 </body>
 

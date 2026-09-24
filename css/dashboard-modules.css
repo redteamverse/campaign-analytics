@@ -2224,3 +2224,36 @@ body.campaign-builder-open{overflow:hidden}
 .campaign-history-item p {margin:5px 0 0;color:#475467;font-size:12px}
 .campaign-history-empty {color:#667085;font-size:12px}
 @media(max-width:650px){.campaign-history-summary{grid-template-columns:1fr}.campaign-history-header select{min-width:0;width:100%}}
+
+/* Direct Compose */
+.compose-workspace-tabs{display:flex;gap:6px;margin:20px 0 15px;border-bottom:1px solid #e5e7eb}
+.compose-workspace-tab{padding:11px 15px;border:0;border-bottom:2px solid transparent;background:transparent;color:#667085;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.compose-workspace-tab.active{border-bottom-color:#b91c1c;color:#111827}
+#composeMainNewCampaign[hidden],#composeCampaignPanel[hidden],#composeDirectPanel[hidden]{display:none!important}
+.direct-compose-panel{padding:10px 0 25px}
+.direct-compose-heading h3{margin:0 0 5px;color:#111827;font-size:19px}
+.direct-compose-heading p{margin:0 0 20px;color:#667085;font-size:12px}
+.direct-compose-layout{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:18px;align-items:start}
+.direct-compose-form,.direct-compose-side{padding:20px;border:1px solid #e5e7eb;border-radius:11px;background:#fff}
+.direct-compose-form{display:grid;gap:11px}
+.direct-compose-form label{color:#344054;font-size:11px;font-weight:700}
+.direct-compose-optional{color:#667085;font-weight:400}
+.direct-compose-form input,.direct-compose-form select,.direct-compose-form textarea{width:100%;box-sizing:border-box;padding:11px;border:1px solid #d0d5dd;border-radius:8px;background:#fff;color:#111827;font:inherit;font-size:12px;line-height:1.5}
+.direct-compose-form textarea{resize:vertical}
+.direct-compose-form input:focus,.direct-compose-form select:focus,.direct-compose-form textarea:focus{outline:2px solid #f5bbbb;outline-offset:1px}
+.direct-compose-source-row{display:flex;align-items:end;gap:9px}
+.direct-compose-source-row>div{display:grid;gap:6px;flex:1;min-width:0}
+.direct-compose-source-row button{white-space:nowrap}
+.direct-compose-recipient-summary{padding:8px 10px;border-radius:7px;background:#f9fafb;color:#475467;font-size:11px}
+.direct-compose-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:8px}
+.direct-compose-actions span{max-width:380px;color:#667085;font-size:11px;line-height:1.5}
+.direct-compose-side h4{margin:0 0 9px;color:#111827;font-size:13px}
+.direct-compose-side p{margin:0 0 14px;color:#667085;font-size:11px;line-height:1.5}
+.direct-compose-history{max-height:430px;overflow:auto}
+.direct-compose-history-row{display:grid;gap:3px;padding:9px 0;border-bottom:1px solid #eaecf0}
+.direct-compose-history-row strong{color:#111827;font-size:11px;word-break:break-word}
+.direct-compose-history-row span,.direct-compose-history-row small{color:#667085;font-size:10px;word-break:break-word}
+@media(max-width:900px){.direct-compose-layout{grid-template-columns:1fr}}
+@media(max-width:560px){.direct-compose-source-row{align-items:stretch;flex-direction:column}}
+
+.direct-compose-history-error{color:#b91c1c!important}

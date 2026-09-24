@@ -649,6 +649,13 @@ const DashboardApi = (function () {
       return post('cancel_campaign_schedule', {campaignScheduleId});
     },
 
+    sendDirectMail(payload) {
+      return post('send_direct_mail', payload);
+    },
+    getDirectMailHistory() {
+      return post('get_direct_mail_history', {});
+    },
+
     // CAMPAIGN REVIEW & READINESS — V15
     checkCampaignReadiness(campaignId) {
       return post('check_campaign_readiness', {campaignId});
