@@ -2257,3 +2257,15 @@ body.campaign-builder-open{overflow:hidden}
 @media(max-width:560px){.direct-compose-source-row{align-items:stretch;flex-direction:column}}
 
 .direct-compose-history-error{color:#b91c1c!important}
+
+/* Compose steps and mode selection */
+.compose-flow-intro{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 22px;font-size:13px;color:#344054}
+.compose-flow-intro[hidden]{display:none!important}
+.compose-flow-intro span{display:flex;align-items:center;gap:11px;min-height:56px;padding:10px 14px;background:#fff;border:1px solid #d9dee8;border-radius:11px;font-weight:700;line-height:1.35}
+.compose-flow-intro strong{flex:0 0 28px;width:28px;height:28px;border-radius:8px;background:#fee8e8;color:#ae1a1a;font-size:13px}
+.compose-workspace-tabs{display:flex;gap:9px;margin:20px 0 19px;padding:6px;background:#f0f2f6;border:1px solid #dce1ea;border-radius:12px;width:max-content;max-width:100%}
+.compose-workspace-tab{padding:12px 19px;border:1px solid transparent;border-radius:9px;background:transparent;color:#475467;font:inherit;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap}
+.compose-workspace-tab:hover{background:#fff;color:#9e1b1b}
+.compose-workspace-tab.active{background:#fff;border-color:#e0d7d7;color:#9e1b1b;box-shadow:0 2px 8px rgba(16,24,40,.1)}
+.compose-workspace-tab:focus-visible{outline:3px solid #cf3434;outline-offset:2px}
+@media(max-width:640px){.compose-flow-intro{grid-template-columns:1fr}.compose-workspace-tabs{width:100%}.compose-workspace-tab{flex:1;padding:12px 8px;font-size:13px}}

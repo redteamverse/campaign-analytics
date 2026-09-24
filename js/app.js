@@ -6637,30 +6637,6 @@ function openCampaignMemberModal() {
   }
 
 
-  const status =
-    String(
-      campaign.campaignStatus ||
-      campaign.status ||
-      ''
-    )
-      .trim()
-      .toUpperCase();
-
-
-  if (
-    status !==
-    'ACTIVE'
-  ) {
-
-    showCampaignMembersNotice(
-      'Members can only be added or reactivated while the campaign is Running.',
-      'error'
-    );
-
-    return;
-  }
-
-
   const campaignIdInput =
     document.getElementById(
       'campaignMemberFormCampaignId'
@@ -12006,6 +11982,10 @@ async function loadDirectCompose_() {
 function switchComposeWorkspace_(mode) {
   composeWorkspaceMode=mode==='direct'?'direct':'campaign';
   document.getElementById('composeCampaignPanel').hidden=composeWorkspaceMode!=='campaign';
+  document.getElementById('composeCampaignSteps').hidden=composeWorkspaceMode!=='campaign';
+  document.getElementById('composeDirectSteps').hidden=composeWorkspaceMode!=='direct';
+  const composeIntro=document.getElementById('composeWorkspaceDescription');
+  if(composeIntro)composeIntro.textContent=composeWorkspaceMode==='direct'?'Send a new email to typed addresses, directory contacts, or a saved list.':'Select an existing campaign to write its email, or create a new campaign first.';
   document.getElementById('composeDirectPanel').hidden=composeWorkspaceMode!=='direct';
   const newCampaign=document.getElementById('composeMainNewCampaign');
   if(newCampaign)newCampaign.hidden=composeWorkspaceMode==='direct';
@@ -12024,7 +12004,7 @@ async function sendDirectCompose_(button) {
   if(!recipients.length||recipients.length>20){showDirectComposeNotice('Choose 1 to 20 recipients.','error');return;}
   if(recipients.some(email=>!/^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/.test(email))){showDirectComposeNotice('Correct the invalid email address before sending.','error');return;}
   if(!subject||!body.trim()){showDirectComposeNotice('Add a subject and message before sending.','error');return;}
-  const confirmed=await openDashboardConfirm({title:'Send direct email?',message:`Send "${subject}" separately to ${recipients.length} recipient${recipients.length===1?'':'s'}? Unverified addresses will be checked first.`,confirmLabel:'Send Email'});
+  const confirmed=await openDashboardConfirm({title:'Send direct email?',message:`Send "${subject}" separately to ${recipients.length} recipient${recipients.length===1?'':'s'}? Mailbox checks are optional; suppressed contacts are blocked.`,confirmLabel:'Send Email'});
   if(!confirmed)return;
   if(!directComposeRequestId)directComposeRequestId='DM'+crypto.randomUUID().replace(/-/g,'');
   await withActionButtonBusy(button,'Sending…',async()=>{
