@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=197"
+    href="css/dashboard-modules.css?v=198"
   >
 
   <style>
@@ -1588,7 +1588,7 @@
             </div>
             <button type="button" class="primary-action-button" id="composeMainNewCampaign">+ New Campaign</button>
           </div>
-          <div class="compose-flow-intro" id="composeCampaignSteps" aria-label="Campaign email steps"><span><strong>1</strong> Choose a campaign</span><span><strong>2</strong> Write and preview the email</span><span><strong>3</strong> Save the email</span></div>
+          <div class="compose-flow-intro" id="composeCampaignSteps" aria-label="Campaign email steps"><span><strong>1</strong> Choose a campaign</span><span><strong>2</strong> Write and preview the email</span><span><strong>3</strong> Save, schedule or send</span></div>
           <div class="compose-flow-intro" id="composeDirectSteps" aria-label="Direct email steps" hidden><span><strong>1</strong> Add recipients</span><span><strong>2</strong> Write the email</span><span><strong>3</strong> Send and view history</span></div>
 
           <div class="compose-workspace-tabs" role="tablist" aria-label="Compose mode">
@@ -1625,6 +1625,7 @@
               <thead>
                 <tr>
                   <th>Campaign</th>
+                  <th>Campaign Status</th>
                   <th>Subject</th>
                   <th>Email Content</th>
                   <th>Updated</th>
@@ -1633,7 +1634,7 @@
               </thead>
               <tbody id="composeMainTableBody">
                 <tr>
-                  <td colspan="5" class="compose-main-empty">
+                  <td colspan="6" class="compose-main-empty">
                     Loading campaign emails…
                   </td>
                 </tr>
@@ -1973,13 +1974,13 @@
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="running"
-                data-help-text="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready."
-                aria-description="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready."
+                data-help-text="Campaigns that began sending. Delivery details are in the Send Queue. Mark the campaign Completed when its outreach is finished; future scheduled times remain visible in Next Schedule."
+                aria-description="Campaigns that began sending. Delivery details are in the Send Queue. Mark the campaign Completed when its outreach is finished; future scheduled times remain visible in Next Schedule."
               >
                 Running
                 <span id="campaignLifecycleRunningCount">0</span>
               </button>
-              <button type="button" class="campaign-status-info" data-campaign-status-help="running" data-help-text="Current sending activity belongs in the Send Queue. Future sends wait in Scheduled; completed or canceled times move a non-draft campaign to Ready." aria-label="About running campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="running" data-help-text="Campaigns that began sending. Delivery details are in the Send Queue. Mark the campaign Completed when its outreach is finished; future scheduled times remain visible in Next Schedule." aria-label="About running campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button
                 type="button"
@@ -3696,9 +3697,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=197"></script>
+  <script src="js/dashboard-api.js?v=198"></script>
 
-  <script src="js/app.js?v=197"></script>
+  <script src="js/app.js?v=198"></script>
 
 </body>
 
