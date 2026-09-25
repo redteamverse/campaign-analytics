@@ -12091,6 +12091,19 @@ function showDirectComposeNotice(message,type='success') {
   box.hidden=!message;box.className=`dashboard-notice ${type}`;box.textContent=message||'';
   scheduleTransientNotice_(box,message,type);
 }
+function directMailTab_(name) {
+  for(const key of ['compose','scheduled','history']){
+    const button=document.querySelector(`[data-direct-mail-tab="${key}"]`);
+    const pane=document.getElementById(`directMail${key[0].toUpperCase()+key.slice(1)}Pane`);
+    if(button){button.classList.toggle('active',key===name);button.setAttribute('aria-selected',String(key===name));}
+    if(pane)pane.hidden=key!==name;
+  }
+}
+function directMailScheduledNotice_(message,type='success') {
+  const box=document.getElementById('directMailScheduledNotice');if(!box)return;
+  box.hidden=!message;box.className=`dashboard-notice ${type}`;box.textContent=message||'';
+  scheduleTransientNotice_(box,message,type);
+}
 let directComposeServiceUnavailable = false;
 function directComposeSelection_() {
   const typed=String(document.getElementById('directComposeAddresses')?.value||'').split(/[,;\n]+/).map(x=>x.trim().toLowerCase()).filter(Boolean);
@@ -12137,9 +12150,11 @@ function directComposeRenderHistory_(schedules,messages){
   const upcoming=schedules.filter(x=>x.status==='UPCOMING');
   const scheduleRow=x=>`<div class="direct-compose-history-row"><strong>${escapeHtml(x.emailAddress||'')}</strong><span>${escapeHtml(x.subject||'')}</span><small>${escapeHtml(x.sendDate+' '+x.sendTime+' '+x.timezone)} · ${escapeHtml(x.status||'')}</small>${x.error?`<small>${escapeHtml(x.error)}</small>`:''}${x.status==='UPCOMING'?`<button type="button" class="secondary-action-button compact" data-direct-schedule-cancel="${escapeHtml(x.scheduleId)}">Cancel</button>`:''}</div>`;
   const sentRow=x=>`<div class="direct-compose-history-row"><strong>${escapeHtml(x.emailAddress||'')}</strong><span>${escapeHtml(x.subject||'')}</span><small>${escapeHtml(x.status||'')} · ${escapeHtml(formatMainComposeUpdated(x.sentAt||x.createdAt))}</small>${x.error?`<small class="direct-compose-history-error">${escapeHtml(x.error)}</small>`:''}</div>`;
+  const count=document.getElementById('directMailScheduledCount');if(count)count.textContent=upcoming.length?`(${upcoming.length})`:'';
   if(scheduleHost)scheduleHost.innerHTML=upcoming.length?upcoming.map(scheduleRow).join(''):'<p>No upcoming direct emails.</p>';
-  if(historyHost)historyHost.innerHTML=messages.length?messages.slice(0,5).map(sentRow).join(''):'<p>No direct emails recorded yet.</p>';
-  if(all)all.innerHTML=`<h5>Scheduled email history</h5>${schedules.length?schedules.map(scheduleRow).join(''):'<p>No scheduled emails yet.</p>'}<h5>Direct send history</h5>${messages.length?messages.map(sentRow).join(''):'<p>No direct sends yet.</p>'}`;
+  if(historyHost)historyHost.innerHTML=`<h4>Sent and failed emails</h4>${messages.length?messages.map(sentRow).join(''):'<p>No direct emails recorded yet.</p>'}`;
+  const past=schedules.filter(x=>x.status!=='UPCOMING');
+  if(all)all.innerHTML=`<h4>Past scheduled emails</h4>${past.length?past.map(scheduleRow).join(''):'<p>No past scheduled emails yet.</p>'}`;
 }
 async function loadDirectCompose_(preserveNotice=false) {
   const controls=['directComposeSend','directComposeSchedule','directComposeScheduleSave'];
@@ -12252,7 +12267,8 @@ async function scheduleDirectCompose_(button){
       document.getElementById('directComposeScheduleForm').hidden=true;
       directComposeRequestId='';
       const historyLoaded=await loadDirectCompose_(true);
-      showDirectComposeNotice(`${result.total} direct email${result.total===1?'':'s'} scheduled for ${sendDate} ${sendTime} (${timezone}). ${historyLoaded?'View it under Upcoming direct emails or View all direct email history.':'History is temporarily unavailable.'}`,historyLoaded?'success':'warning');
+      directMailTab_('scheduled');
+      directMailScheduledNotice_(`${result.total} direct email${result.total===1?'':'s'} scheduled for ${sendDate} ${sendTime} (${timezone}). ${historyLoaded?'The emails appear below.':'Refresh this tab to load the schedule.'}`,historyLoaded?'success':'warning');
     }catch(error){if(directComposeConnectionError_(error))directComposeShowConnectionError_(error);else showDirectComposeNotice(error?.message||'Could not schedule direct email.','error');}
   });
 }
@@ -12291,8 +12307,9 @@ function attachDirectComposeListeners_() {
   const cancelScheduledDirectEmail_=async event=>{
     const button=event.target.closest('[data-direct-schedule-cancel]');if(!button)return;
     if(!await openDashboardConfirm({title:'Cancel direct email?',message:'This prevents this upcoming direct email from being sent.',confirmLabel:'Cancel Email',destructive:true}))return;
-    await withActionButtonBusy(button,'Canceling…',async()=>{try{await DashboardApi.cancelDirectMailSchedule(button.dataset.directScheduleCancel);await loadDirectCompose_(true);showDirectComposeNotice('Scheduled direct email canceled.','success');}catch(error){showDirectComposeNotice(error?.message||'Could not cancel this email.','error');}});
+    await withActionButtonBusy(button,'Canceling…',async()=>{try{await DashboardApi.cancelDirectMailSchedule(button.dataset.directScheduleCancel);await loadDirectCompose_(true);directMailScheduledNotice_('Scheduled direct email canceled.','success');}catch(error){directMailScheduledNotice_(error?.message||'Could not cancel this email.','error');}});
   };
+  document.querySelectorAll('[data-direct-mail-tab]').forEach(button=>button.addEventListener('click',()=>directMailTab_(button.dataset.directMailTab)));
   document.getElementById('directComposeSchedules')?.addEventListener('click',cancelScheduledDirectEmail_);
   document.getElementById('directComposeHistoryAll')?.addEventListener('click',cancelScheduledDirectEmail_);
 }

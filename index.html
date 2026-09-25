@@ -1651,6 +1651,12 @@
 
           </div>
           <div id="composeDirectPanel" class="direct-compose-panel" hidden>
+            <nav class="direct-mail-tabs" aria-label="Direct email sections" role="tablist">
+              <button type="button" class="direct-mail-tab active" data-direct-mail-tab="compose" role="tab" aria-selected="true" aria-controls="directMailComposePane">New email</button>
+              <button type="button" class="direct-mail-tab" data-direct-mail-tab="scheduled" role="tab" aria-selected="false" aria-controls="directMailScheduledPane">Scheduled <span id="directMailScheduledCount"></span></button>
+              <button type="button" class="direct-mail-tab" data-direct-mail-tab="history" role="tab" aria-selected="false" aria-controls="directMailHistoryPane">History</button>
+            </nav>
+            <div id="directMailComposePane" role="tabpanel">
             <div class="direct-compose-heading"><div><h3>New direct email</h3><p>Send one email to entered addresses, directory contacts, or an existing list. No campaign setup is needed.</p></div></div>
             <div class="direct-compose-layout">
               <div class="direct-compose-form">
@@ -1692,8 +1698,10 @@
                 </div>
                 <div class="direct-compose-actions"><span>Mailbox checks are optional. Unsubscribed contacts cannot receive email.</span><button type="button" class="secondary-action-button" id="directComposeSchedule">Schedule Send</button><button type="button" class="primary-action-button" id="directComposeSend">Send Now</button></div>
               </div>
-              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Unsubscribed contacts are blocked. One send supports up to 20 recipients.</p><p>Direct email has its own history, separate from Campaign History and campaign analytics.</p><h4>Upcoming direct emails</h4><div id="directComposeSchedules" class="direct-compose-history">Loading scheduled emails…</div><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div><details id="directComposeFullHistory" class="direct-compose-full-history"><summary>View direct email history (latest 100)</summary><div id="directComposeHistoryAll">Loading history…</div></details></aside>
             </div>
+            </div>
+            <section id="directMailScheduledPane" class="direct-mail-section" role="tabpanel" hidden><h3>Scheduled direct emails</h3><p>Upcoming emails can be canceled here. Each recipient has a separate send record.</p><div id="directMailScheduledNotice" class="dashboard-notice" role="status" hidden></div><div id="directComposeSchedules" class="direct-compose-history" aria-live="polite">Loading scheduled emails…</div></section>
+            <section id="directMailHistoryPane" class="direct-mail-section" role="tabpanel" hidden><h3>Direct email history</h3><p>Review sent, canceled, and failed direct emails. This history is separate from campaigns.</p><div id="directComposeHistory" class="direct-compose-history" aria-live="polite">Loading history…</div><div id="directComposeHistoryAll" class="direct-mail-history-all">Loading history…</div></section>
           </div>
         </section>
 

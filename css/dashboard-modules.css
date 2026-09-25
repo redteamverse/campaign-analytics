@@ -2233,7 +2233,7 @@ body.campaign-builder-open{overflow:hidden}
 .direct-compose-panel{padding:10px 0 25px}
 .direct-compose-heading h3{margin:0 0 5px;color:#111827;font-size:19px}
 .direct-compose-heading p{margin:0 0 20px;color:#667085;font-size:12px}
-.direct-compose-layout{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:18px;align-items:start}
+.direct-compose-layout{display:block}
 .direct-compose-form,.direct-compose-side{padding:20px;border:1px solid #e5e7eb;border-radius:11px;background:#fff}
 .direct-compose-form{display:grid;gap:11px}
 .direct-compose-form label{color:#344054;font-size:11px;font-weight:700}
@@ -2343,3 +2343,17 @@ body.campaign-builder-open{overflow:hidden}
 .direct-compose-full-history{margin-top:15px;padding-top:12px;border-top:1px solid #e2e8f0}.direct-compose-full-history summary{cursor:pointer;color:#9b1c1c;font-weight:650;font-size:12px}.direct-compose-full-history h5{margin:13px 0 6px;font-size:12px;color:#111827}.direct-compose-full-history #directComposeHistoryAll{max-height:390px;overflow:auto}
 #directComposeRetryConnection{justify-self:start}
 @media(max-width:560px){.direct-compose-template-row>div{align-items:stretch;flex-direction:column}.direct-compose-recipient-row{align-items:flex-start;flex-direction:column}.direct-compose-recipient-row>span:last-child{text-align:left}}
+.direct-mail-tabs{display:flex;gap:8px;border-bottom:1px solid #e2e8f0;margin:0 0 22px;overflow-x:auto}
+.direct-mail-tab{border:0;border-bottom:3px solid transparent;background:transparent;padding:12px 15px;color:#475467;font-weight:650;white-space:nowrap;cursor:pointer}
+.direct-mail-tab.active{border-bottom-color:#b91c1c;color:#991b1b}
+.direct-mail-tab:focus-visible{outline:2px solid #b91c1c;outline-offset:-2px}
+.direct-mail-section{background:#fff;border:1px solid #e5e7eb;border-radius:11px;padding:20px;min-height:160px}
+.direct-mail-section h3{margin:0 0 5px;font-size:19px;color:#111827}
+.direct-mail-section h4{margin:22px 0 8px;font-size:13px}
+.direct-mail-section>p{margin:0 0 15px;color:#667085;font-size:12px}
+.direct-mail-section .direct-compose-history{max-height:none;overflow:visible}
+.direct-mail-section .direct-compose-history-row{grid-template-columns:minmax(0,2fr) minmax(0,2fr) minmax(0,2fr) auto;align-items:center;gap:14px;padding:15px 0}
+.direct-mail-section .direct-compose-history-row strong{font-size:12px}
+.direct-mail-section .direct-compose-history-row span,.direct-mail-section .direct-compose-history-row small{font-size:11px}
+.direct-mail-history-all{border-top:1px solid #e2e8f0;margin-top:16px}
+@media(max-width:640px){.direct-mail-section .direct-compose-history-row{grid-template-columns:1fr;gap:4px}}
