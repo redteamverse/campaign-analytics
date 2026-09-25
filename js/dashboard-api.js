@@ -129,7 +129,7 @@ const DashboardApi = (function () {
           : {};
     } catch (error) {
       throw new Error(
-        `Admin API returned a non-JSON response (HTTP ${response.status}).`
+        `The dashboard service returned HTTP ${response.status} instead of campaign data. ${response.status === 404 ? 'Check that the Cloudflare Worker route and its Apps Script deployment URL point to the current /exec deployment.' : 'Please retry; if it persists, check the Worker and Apps Script deployment.'}`
       );
     }
 

@@ -2204,7 +2204,7 @@ body.campaign-builder-open{overflow:hidden}
 .campaign-builder-workspace.compose-only .campaign-builder-steps {display:none}
 .campaign-builder-workspace.compose-only .campaign-builder-stage {padding:24px}
 .campaign-builder-workspace.compose-only [data-builder-panel="compose"] {max-width:1200px}
-.campaign-builder-workspace.compose-only #campaignComposeBack {display:none}
+.campaign-builder-workspace.compose-only #campaignComposeBack {display:inline-flex}
 .campaign-builder-workspace.compose-only .campaign-builder-workspace-title .detail-eyebrow {font-size:11px}
 .campaign-history-header {display:flex;justify-content:space-between;align-items:flex-end;gap:18px;flex-wrap:wrap;margin:18px 0}
 .campaign-history-header h2 {margin:0 0 4px;color:#111827;font-size:18px}
@@ -2305,3 +2305,26 @@ body.campaign-builder-open{overflow:hidden}
 .campaign-schedule-card.is-editing{outline:2px solid #b91c1c;outline-offset:3px}
 .campaign-review-loading,.compose-main-empty,.direct-compose-history[aria-busy="true"]{color:#475569}
 .compose-delivery-status{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 13px;margin:12px 0}
+
+/* v18.21: legible editor and consistent stacked form fields. */
+.campaign-builder-stage .form-field,.audience-builder-body .form-field{display:flex;flex-direction:column;align-items:stretch;gap:8px;width:100%;min-width:0;margin-bottom:16px}
+.campaign-builder-stage .form-field>span,.audience-builder-body .form-field>span{font-size:13px;font-weight:650;line-height:1.4}
+.campaign-builder-stage .form-field input,.campaign-builder-stage .form-field select,.audience-builder-body .form-field input,.audience-builder-body .form-field textarea{display:block;box-sizing:border-box;width:100%;min-width:0;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;font-size:14px;line-height:1.4;background:#fff;color:#101828}
+.audience-builder-body .form-field textarea{min-height:100px}
+.campaign-details-summary{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.campaign-details-summary strong{display:block;margin-top:6px;font-size:19px;color:#101828}
+.campaign-details-status{margin:15px 0 0;color:#475467;font-size:13px}
+.campaign-builder-stage .compose-layout{gap:24px;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr)}
+.campaign-builder-stage .compose-card{padding:24px}
+.campaign-builder-stage .compose-template-row{gap:14px;margin-bottom:22px}
+.campaign-builder-stage .compose-template-row .form-field{margin:0}
+.campaign-builder-stage .personalization-toolbar{gap:9px;padding:12px;margin:18px 0}
+.campaign-builder-stage .personalization-toolbar>span{font-size:12px}
+.campaign-builder-stage .personalization-toolbar button{min-height:34px;padding:0 12px;font-size:12px}
+.campaign-builder-stage .compose-mode-tab{font-size:13px;padding:11px 15px}
+.campaign-builder-stage .compose-body-editor{box-sizing:border-box;min-height:320px;padding:16px;border-radius:0 0 8px 8px;font-size:14px;line-height:1.65}
+.campaign-builder-stage .compose-validation{font-size:12px;padding:11px 13px}
+.campaign-builder-stage .compose-preview-header strong,.campaign-builder-stage .compose-preview-subject strong,.campaign-builder-stage .compose-plain-preview{font-size:13px}
+.campaign-builder-stage .compose-preview-header select{font-size:12px;max-width:240px;min-height:36px}
+@media(max-width:1050px){.campaign-builder-stage .compose-layout{grid-template-columns:1fr}}
+[hidden]{display:none!important}

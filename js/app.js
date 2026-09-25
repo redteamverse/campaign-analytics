@@ -372,7 +372,7 @@ function renderDashboard() {
   renderPrecheckManagement();
 }
 
-function renderTodayCampaignSchedule_(){const tbody=document.getElementById('todayCampaignScheduleTable');if(!tbody)return;const now=new Date(),today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;const rows=(campaignScheduleState?.schedules||[]).filter(s=>s.startDate===today).sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));if(!rows.length){tbody.innerHTML='<tr><td colspan="4" class="schedule-empty">No campaign schedules for today.</td></tr>';return;}tbody.innerHTML=rows.map(s=>`<tr><td><strong>${escapeHtml(s.startTime||'—')}</strong></td><td><button type="button" class="campaign-name-button" data-overview-schedule-campaign="${escapeHtml(s.campaignId)}">${escapeHtml(s.campaignName||s.campaignId||'—')}</button></td><td>${scheduleStatusBadge_(s.scheduleStatus)}</td><td><span class="muted-id">${escapeHtml(s.campaignScheduleId||'—')}</span></td></tr>`).join('');tbody.querySelectorAll('[data-overview-schedule-campaign]').forEach(b=>b.addEventListener('click',()=>{switchView('campaignsView');openCampaignBuilder(b.dataset.overviewScheduleCampaign);}));}
+function renderTodayCampaignSchedule_(){const tbody=document.getElementById('todayCampaignScheduleTable');if(!tbody)return;const now=new Date(),today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;const rows=(campaignScheduleState?.schedules||[]).filter(s=>s.startDate===today&&s.scheduleStatus==='UPCOMING').sort((a,b)=>String(a.startTime).localeCompare(String(b.startTime)));if(!rows.length){tbody.innerHTML='<tr><td colspan="4" class="schedule-empty">No campaign schedules for today.</td></tr>';return;}tbody.innerHTML=rows.map(s=>`<tr><td><strong>${escapeHtml(s.startTime||'—')}</strong></td><td><button type="button" class="campaign-name-button" data-overview-schedule-campaign="${escapeHtml(s.campaignId)}">${escapeHtml(s.campaignName||s.campaignId||'—')}</button></td><td>${scheduleStatusBadge_(s.scheduleStatus)}</td><td>—</td></tr>`).join('');tbody.querySelectorAll('[data-overview-schedule-campaign]').forEach(b=>b.addEventListener('click',()=>{switchView('campaignsView');openCampaignBuilder(b.dataset.overviewScheduleCampaign);}));}
 
 function resetFilters() {
   FILTER_IDS.forEach(id => {
@@ -539,6 +539,12 @@ function populateUserLeadStatusFilter() {
   select.value = values.includes(current) ? current : 'all';
 }
 
+function contactListsForUser_(userId) {
+  if (!contactAudienceState.loaded) return 'Loading lists…';
+  const ids = new Set((contactAudienceState.listMembers || []).filter(m => String(m.userId) === String(userId)).map(m => String(m.listId)));
+  return (contactAudienceState.lists || []).filter(list => ids.has(String(list.listId))).map(list => list.listName || list.name || 'Unnamed list').join(', ') || '—';
+}
+
 function renderUsersManagement() {
   const tbody = document.getElementById('usersManagementTable');
   if (!tbody) return;
@@ -564,7 +570,7 @@ function renderUsersManagement() {
   }
 
   if (!rows.length) {
-    tbody.innerHTML = emptyRow(7, 'No contacts match the current search or filters.');
+    tbody.innerHTML = emptyRow(8, 'No contacts match the current search or filters.');
     return;
   }
 
@@ -591,8 +597,9 @@ function renderUsersManagement() {
         <td>${escapeHtml(user.company || '—')}</td>
         <td>${statusBadge(user.leadStatus || 'New')}</td>
         <td>${campaignCount.toLocaleString()}</td>
+        <td>${escapeHtml(contactListsForUser_(user.userId))}</td>
         <td>${user.unsubscribed
-          ? '<span class="status-badge badge-danger">Suppressed</span>'
+          ? '<span class="status-badge badge-danger">Unsubscribed</span>'
           : '<span class="status-badge badge-success">Subscribed</span>'}</td>
         <td class="actions-column">
           <div class="contact-row-actions">
@@ -885,7 +892,7 @@ function openContactDetail(
   if (subscription) {
     subscription.innerHTML =
       user.unsubscribed
-        ? '<span class="status-badge badge-danger">Suppressed</span>'
+        ? '<span class="status-badge badge-danger">Unsubscribed</span>'
         : '<span class="status-badge badge-success">Subscribed</span>';
   }
 
@@ -1277,6 +1284,7 @@ function showUsersNotice(message, type = 'success') {
   notice.hidden = !message;
   notice.className = `dashboard-notice ${type}`;
   notice.textContent = message || '';
+  scheduleTransientNotice_(notice,message,type);
 }
 
 function openUserModal(userId = '') {
@@ -1371,11 +1379,11 @@ async function toggleUserSubscription(userId, nextState, button) {
       : 'Resubscribing…',
     async () => {
       try {
-        showUsersNotice(`${unsubscribed ? 'Suppressing' : 'Resubscribing'} ${user.emailAddress}…`, 'warning');
+        showUsersNotice(`${unsubscribed ? 'Unsubscribing' : 'Resubscribing'} ${user.emailAddress}…`, 'warning');
         await DashboardApi.setUserUnsubscribed(userId, unsubscribed);
         await initDashboard(true);
         switchView('usersView');
-        showUsersNotice(`${user.emailAddress} ${unsubscribed ? 'suppressed' : 'resubscribed'} successfully.`, 'success');
+        showUsersNotice(`${user.emailAddress} ${unsubscribed ? 'unsubscribed' : 'resubscribed'} successfully.`, 'success');
       } catch (error) {
         showUsersNotice(error?.message || String(error), 'error');
       }
@@ -1819,6 +1827,7 @@ function getCampaignLifecycleActions(
         'members',
       label: ['COMPLETED','CANCELED','ARCHIVED'].includes(status)?'View members':'Manage members'
     },
+    {key:'followups',label:'Manage follow-ups'},
     {
       key: 'history',
       label: 'View history'
@@ -2949,6 +2958,8 @@ async function handleCampaignRowAction(
   }
 
 
+  if (action === 'followups') { closeAllCampaignMenus(); await openCampaignBuilder(campaignId); await switchCampaignBuilderStep('followups'); return; }
+
   if (action === 'schedule') { closeAllCampaignMenus(); await openCampaignBuilder(campaignId); switchCampaignBuilderStep('schedule'); return; }
 
   if (action === 'history') {
@@ -3230,9 +3241,13 @@ function showCampaignBuilderNotice(message, type = 'success') {
   notice.hidden = !message;
   notice.className = `dashboard-notice ${type}`;
   notice.textContent = message || '';
+  scheduleTransientNotice_(notice, message, type);
 }
 
-function switchCampaignBuilderStep(step, options={}) {
+async function switchCampaignBuilderStep(step, options={}) {
+  if (campaignBuilderActiveStep === 'compose' && step !== 'compose' && !options.skipComposeSave) {
+    if (!await autoSaveCampaignCompose_()) return;
+  }
   showCampaignReviewNotice('');
   showCampaignScheduleNotice('');
   campaignBuilderActiveStep = step;
@@ -3250,7 +3265,10 @@ function switchCampaignBuilderStep(step, options={}) {
   if (step === 'review'&&!options.skipReviewLoad) loadCampaignReview();
 }
 
-function closeCampaignBuilder() {
+async function closeCampaignBuilder(options={}) {
+  if (campaignBuilderActiveStep === 'compose' && !options.skipComposeSave) {
+    if (!await autoSaveCampaignCompose_()) return;
+  }
   const workspace = document.getElementById('campaignBuilderWorkspace');
   if (workspace) {
     workspace.hidden = true;
@@ -3283,8 +3301,11 @@ async function openCampaignBuilder(campaignId, options = {}) {
   workspace.classList.toggle('campaign-read-only',['COMPLETED','CANCELED','ARCHIVED'].includes(getRawCampaignStatus(campaign)));
 
   setText('campaignBuilderCampaignName', campaign.campaignName || 'Campaign');
-  setText('campaignBuilderCampaignMeta', `${campaignLifecycleLabel(getCampaignLifecycleStatus(campaign))} · ${campaign.campaignId}`);
-  setText('campaignBuilderIdValue', campaign.campaignId || '—');
+  setText('campaignBuilderCampaignMeta', campaignLifecycleLabel(getCampaignLifecycleStatus(campaign)));
+  setText('campaignBuilderNameValue', campaign.campaignName || 'Campaign');
+  document.getElementById('campaignBuilderNameSummary').hidden = false;
+  document.getElementById('campaignBuilderNameField').hidden = true;
+  document.getElementById('campaignDetailsNotice').hidden = true;
   setText('campaignBuilderStatusValue', campaignLifecycleLabel(getCampaignLifecycleStatus(campaign)));
 
   const input = document.getElementById('campaignBuilderNameInput');
@@ -3311,8 +3332,10 @@ async function saveCampaignBuilderDetails() {
   const campaign = getCampaignBuilderCampaign();
   const input = document.getElementById('campaignBuilderNameInput');
   const button = document.getElementById('campaignBuilderSaveDetails');
-  const name = input?.value.trim() || '';
-  if (!campaign || !name) return;
+  const editing = !document.getElementById('campaignBuilderNameField')?.hidden;
+  const name = editing ? input?.value.trim() || '' : campaign?.campaignName || '';
+  if (!campaign || !name) { input?.focus(); return; }
+  if (!editing) { switchCampaignBuilderStep('recipients'); return; }
 
   await withActionButtonBusy(button, 'Saving…', async () => {
     try {
@@ -3326,11 +3349,14 @@ async function saveCampaignBuilderDetails() {
       campaignBuilderCampaignId = campaign.campaignId;
       const updated = getCampaignBuilderCampaign();
       setText('campaignBuilderCampaignName', updated?.campaignName || name);
+      setText('campaignBuilderNameValue', updated?.campaignName || name);
+      document.getElementById('campaignBuilderNameField').hidden = true;
+      document.getElementById('campaignBuilderNameSummary').hidden = false;
       setText('campaignBuilderSaveState', 'Saved');
       switchCampaignBuilderStep('recipients');
     } catch (error) {
       setText('campaignBuilderSaveState', 'Not saved');
-      showCampaignBuilderNotice(error?.message || 'Could not save campaign details.', 'error');
+      const notice=document.getElementById('campaignDetailsNotice'); if(notice){notice.hidden=false;notice.className='dashboard-notice error';notice.textContent=error?.message || 'Could not save campaign details.';}
     }
   });
 }
@@ -3365,7 +3391,7 @@ function renderCampaignBuilderAllContacts() {
   setText('campaignBuilderSelectedCount', campaignBuilderSelectedUserIds.size.toLocaleString());
 
   if (!rows.length) {
-    tbody.innerHTML = emptyRow(5, 'No contacts match this search.');
+    tbody.innerHTML = emptyRow(6, 'No contacts match this search.');
     return;
   }
 
@@ -3375,7 +3401,7 @@ function renderCampaignBuilderAllContacts() {
     const alreadyAdded = existing.has(userId);
     const disabled = suppressed || alreadyAdded;
     const eligibility = suppressed
-      ? '<span class="status-badge badge-danger">Suppressed</span>'
+      ? '<span class="status-badge badge-danger">Unsubscribed</span>'
       : alreadyAdded
         ? '<span class="status-badge badge-neutral">Already added</span>'
         : '<span class="status-badge badge-success">Eligible</span>';
@@ -3384,6 +3410,7 @@ function renderCampaignBuilderAllContacts() {
       <td><strong>${escapeHtml(user.firstName || '—')}</strong></td>
       <td>${escapeHtml(user.emailAddress || '—')}</td>
       <td>${escapeHtml(user.company || '—')}</td>
+      <td>${escapeHtml(contactListsForUser_(userId))}</td>
       <td>${eligibility}</td>
     </tr>`;
   }).join('');
@@ -3406,7 +3433,7 @@ function renderCampaignBuilderLists() {
     const suppressed = users.filter(campaignBuilderUserIsSuppressed).length;
     return `<article class="builder-audience-card">
       <div><span class="detail-eyebrow">Static List</span><h4>${escapeHtml(list.name || 'Untitled List')}</h4><p>${escapeHtml(list.description || 'Saved contact list')}</p></div>
-      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> contacts</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> suppressed</span>` : ''}</div>
+      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> contacts</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> unsubscribed</span>` : ''}</div>
       <button type="button" class="secondary-action-button" data-builder-add-list="${escapeHtml(list.listId || '')}" ${eligible.length ? '' : 'disabled'}>Add Eligible Contacts</button>
     </article>`;
   }).join('');
@@ -3427,7 +3454,7 @@ function renderCampaignBuilderSegments() {
     const suppressed = users.filter(campaignBuilderUserIsSuppressed).length;
     return `<article class="builder-audience-card">
       <div><span class="detail-eyebrow">Dynamic Segment</span><h4>${escapeHtml(segment.name || 'Untitled Segment')}</h4><p>${escapeHtml(segmentRuleLabel(segment))}</p></div>
-      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> matches</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> suppressed</span>` : ''}</div>
+      <div class="builder-audience-card-stats"><span><strong>${users.length}</strong> matches</span><span><strong>${eligible.length}</strong> eligible</span>${suppressed ? `<span><strong>${suppressed}</strong> unsubscribed</span>` : ''}</div>
       <button type="button" class="secondary-action-button" data-builder-add-segment="${escapeHtml(segment.segmentId || '')}" ${eligible.length ? '' : 'disabled'}>Add Eligible Contacts</button>
     </article>`;
   }).join('');
@@ -3507,6 +3534,11 @@ function attachCampaignBuilderListeners() {
   document.getElementById('campaignBuilderClose')?.addEventListener('click', closeCampaignBuilder);
   document.getElementById('campaignBuilderExit')?.addEventListener('click', closeCampaignBuilder);
   document.getElementById('campaignBuilderSaveDetails')?.addEventListener('click', saveCampaignBuilderDetails);
+  document.getElementById('campaignBuilderEditName')?.addEventListener('click', () => {
+    document.getElementById('campaignBuilderNameSummary').hidden = true;
+    document.getElementById('campaignBuilderNameField').hidden = false;
+    document.getElementById('campaignBuilderNameInput')?.focus();
+  });
 
   document.querySelectorAll('[data-builder-step]').forEach(button => button.addEventListener('click', () => switchCampaignBuilderStep(button.dataset.builderStep)));
   document.querySelectorAll('[data-recipient-source]').forEach(button => button.addEventListener('click', () => switchCampaignBuilderRecipientSource(button.dataset.recipientSource)));
@@ -3836,7 +3868,7 @@ async function refreshComposeDeliveryAvailability_(){
   }catch(error){if(status)status.textContent='Could not check delivery readiness. Save your email or reopen Compose to retry.';}
 }
 async function loadCampaignCompose() {
-  ['campaignComposeSave','campaignComposeSchedule','campaignComposeSendNow','campaignComposeSendTest','campaignComposeReview'].forEach(id=>{const button=document.getElementById(id);if(button)button.disabled=true;});
+  const next=document.getElementById('campaignComposeContinue'); if(next) next.disabled=true;
   ['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].forEach(id=>{const field=document.getElementById(id);if(field)field.value='';});
   showCampaignComposeNotice('Loading saved email and templates…','warning');
   try {
@@ -3849,18 +3881,17 @@ async function loadCampaignCompose() {
     if(subject) subject.value=content?.subject || '';
     if(plain) plain.value=content?.plainBody || '';
     if(html) html.value=content?.htmlBody || '';
+    try { const draft=JSON.parse(localStorage.getItem(composeDraftKey_())||'null'); if(Array.isArray(draft)&&draft.length===3) [subject,plain,html].forEach((field,i)=>{if(field)field.value=draft[i];}); }catch(_error){}
     const closed=['COMPLETED','CANCELED','ARCHIVED'].includes(getRawCampaignStatus(getCampaignBuilderCampaign()));
-    const saveButton=document.getElementById('campaignComposeSave');if(saveButton)saveButton.textContent=getRawCampaignStatus(getCampaignBuilderCampaign())==='DRAFT'?'Save Draft':'Save Changes';
-    ['campaignComposeSave','campaignComposeSendTest','campaignComposeApplyTemplate','campaignComposeReview'].forEach(id=>{const b=document.getElementById(id);if(b)b.disabled=closed;});
+    if(next) next.disabled=false;
+    const apply=document.getElementById('campaignComposeApplyTemplate');if(apply)apply.disabled=closed;
     [subject,plain,html].forEach(field=>{if(field)field.readOnly=closed;});
     if(closed)showCampaignComposeNotice('This campaign is closed. You can view its email, or duplicate the campaign to send a new one.','warning');
     else showCampaignComposeNotice('','success');
     populateComposeTemplates();
-    renderComposeSavedTemplates();
     populateComposePreviewRecipients();
     renderCampaignComposePreview();
     setText('campaignBuilderSaveState','Saved');
-    await refreshComposeDeliveryAvailability_();
   } catch(error) {
     showCampaignComposeNotice(error?.message || 'Could not load campaign content. Refresh before editing.','error');
     setText('campaignBuilderSaveState','Load failed');
@@ -3868,7 +3899,7 @@ async function loadCampaignCompose() {
 }
 function showCampaignComposeNotice(message,type='success') {
   const notice=document.getElementById('campaignComposeNotice'); if(!notice)return;
-  notice.hidden=!message; notice.className=`dashboard-notice ${type}`; notice.textContent=message||'';
+  notice.hidden=!message; notice.className=`dashboard-notice ${type}`; notice.textContent=message||''; scheduleTransientNotice_(notice,message,type);
 }
 function switchComposeMode(mode) {
   campaignComposeActiveMode=mode;
@@ -3886,7 +3917,7 @@ function insertComposeVariable(variable) {
 function applySelectedComposeTemplate() { const id=document.getElementById('campaignComposeTemplateSelect')?.value||''; if(!id){showCampaignComposeNotice('Choose a saved template first.','warning');return;} applyComposeTemplateById(id,true); }
 async function saveCampaignCompose() {
   const validation=validateCampaignCompose(); if(!validation.valid)return false;
-  const button=document.getElementById('campaignComposeSave');
+  const button=document.getElementById('campaignComposeContinue');
   return await withActionButtonBusy(button,'Saving…',async()=>{
     try {
       setText('campaignBuilderSaveState','Saving…');
@@ -3899,8 +3930,8 @@ async function saveCampaignCompose() {
       });
       await ensureCampaignContentLoaded(true);
       setText('campaignBuilderSaveState','Saved');
+      localStorage.removeItem(composeDraftKey_());
       showCampaignComposeNotice('Email saved to this campaign.','success');
-      await refreshComposeDeliveryAvailability_();
       return true;
     } catch(error){setText('campaignBuilderSaveState','Not saved');showCampaignComposeNotice(error?.message||'Could not save compose content.','error');return false;}
   });
@@ -3975,9 +4006,39 @@ async function composeCampaignDelivery_(action){
     }else await launchReviewedCampaign();
   }catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');}
 }
+function composeDraftKey_(){ return 'campaign-compose-draft:'+String(campaignBuilderCampaignId||''); }
+async function autoSaveCampaignCompose_(){
+  const fields=['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].map(id=>document.getElementById(id)?.value||'');
+  const key=composeDraftKey_();
+  if (['COMPLETED','CANCELED','ARCHIVED'].includes(getRawCampaignStatus(getCampaignBuilderCampaign()))) return true;
+  const existing=getCurrentCampaignComposeContent();
+  if (fields[0]===String(existing?.subject||'')&&fields[1]===String(existing?.plainBody||'')&&fields[2]===String(existing?.htmlBody||''))return true;
+  if(!fields.some(x=>x.trim())){localStorage.removeItem(key);return true;}
+  try{localStorage.setItem(key,JSON.stringify(fields));}catch(_error){}
+  if(!fields[0].trim()||(!fields[1].trim()&&!fields[2].trim()))return true;
+  setText('campaignBuilderSaveState','Saving…');
+  try {
+    await DashboardApi.saveCampaignContent({campaignId:campaignBuilderCampaignId,subject:fields[0],plainBody:fields[1],htmlBody:fields[2],templateId:document.getElementById('campaignComposeTemplateSelect')?.value||''});
+    campaignContentState.loaded=false;
+    localStorage.removeItem(key);
+    setText('campaignBuilderSaveState','Saved');
+  }catch(error){
+    setText('campaignBuilderSaveState','Saved on this device');
+    showCampaignComposeNotice('Could not save to the server. Your draft is saved in this browser; retry before sending.','error');
+    return false;
+  }
+  return true;
+}
+const transientNoticeTimers_=new WeakMap();
+function scheduleTransientNotice_(node,message,type){
+  clearTimeout(transientNoticeTimers_.get(node));
+  if(message && type==='success') {
+    transientNoticeTimers_.set(node,setTimeout(()=>{if(node.textContent===message)node.hidden=true;},7000));
+  }
+}
 function attachCampaignComposeListeners() {
   document.getElementById('campaignComposeBack')?.addEventListener('click',()=>composeOnlyMode?closeCampaignBuilder():switchCampaignBuilderStep('recipients'));
-  document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
+  document.getElementById('campaignComposeContinue')?.addEventListener('click',async()=>{if(await saveCampaignCompose())await switchCampaignBuilderStep('settings',{skipComposeSave:true});});
   document.getElementById('campaignComposeSchedule')?.addEventListener('click',()=>composeCampaignDelivery_('schedule'));
   document.getElementById('campaignComposeReview')?.addEventListener('click',()=>composeCampaignDelivery_('review'));
   document.getElementById('campaignComposeSendNow')?.addEventListener('click',()=>composeCampaignDelivery_('send'));
@@ -3988,7 +4049,7 @@ function attachCampaignComposeListeners() {
   document.getElementById('campaignComposePreviewRecipient')?.addEventListener('change',renderCampaignComposePreview);
   ['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].forEach(id=>{
     const el=document.getElementById(id); if(!el)return;
-    el.addEventListener('input',renderCampaignComposePreview);
+    el.addEventListener('input',()=>{renderCampaignComposePreview();try{localStorage.setItem(composeDraftKey_(),JSON.stringify(['campaignComposeSubject','campaignComposePlainBody','campaignComposeHtmlBody'].map(key=>document.getElementById(key)?.value||'')));}catch(_error){}});
     el.addEventListener('focus',()=>{if(id!=='campaignComposeSubject')campaignComposeLastFocusedEditor=id;});
   });
   document.querySelectorAll('[data-compose-mode]').forEach(button=>button.addEventListener('click',()=>switchComposeMode(button.dataset.composeMode)));
@@ -7661,6 +7722,8 @@ async function ensureContactAudiencesLoaded(
     }
 
     renderContactAudienceViews();
+    renderUsersManagement();
+    if (campaignBuilderActiveStep === 'recipients') renderCampaignBuilderAllContacts();
 
   } catch (error) {
 
@@ -7977,7 +8040,7 @@ function renderContactListDetail() {
             <td>
               ${
                 item.user.unsubscribed
-                  ? '<span class="status-badge badge-danger">Suppressed</span>'
+                  ? '<span class="status-badge badge-danger">Unsubscribed</span>'
                   : '<span class="status-badge badge-success">Subscribed</span>'
               }
             </td>
@@ -9741,6 +9804,8 @@ function switchUserModuleTab(
 
   if (
     activeUserModuleTab ===
+      'all' ||
+    activeUserModuleTab ===
       'lists' ||
     activeUserModuleTab ===
       'segments'
@@ -10406,7 +10471,7 @@ function renderSubscriptionManagement() {
       emptyRow(
         7,
         query
-          ? 'No suppressed contacts match this search.'
+          ? 'No unsubscribed contacts match this search.'
           : 'No contacts are currently suppressed.'
       );
 
@@ -11669,7 +11734,7 @@ async function saveCampaignSettings(event) {
 }
 
 function attachCampaignSettingsListeners() {
-  document.getElementById('campaignSettingsBack')?.addEventListener('click',()=>switchCampaignBuilderStep('followups'));
+  document.getElementById('campaignSettingsBack')?.addEventListener('click',()=>switchCampaignBuilderStep('compose'));
   document.getElementById('campaignSettingsSave')?.addEventListener('click',saveCampaignSettings);
   document.getElementById('campaignSettingsContinue')?.addEventListener('click',()=>switchCampaignBuilderStep('schedule'));
 }
@@ -12047,7 +12112,7 @@ async function sendDirectCompose_(button) {
   if(!recipients.length||recipients.length>20){showDirectComposeNotice('Choose 1 to 20 recipients.','error');return;}
   if(recipients.some(email=>!/^[^\s@,<>]+@[^\s@,<>]+\.[^\s@,<>]+$/.test(email))){showDirectComposeNotice('Correct the invalid email address before sending.','error');return;}
   if(!subject||!body.trim()){showDirectComposeNotice('Add a subject and message before sending.','error');return;}
-  const confirmed=await openDashboardConfirm({title:'Send direct email?',message:`Send "${subject}" separately to ${recipients.length} recipient${recipients.length===1?'':'s'}? Mailbox checks are optional; suppressed contacts are blocked.`,confirmLabel:'Send Email'});
+  const confirmed=await openDashboardConfirm({title:'Send direct email?',message:`Send "${subject}" separately to ${recipients.length} recipient${recipients.length===1?'':'s'}? Mailbox checks are optional; unsubscribed contacts are blocked.`,confirmLabel:'Send Email'});
   if(!confirmed)return;
   if(!directComposeRequestId)directComposeRequestId='DM'+crypto.randomUUID().replace(/-/g,'');
   await withActionButtonBusy(button,'Sending…',async()=>{
@@ -12113,20 +12178,3 @@ function attachDirectComposeListeners_() {
   });
 }
 
-// A single unobtrusive live indicator covers every protected API load and
-// update, including quick operations that finish before the section redraws.
-{
-  let active=0,hideTimer;
-  window.addEventListener('dashboard-api-progress',event=>{
-    const node=document.getElementById('operationProgress');if(!node)return;
-    const {action='',phase='loading'}=event.detail||{};
-    const label=String(action).replace(/^(get_|save_|update_|create_)/,'').replace(/_/g,' ');
-    clearTimeout(hideTimer);
-    if(phase==='loading')active++;
-    else active=Math.max(0,active-1);
-    node.hidden=false;
-    node.dataset.phase=active?'loading':phase;
-    node.textContent=active?`Working… ${label||'Loading data'}`:phase==='error'?'Action failed. Check the message in this section.':`Updated · ${label||'Completed'}`;
-    if(!active)hideTimer=setTimeout(()=>{node.hidden=true;},phase==='error'?4500:2200);
-  });
-}
