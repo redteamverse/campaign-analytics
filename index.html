@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=230"
+    href="css/dashboard-modules.css?v=240"
   >
 
   <style>
@@ -1662,12 +1662,23 @@
                 </div>
                 <label for="directComposeList">Or add a saved list</label>
                 <select id="directComposeList"><option value="">Choose a list (optional)</option></select>
-                <div id="directComposeRecipients" class="direct-compose-recipient-summary" aria-live="polite">Add an address, contact, or list.</div>
+                <div class="direct-compose-recipient-summary">
+                  <span id="directComposeRecipients" aria-live="polite">Add an address, contact, or list.</span>
+                  <button type="button" class="secondary-action-button compact" id="directComposeViewRecipients" aria-expanded="false" aria-controls="directComposeRecipientList" hidden>View recipients</button>
+                </div>
+                <div id="directComposeRecipientList" class="direct-compose-recipient-list" hidden></div>
+                <div id="directComposeBlockedRecipients" class="dashboard-notice warning" hidden></div>
+                <div class="direct-compose-template-row">
+                  <label for="directComposeTemplate">Start from a saved template</label>
+                  <div><select id="directComposeTemplate"><option value="">Write a new email</option></select><button type="button" class="secondary-action-button" id="directComposeUseTemplate">Use Template</button></div>
+                  <small>Plain-text templates only. Create and manage templates under Templates.</small>
+                </div>
                 <label for="directComposeSubject">Subject</label>
                 <input id="directComposeSubject" maxlength="240" placeholder="Subject">
                 <label for="directComposeBody">Message</label>
                 <textarea id="directComposeBody" rows="12" placeholder="Write your message…"></textarea>
                 <div id="directComposeNotice" class="dashboard-notice" hidden></div>
+                <button type="button" class="secondary-action-button" id="directComposeRetryConnection" hidden>Retry direct email connection</button>
                 <div class="direct-compose-schedule-form" id="directComposeScheduleForm" hidden>
                   <strong>Schedule this direct email</strong>
                   <p>Each address gets its own send record. The time uses the selected time zone.</p>
@@ -1681,7 +1692,7 @@
                 </div>
                 <div class="direct-compose-actions"><span>Mailbox checks are optional. Unsubscribed contacts cannot receive email.</span><button type="button" class="secondary-action-button" id="directComposeSchedule">Schedule Send</button><button type="button" class="primary-action-button" id="directComposeSend">Send Now</button></div>
               </div>
-              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Unsubscribed contacts are blocked. One send supports up to 20 recipients.</p><p>Direct sends remain separate from Campaign History and campaign analytics.</p><h4>Scheduled direct emails</h4><div id="directComposeSchedules" class="direct-compose-history">Loading scheduled emails…</div><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div></aside>
+              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Unsubscribed contacts are blocked. One send supports up to 20 recipients.</p><p>Direct email has its own history, separate from Campaign History and campaign analytics.</p><h4>Upcoming direct emails</h4><div id="directComposeSchedules" class="direct-compose-history">Loading scheduled emails…</div><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div><details id="directComposeFullHistory" class="direct-compose-full-history"><summary>View direct email history (latest 100)</summary><div id="directComposeHistoryAll">Loading history…</div></details></aside>
             </div>
           </div>
         </section>
@@ -3697,9 +3708,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=230"></script>
+  <script src="js/dashboard-api.js?v=240"></script>
 
-  <script src="js/app.js?v=230"></script>
+  <script src="js/app.js?v=240"></script>
 
 </body>
 

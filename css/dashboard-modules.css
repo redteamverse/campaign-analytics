@@ -2331,3 +2331,15 @@ body.campaign-builder-open{overflow:hidden}
 
 .campaign-details-status-help{margin:7px 0 0;color:#475467;font-size:13px;line-height:1.55}
 .campaign-builder-stage-panel[data-builder-panel="details"] .dashboard-notice{margin:0 0 16px}
+
+/* Direct Email recipient preview, template choice, and complete history. */
+.direct-compose-recipient-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;font-size:13px}
+.direct-compose-recipient-summary button{flex:0 0 auto}
+.direct-compose-recipient-list{max-height:270px;overflow:auto;padding:5px 12px;border:1px solid #e2e8f0;border-radius:9px;background:#fff}
+.direct-compose-recipient-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid #e2e8f0;color:#475569;font-size:12px}
+.direct-compose-recipient-row:last-child{border-bottom:0}.direct-compose-recipient-row strong,.direct-compose-recipient-row small{display:block}.direct-compose-recipient-row small{font-size:11px;color:#64748b;word-break:break-word}
+.direct-compose-recipient-row>span:last-child{text-align:right}.direct-compose-template-row{display:grid;gap:8px;padding:12px 14px;border:1px solid #e2e8f0;border-radius:9px;background:#f8fafc}
+.direct-compose-template-row>div{display:flex;align-items:center;gap:9px}.direct-compose-template-row select{min-width:0;flex:1}.direct-compose-template-row button{white-space:nowrap}.direct-compose-template-row small{color:#64748b;font-size:11px;line-height:1.5}
+.direct-compose-full-history{margin-top:15px;padding-top:12px;border-top:1px solid #e2e8f0}.direct-compose-full-history summary{cursor:pointer;color:#9b1c1c;font-weight:650;font-size:12px}.direct-compose-full-history h5{margin:13px 0 6px;font-size:12px;color:#111827}.direct-compose-full-history #directComposeHistoryAll{max-height:390px;overflow:auto}
+#directComposeRetryConnection{justify-self:start}
+@media(max-width:560px){.direct-compose-template-row>div{align-items:stretch;flex-direction:column}.direct-compose-recipient-row{align-items:flex-start;flex-direction:column}.direct-compose-recipient-row>span:last-child{text-align:left}}
