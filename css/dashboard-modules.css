@@ -2278,3 +2278,30 @@ body.campaign-builder-open{overflow:hidden}
 .campaign-schedule-pending{display:inline-flex;align-items:center;color:#667085;font-size:11px}
 .campaign-lifecycle-filter[data-campaign-lifecycle="scheduled"].active{background:#f5f3ff;color:#6d28d9;border-color:#c4b5fd}
 .campaign-review-schedule-row .badge-warning{background:#f5f3ff;color:#6d28d9}
+
+/* Closed campaigns display their schedule history without inviting another send. */
+.campaign-delivery-locked{opacity:.75}
+.campaign-delivery-locked .campaign-schedule-datetime,.campaign-delivery-locked .schedule-form-actions{display:none}
+.compose-main-table td .campaign-status-badge{font-size:10px}
+
+/* Closed campaigns remain browsable, while all builder write controls are locked. */
+.campaign-read-only [data-builder-panel] button,
+.campaign-read-only [data-builder-panel] input,
+.campaign-read-only [data-builder-panel] textarea,
+.campaign-read-only [data-builder-panel] select{pointer-events:none;opacity:.55}
+.campaign-read-only [data-builder-panel] input,
+.campaign-read-only [data-builder-panel] textarea{user-select:text}
+
+.operation-progress{position:fixed;top:72px;right:20px;z-index:1000;max-width:min(380px,calc(100vw - 32px));border:1px solid #cbd5e1;border-radius:11px;background:#fff;box-shadow:0 12px 30px #1018281c;padding:11px 16px;color:#18243c;font-size:13px;font-weight:650}
+.operation-progress[data-phase="loading"]:before{content:"";display:inline-block;width:12px;height:12px;margin-right:9px;border:2px solid #b91c1c;border-top-color:transparent;border-radius:50%;vertical-align:-2px;animation:campaign-spin .8s linear infinite}
+.operation-progress[data-phase="error"]{border-color:#fecaca;color:#991b1b}
+@keyframes campaign-spin{to{transform:rotate(360deg)}}
+.direct-compose-schedule-form{border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;padding:17px;margin:14px 0}
+.direct-compose-schedule-form p{font-size:13px;color:#475569}
+.direct-compose-schedule-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:12px 0}
+.direct-compose-schedule-fields label{display:grid;gap:5px;font-size:12px;font-weight:650}
+.direct-compose-schedule-fields input,.direct-compose-schedule-fields select{width:100%;padding:8px;border:1px solid #cbd5e1;border-radius:7px}
+@media(max-width:740px){.direct-compose-schedule-fields{grid-template-columns:1fr}}
+.campaign-schedule-card.is-editing{outline:2px solid #b91c1c;outline-offset:3px}
+.campaign-review-loading,.compose-main-empty,.direct-compose-history[aria-busy="true"]{color:#475569}
+.compose-delivery-status{font-size:12px;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 13px;margin:12px 0}

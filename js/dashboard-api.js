@@ -221,7 +221,7 @@ const DashboardApi = (function () {
   // PROTECTED ADMIN REQUEST
   // ============================================================
 
-  async function post(action, payload = {}) {
+  async function postRequest(action, payload = {}) {
     const token =
       getToken();
 
@@ -333,6 +333,17 @@ const DashboardApi = (function () {
 
     return data;
   }
+  async function post(action, payload = {}) {
+    window.dispatchEvent(new CustomEvent('dashboard-api-progress',{detail:{action,phase:'loading'}}));
+    try {
+      const result=await postRequest(action,payload);
+      window.dispatchEvent(new CustomEvent('dashboard-api-progress',{detail:{action,phase:'done'}}));
+      return result;
+    } catch(error) {
+      window.dispatchEvent(new CustomEvent('dashboard-api-progress',{detail:{action,phase:'error'}}));
+      throw error;
+    }
+  }
 
 
   // ============================================================
@@ -426,6 +437,9 @@ const DashboardApi = (function () {
         'create_campaign',
         payload
       );
+    },
+    duplicateCampaign(payload) {
+      return post('duplicate_campaign', payload);
     },
 
     updateCampaign(payload) {
@@ -654,6 +668,15 @@ const DashboardApi = (function () {
     },
     getDirectMailHistory() {
       return post('get_direct_mail_history', {});
+    },
+    scheduleDirectMail(payload) {
+      return post('schedule_direct_mail', payload);
+    },
+    getDirectMailSchedules() {
+      return post('get_direct_mail_schedules', {});
+    },
+    cancelDirectMailSchedule(scheduleId) {
+      return post('cancel_direct_mail_schedule', {scheduleId});
     },
 
     // CAMPAIGN REVIEW & READINESS — V15

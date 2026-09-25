@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=198"
+    href="css/dashboard-modules.css?v=200"
   >
 
   <style>
@@ -420,6 +420,7 @@
           class="dashboard-notice"
           hidden
         ></div>
+        <div id="operationProgress" class="operation-progress" role="status" aria-live="polite" hidden></div>
 
 
         <!-- ===================================================
@@ -1666,9 +1667,20 @@
                 <label for="directComposeBody">Message</label>
                 <textarea id="directComposeBody" rows="12" placeholder="Write your message…"></textarea>
                 <div id="directComposeNotice" class="dashboard-notice" hidden></div>
-                <div class="direct-compose-actions"><span>Mailbox checks are optional. Suppressed contacts cannot receive email.</span><button type="button" class="primary-action-button" id="directComposeSend">Send Email</button></div>
+                <div class="direct-compose-schedule-form" id="directComposeScheduleForm" hidden>
+                  <strong>Schedule this direct email</strong>
+                  <p>Each address gets its own send record. The time uses the selected time zone.</p>
+                  <div class="direct-compose-schedule-fields">
+                    <label>Send date <input type="date" id="directComposeDate"></label>
+                    <label>Send time <input type="time" id="directComposeTime"></label>
+                    <label>Time zone <select id="directComposeTimezone"><option value="Asia/Kolkata">Asia/Kolkata</option><option value="UTC">UTC</option><option value="America/New_York">America/New_York</option><option value="Europe/London">Europe/London</option></select></label>
+                  </div>
+                  <button type="button" class="primary-action-button" id="directComposeScheduleSave">Confirm Schedule</button>
+                  <button type="button" class="secondary-action-button" id="directComposeScheduleClose">Close</button>
+                </div>
+                <div class="direct-compose-actions"><span>Mailbox checks are optional. Suppressed contacts cannot receive email.</span><button type="button" class="secondary-action-button" id="directComposeSchedule">Schedule Send</button><button type="button" class="primary-action-button" id="directComposeSend">Send Now</button></div>
               </div>
-              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Suppressed contacts are blocked. One send supports up to 20 recipients.</p><p>These sends appear below and in Gmail Sent. They are separate from Campaign History and campaign analytics.</p><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div></aside>
+              <aside class="direct-compose-side"><h4>Direct Email</h4><p>Each recipient receives a separate email. Suppressed contacts are blocked. One send supports up to 20 recipients.</p><p>Direct sends remain separate from Campaign History and campaign analytics.</p><h4>Scheduled direct emails</h4><div id="directComposeSchedules" class="direct-compose-history">Loading scheduled emails…</div><h4>Recent direct sends</h4><div id="directComposeHistory" class="direct-compose-history">Loading history…</div></aside>
             </div>
           </div>
         </section>
@@ -2875,7 +2887,6 @@
           <section class="campaign-builder-stage-panel" data-builder-panel="compose">
             <div class="builder-stage-heading builder-stage-heading-row">
               <div><span class="detail-eyebrow">Step 3</span><h3>Compose Email</h3><p>Write the first outreach email, personalize it, and preview it against a real campaign recipient.</p></div>
-              <button type="button" class="secondary-action-button" id="campaignComposeSaveTemplate">Save as Template</button>
             </div>
 
             <div id="campaignComposeNotice" class="dashboard-notice" hidden></div>
@@ -2918,11 +2929,13 @@
                   <div class="compose-validation" id="campaignComposeValidation"></div>
                 </div>
 
+                <p id="campaignComposeDeliveryStatus" class="compose-delivery-status" role="status">Checking recipients, settings and schedule…</p>
                 <div class="builder-stage-footer">
                   <button type="button" class="secondary-action-button" id="campaignComposeBack">Back to Recipients</button>
                   <div class="builder-footer-actions">
                     <button type="button" class="secondary-action-button" id="campaignComposeSendTest">Send Test Email</button>
-                    <button type="button" class="secondary-action-button" id="campaignComposeSave">Save Compose</button>
+                    <button type="button" class="secondary-action-button" id="campaignComposeSave">Save Draft</button>
+                    <button type="button" class="secondary-action-button" id="campaignComposeReview">Review Sending Setup</button>
                     <button type="button" class="secondary-action-button" id="campaignComposeSchedule">Schedule Send</button>
                     <button type="button" class="primary-action-button" id="campaignComposeSendNow">Send Now</button>
                   </div>
@@ -3130,7 +3143,7 @@
 
             <div class="sequence-safety-note">
               <strong>Settings only — no campaign email is sent here</strong>
-              <span>V13 stores and validates these rules. Schedule and the Send Queue remain disabled until their own stages are completed.</span>
+              <span>Save these rules before reviewing or scheduling this campaign.</span>
             </div>
 
             <div class="builder-stage-footer">
@@ -3143,7 +3156,7 @@
           </section>
 
           <section class="campaign-builder-stage-panel" data-builder-panel="schedule">
-            <div class="builder-stage-heading"><div><span class="detail-eyebrow">Step 6</span><h3>Campaign Schedule</h3><p>Add one or more future send times. Send Now remains a separate instant action.</p></div></div>
+            <div class="builder-stage-heading"><div><span class="detail-eyebrow">Step 6</span><h3>Campaign Schedule</h3><p>Add or change future send times. You can edit campaign details from this step.</p></div></div>
             <div id="campaignScheduleNotice" class="dashboard-notice" hidden></div>
             <div class="campaign-schedule-layout">
               <div class="builder-content-card campaign-schedule-card">
@@ -3156,11 +3169,11 @@
                 </div>
                 <div class="schedule-form-actions"><button type="button" class="secondary-action-button" id="campaignScheduleCancelEdit" hidden>Cancel Edit</button><button type="button" class="primary-action-button" id="campaignScheduleSave">Add Schedule</button></div>
               </div>
-              <div class="builder-content-card campaign-schedule-summary"><h4>Sending rules</h4><div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div><div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div><div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div><p class="builder-card-help">Scheduled sends still obey Campaign Settings. Send Now is separate from this schedule list.</p></div>
+              <div class="builder-content-card campaign-schedule-summary"><h4>Sending rules</h4><div class="schedule-rule-row"><strong>Time zone</strong><span id="campaignScheduleSummaryTimezone">From Settings</span></div><div class="schedule-rule-row"><strong>Allowed sending hours</strong><span id="campaignScheduleSummaryHours">From Settings</span></div><div class="schedule-rule-row"><strong>Sending days</strong><span id="campaignScheduleSummaryDays">From Settings</span></div><p class="builder-card-help">Scheduled sends obey Campaign Settings. Cancel the upcoming time before using Send Now.</p></div>
             </div>
             <div class="builder-content-card campaign-schedule-list-card"><div class="schedule-list-heading"><div><h4>Scheduled times</h4><p>All scheduled times for this campaign.</p></div><span id="campaignScheduleCount" class="status-badge badge-muted">0</span></div><div id="campaignScheduleList" class="campaign-schedule-list"><div class="schedule-empty">No upcoming times.</div></div></div>
             <div class="builder-content-card campaign-schedule-history-card"><div class="schedule-list-heading"><div><h4>Schedule history</h4><p>Completed and canceled times. Clearing hides them from this view; records remain for audit.</p></div><button type="button" class="secondary-action-button" id="campaignScheduleClearAll" hidden>Clear All History</button></div><div id="campaignScheduleHistory" class="campaign-schedule-list"></div></div>
-            <div class="builder-stage-footer"><button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button><div class="builder-footer-actions"><button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button></div></div>
+            <div class="builder-stage-footer"><button type="button" class="secondary-action-button" id="campaignScheduleBack">Back to Settings</button><button type="button" class="secondary-action-button" id="campaignScheduleEditCampaign">Edit Campaign Details</button><div class="builder-footer-actions"><button type="button" class="secondary-action-button" id="campaignScheduleContinue">Continue to Review</button></div></div>
           </section>
 
 
@@ -3190,8 +3203,7 @@
               <span>Sending uses the protected Send Queue and follows campaign rules.</span>
             </div>
             <div class="builder-stage-footer">
-              <button type="button" class="secondary-action-button" id="campaignReviewBack">Back to Schedule</button>
-              <button type="button" class="secondary-action-button" id="campaignReviewDone">Done · View Campaigns</button>
+              <button type="button" class="secondary-action-button" id="campaignReviewDone">Done</button>
               <div class="builder-footer-actions">
                 <button type="button" class="secondary-action-button" id="campaignReviewRecheck">Recheck Campaign</button>
                 <button type="button" class="secondary-action-button" id="campaignReviewDraft">Save as Draft</button>
@@ -3697,9 +3709,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=198"></script>
+  <script src="js/dashboard-api.js?v=200"></script>
 
-  <script src="js/app.js?v=198"></script>
+  <script src="js/app.js?v=200"></script>
 
 </body>
 
