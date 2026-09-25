@@ -1669,7 +1669,7 @@ function getCampaignManagementRows() {
         )
     )
     .filter(campaign => {
-      const hasUpcoming = (campaignScheduleState.schedules || []).some(schedule =>
+      const hasUpcoming = !['CANCELED','COMPLETED','ARCHIVED'].includes(getRawCampaignStatus(campaign)) && (campaignScheduleState.schedules || []).some(schedule =>
         String(schedule.campaignId) === String(campaign.campaignId) &&
         String(schedule.scheduleStatus).toUpperCase() === 'UPCOMING'
       );
@@ -1931,7 +1931,7 @@ function getCampaignLifecycleActions(
 }
 
 
-function renderCampaignNextSchedule_(campaignId){if(!campaignScheduleState.loaded)return `<span class="campaign-schedule-pending">${campaignScheduleState.error?'Schedule unavailable':'Checking schedule…'}</span>`;const rows=(campaignScheduleState?.schedules||[]).filter(s=>String(s.campaignId)===String(campaignId)&&String(s.scheduleStatus).toUpperCase()==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));if(!rows.length)return '<span class="muted-id">—</span>';const s=rows[0],more=rows.length-1;return `<div class="campaign-next-schedule"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}${more?` · +${more} more`:''}</span></div>`;}
+function renderCampaignNextSchedule_(campaignId){const campaign=getCampaignById(campaignId);if(['CANCELED','COMPLETED','ARCHIVED'].includes(getRawCampaignStatus(campaign)))return '<span class="muted-id">—</span>';if(!campaignScheduleState.loaded)return `<span class="campaign-schedule-pending">${campaignScheduleState.error?'Schedule unavailable':'Checking schedule…'}</span>`;const rows=(campaignScheduleState?.schedules||[]).filter(s=>String(s.campaignId)===String(campaignId)&&String(s.scheduleStatus).toUpperCase()==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));if(!rows.length)return '<span class="muted-id">—</span>';const s=rows[0],more=rows.length-1;return `<div class="campaign-next-schedule"><strong>${escapeHtml(formatCampaignScheduleDate_(s.startDate))}</strong><span>${escapeHtml(s.startTime)}${more?` · +${more} more`:''}</span></div>`;}
 
 function renderCampaignManagement() {
 
@@ -3911,9 +3911,9 @@ function insertComposeVariable(variable) {
 }
 function applySelectedComposeTemplate() { const id=document.getElementById('campaignComposeTemplateSelect')?.value||''; if(!id){showCampaignComposeNotice('Choose a saved template first.','warning');return;} applyComposeTemplateById(id,true); }
 async function saveCampaignCompose() {
-  const validation=validateCampaignCompose(); if(!validation.valid)return;
+  const validation=validateCampaignCompose(); if(!validation.valid)return false;
   const button=document.getElementById('campaignComposeSave');
-  await withActionButtonBusy(button,'Saving…',async()=>{
+  return await withActionButtonBusy(button,'Saving…',async()=>{
     try {
       setText('campaignBuilderSaveState','Saving…');
       await DashboardApi.saveCampaignContent({
@@ -3926,7 +3926,8 @@ async function saveCampaignCompose() {
       await ensureCampaignContentLoaded(true);
       setText('campaignBuilderSaveState','Saved');
       showCampaignComposeNotice('Compose content saved to this campaign.','success');
-    } catch(error){setText('campaignBuilderSaveState','Not saved');showCampaignComposeNotice(error?.message||'Could not save compose content.','error');}
+      return true;
+    } catch(error){setText('campaignBuilderSaveState','Not saved');showCampaignComposeNotice(error?.message||'Could not save compose content.','error');return false;}
   });
 }
 async function sendCampaignComposeTest() {
@@ -3975,9 +3976,39 @@ async function saveComposeAsTemplate() {
     } catch(error){showCampaignComposeNotice(error?.message||'Could not save template.','error');}
   });
 }
+async function composeCampaignDelivery_(action){
+  const campaign=getCampaignBuilderCampaign();
+  if(!campaign)return;
+  if(['PAUSED','COMPLETED','CANCELED','ARCHIVED'].includes(getRawCampaignStatus(campaign))){
+    showCampaignComposeNotice('This campaign cannot send in its current status. Change its status before scheduling or sending.','error');return;
+  }
+  const saved=await saveCampaignCompose();if(!saved)return;
+  // Show the same required checks and schedule editor used by the builder.
+  composeOnlyMode=false;
+  document.getElementById('campaignBuilderWorkspace')?.classList.remove('compose-only');
+  const label=document.querySelector('.campaign-builder-workspace-title .detail-eyebrow');
+  if(label)label.textContent='Campaign Builder';
+  const exit=document.getElementById('campaignBuilderExit');if(exit)exit.textContent='Exit Builder';
+  switchCampaignBuilderStep('review');
+  if(action==='schedule'){
+    const form=document.getElementById('campaignReviewScheduleForm');if(form)form.hidden=false;
+    document.getElementById('campaignReviewScheduleDate')?.focus();
+  }
+  // Send Now still asks for confirmation; the backend rechecks readiness.
+  if(action==='send'){
+    try{
+      const response=await DashboardApi.checkCampaignReadiness(campaign.campaignId);
+      const result=response?.result?.result||response?.result||response;
+      if(result?.ready)await launchReviewedCampaign();
+      else showCampaignReviewNotice('Complete the required items below before sending.','warning');
+    }catch(error){showCampaignReviewNotice(error?.message||'Could not check campaign readiness.','error');}
+  }
+}
 function attachCampaignComposeListeners() {
   document.getElementById('campaignComposeBack')?.addEventListener('click',()=>composeOnlyMode?closeCampaignBuilder():switchCampaignBuilderStep('recipients'));
   document.getElementById('campaignComposeSave')?.addEventListener('click',saveCampaignCompose);
+  document.getElementById('campaignComposeSchedule')?.addEventListener('click',()=>composeCampaignDelivery_('schedule'));
+  document.getElementById('campaignComposeSendNow')?.addEventListener('click',()=>composeCampaignDelivery_('send'));
   document.getElementById('campaignComposeSendTest')?.addEventListener('click',sendCampaignComposeTest);
   document.getElementById('campaignComposeSaveTemplate')?.addEventListener('click',saveComposeAsTemplate);
   document.getElementById('campaignComposeApplyTemplate')?.addEventListener('click',applySelectedComposeTemplate);
@@ -11681,7 +11712,7 @@ function updateCampaignScheduleUi(){const s=getCurrentCampaignSettings(),tz=s?.t
 function scheduleStatusBadge_(s){const st=String(s||'').toUpperCase();if(st==='UPCOMING')return '<span class="status-badge badge-warning">Upcoming</span>';if(st==='COMPLETED')return '<span class="status-badge badge-success">Completed</span>';if(st==='CANCELED')return '<span class="status-badge badge-danger">Canceled</span>';return `<span class="status-badge badge-muted">${escapeHtml(st||'—')}</span>`;}
 function renderCampaignScheduleList(){
  const list=document.getElementById('campaignScheduleList'),history=document.getElementById('campaignScheduleHistory');
- const rows=getCampaignSchedulesForCurrent_(),upcoming=rows.filter(x=>x.scheduleStatus==='UPCOMING'),past=rows.filter(x=>['COMPLETED','CANCELED'].includes(x.scheduleStatus));
+ const rows=getCampaignSchedulesForCurrent_(),terminal=['CANCELED','COMPLETED','ARCHIVED'].includes(getRawCampaignStatus(getCampaignBuilderCampaign())),upcoming=rows.filter(x=>x.scheduleStatus==='UPCOMING'&&!terminal),past=rows.filter(x=>['COMPLETED','CANCELED'].includes(x.scheduleStatus));
  setText('campaignScheduleCount',String(upcoming.length));
  if(list)list.innerHTML=upcoming.length?upcoming.map(x=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))}</strong><span>${escapeHtml(x.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(x.campaignScheduleId)}</small>${scheduleStatusBadge_(x.scheduleStatus)}</div><div class="schedule-row-actions"><button type="button" class="secondary-action-button compact" data-schedule-edit="${escapeHtml(x.campaignScheduleId)}">Edit</button><button type="button" class="row-menu-trigger" data-schedule-menu-trigger="${escapeHtml(x.campaignScheduleId)}">•••</button><div class="row-menu-panel schedule-row-menu" data-schedule-menu="${escapeHtml(x.campaignScheduleId)}" hidden><button type="button" class="row-menu-item danger" data-schedule-cancel="${escapeHtml(x.campaignScheduleId)}">Cancel Schedule</button></div></div></div>`).join(''):'<div class="schedule-empty">No upcoming times. You can send now or schedule from Review.</div>';
  if(history)history.innerHTML=past.length?past.map(x=>`<div class="campaign-schedule-list-row"><div class="schedule-time-block"><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))}</strong><span>${escapeHtml(x.startTime)}</span></div><div class="schedule-id-block"><small>${escapeHtml(x.campaignScheduleId)}</small>${scheduleStatusBadge_(x.scheduleStatus)}</div><div class="schedule-row-actions"><button type="button" class="secondary-action-button compact" data-schedule-clear="${escapeHtml(x.campaignScheduleId)}">Clear from History</button></div></div>`).join(''):'<div class="schedule-empty">No completed or canceled times in this view.</div>';
@@ -11713,10 +11744,11 @@ function escapeReviewHtml_(v){return String(v==null?'':v).replace(/[&<>"']/g,c=>
 function showCampaignReviewNotice(message,type='success'){const n=document.getElementById('campaignReviewNotice');if(!n)return;n.hidden=!message;n.className=`dashboard-notice ${type}`;n.textContent=message||'';}
 function renderReviewSchedules_(){
   const host=document.getElementById('campaignReviewSchedules');if(!host)return;
-  const rows=(campaignScheduleState.schedules||[]).filter(x=>String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));
+  const terminal=['CANCELED','COMPLETED','ARCHIVED'].includes(getRawCampaignStatus(getCampaignBuilderCampaign()));
+  const rows=(campaignScheduleState.schedules||[]).filter(x=>!terminal&&String(x.campaignId)===String(campaignBuilderCampaignId)&&x.scheduleStatus==='UPCOMING').sort((a,b)=>`${a.startDate} ${a.startTime}`.localeCompare(`${b.startDate} ${b.startTime}`));
   const timezone=getCurrentCampaignSettings()?.timezone||'Campaign time zone';
   setText('campaignReviewTimezone',timezone);
-  host.innerHTML=rows.length?rows.map(x=>`<div class="campaign-review-schedule-row"><div><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))} · ${escapeHtml(x.startTime)}</strong><span>${escapeHtml(timezone)}</span></div><span class="status-badge badge-warning">Upcoming</span></div>`).join(''):'<p>No upcoming send is scheduled. You can send now, add a future time here, or save as a draft.</p>';
+  host.innerHTML=rows.length?rows.map(x=>`<div class="campaign-review-schedule-row"><div><strong>${escapeHtml(formatCampaignScheduleDate_(x.startDate))} · ${escapeHtml(x.startTime)}</strong><span>${escapeHtml(timezone)}</span></div><span class="status-badge badge-warning">Upcoming</span></div>`).join(''):terminal?'<p>This campaign is closed. Previously scheduled times cannot send.</p>':'<p>No upcoming send is scheduled. You can send now, add a future time here, or save as a draft.</p>';
   const button=document.getElementById('campaignReviewSchedule');if(button)button.textContent=rows.length?'Add Another Schedule':'Schedule Send';
   const done=document.getElementById('campaignReviewDone');if(done)done.textContent=rows.length?'Done · View Scheduled Campaign':'Done · View Campaigns';
 }
