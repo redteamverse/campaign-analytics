@@ -1571,7 +1571,7 @@ function campaignLifecycleLabel(
     DRAFT:
       'Draft',
     READY:
-      'No upcoming send',
+      'Ready for next send',
     SCHEDULED:
       'Scheduled',
     CHECKING:
@@ -1816,7 +1816,7 @@ function getCampaignLifecycleActions(
   const status=getCampaignLifecycleStatus(campaign);
 
   const actions = [
-    ...(['COMPLETED','CANCELED','ARCHIVED'].includes(status)?[]:[{key:'edit',label:'Edit campaign'}]),
+    ...(['COMPLETED','CANCELED','ARCHIVED'].includes(status)?[]:[{key:'edit',label:'Edit campaign name'}]),
     {
       key:
         'builder',
@@ -2233,7 +2233,7 @@ function openCampaignModal(
 
   title.textContent =
     campaign
-      ? 'Edit Campaign'
+      ? 'Edit Campaign Name'
       : 'Create Campaign';
 
 
