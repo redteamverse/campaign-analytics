@@ -1571,7 +1571,7 @@ function campaignLifecycleLabel(
     DRAFT:
       'Draft',
     READY:
-      'Ready',
+      'No upcoming send',
     SCHEDULED:
       'Scheduled',
     CHECKING:
@@ -1706,7 +1706,8 @@ function getCampaignManagementRows() {
           campaign.campaignId,
           getCampaignLifecycleStatus(
             campaign
-          )
+          ),
+          campaignLifecycleLabel(getCampaignLifecycleStatus(campaign))
         ].some(
           value =>
             String(
@@ -1849,7 +1850,7 @@ function getCampaignLifecycleActions(
       key:
         'ready',
       label:
-        'Mark ready'
+        'Move out of Draft'
     });
   }
 
@@ -2701,7 +2702,7 @@ async function updateCampaignLifecycle(
 
         const messages = {
           ready:
-            'Campaign marked ready.',
+            'Campaign moved out of Draft. Review it before sending or scheduling.',
           pause:
             'Campaign paused.',
           resume:
@@ -3287,6 +3288,24 @@ async function closeCampaignBuilder(options={}) {
   campaignBuilderSelectedUserIds.clear();
 }
 
+function campaignOpeningGuidance_(campaign) {
+  const status=getRawCampaignStatus(campaign);
+  const messages={
+    CANCELED:'This campaign was canceled. You can review its content, but it cannot send. Duplicate it to create a new Draft.',
+    COMPLETED:'This campaign is completed. You can review its content and history. Duplicate it to create a new Draft for sending.',
+    ARCHIVED:'This campaign is archived. You can review its content, or duplicate it to create a new Draft.',
+    PAUSED:'This campaign is paused. You can review its content. Resume it from the Campaigns actions menu before sending.'
+  };
+  return messages[status] || '';
+}
+function campaignStatusGuidance_(campaign) {
+  const status=getCampaignLifecycleStatus(campaign);
+  if(status==='READY')return 'No future send is set. Review the campaign to send now or choose a scheduled time. Sending checks may still be needed.';
+  if(status==='SCHEDULED')return 'A future send time is saved. Recipients enter the Send Queue when it becomes due.';
+  if(status==='RUNNING')return 'This campaign has started sending. Check the Send Queue for delivery work.';
+  return '';
+}
+
 async function openCampaignBuilder(campaignId, options = {}) {
   campaignBuilderCampaignId = String(campaignId || '');
   campaignBuilderSelectedUserIds.clear();
@@ -3305,8 +3324,15 @@ async function openCampaignBuilder(campaignId, options = {}) {
   setText('campaignBuilderNameValue', campaign.campaignName || 'Campaign');
   document.getElementById('campaignBuilderNameSummary').hidden = false;
   document.getElementById('campaignBuilderNameField').hidden = true;
-  document.getElementById('campaignDetailsNotice').hidden = true;
+  const detailsNotice=document.getElementById('campaignDetailsNotice');
+  const openingGuidance=campaignOpeningGuidance_(campaign);
+  detailsNotice.hidden=!openingGuidance;
+  detailsNotice.className='dashboard-notice warning';
+  detailsNotice.textContent=openingGuidance;
   setText('campaignBuilderStatusValue', campaignLifecycleLabel(getCampaignLifecycleStatus(campaign)));
+  setText('campaignBuilderStatusHelp', campaignStatusGuidance_(campaign));
+  const editName=document.getElementById('campaignBuilderEditName');
+  if(editName)editName.hidden=['COMPLETED','CANCELED','ARCHIVED'].includes(getRawCampaignStatus(campaign));
 
   const input = document.getElementById('campaignBuilderNameInput');
   if (input) input.value = campaign.campaignName || '';
@@ -3905,7 +3931,7 @@ async function loadCampaignCompose() {
     if(next) next.disabled=false;
     const apply=document.getElementById('campaignComposeApplyTemplate');if(apply)apply.disabled=closed;
     [subject,plain,html].forEach(field=>{if(field)field.readOnly=closed;});
-    if(closed)showCampaignComposeNotice('This campaign is closed. You can view its email, or duplicate the campaign to send a new one.','warning');
+    if(composeOnlyMode && closed)showCampaignComposeNotice(campaignOpeningGuidance_(getCampaignBuilderCampaign()),'warning');
     else showCampaignComposeNotice('','success');
     populateComposeTemplates();
     populateComposePreviewRecipients();

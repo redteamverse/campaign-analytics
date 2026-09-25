@@ -39,7 +39,7 @@
 
   <link
     rel="stylesheet"
-    href="css/dashboard-modules.css?v=220"
+    href="css/dashboard-modules.css?v=230"
   >
 
   <style>
@@ -1613,7 +1613,7 @@
               aria-label="Filter by email status"
             >
               <option value="all">All emails</option>
-              <option value="ready">Ready</option>
+              <option value="ready">No upcoming send</option>
               <option value="not-written">Not written</option>
             </select>
           </div>
@@ -1972,13 +1972,13 @@
                 type="button"
                 class="campaign-lifecycle-filter"
                 data-campaign-lifecycle="ready"
-                data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue."
-                aria-description="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue."
+                data-help-text="Campaigns with no upcoming send time. You can open one to review its recipients and email, then choose Send Now or schedule a future time. This label does not confirm that delivery checks have passed or that anything is in the Send Queue."
+                aria-description="Campaigns with no upcoming send time. You can open one to review its recipients and email, then choose Send Now or schedule a future time. This label does not confirm that delivery checks have passed or that anything is in the Send Queue."
               >
-                Ready
+                No upcoming send
                 <span id="campaignLifecycleReadyCount">0</span>
               </button>
-              <button type="button" class="campaign-status-info" data-campaign-status-help="ready" data-help-text="Campaigns with no upcoming scheduled send that are marked ready or active in the campaign record. Add a future send time in Schedule or Review to move one to Scheduled. Ready does not mean recipients have entered the Send Queue." aria-label="About ready campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
+              <button type="button" class="campaign-status-info" data-campaign-status-help="ready" data-help-text="Campaigns with no upcoming send time. You can open one to review its recipients and email, then choose Send Now or schedule a future time. This label does not confirm that delivery checks have passed or that anything is in the Send Queue." aria-label="About campaigns with no upcoming send" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
 
               <button type="button" class="campaign-lifecycle-filter" data-campaign-lifecycle="scheduled" data-help-text="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then." aria-description="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then.">Scheduled <span id="campaignLifecycleScheduledCount">…</span></button>
               <button type="button" class="campaign-status-info" data-campaign-status-help="scheduled" data-help-text="Campaigns with an upcoming send time. They wait here until that time is due; recipients enter the Send Queue then." aria-label="About scheduled campaigns" aria-controls="campaignStatusHelpText" aria-expanded="false">ⓘ</button>
@@ -2829,6 +2829,7 @@
                 <input type="text" id="campaignBuilderNameInput" maxlength="160" autocomplete="off">
               </label>
               <p class="campaign-details-status">Status: <strong id="campaignBuilderStatusValue">Draft</strong></p>
+              <p class="campaign-details-status-help" id="campaignBuilderStatusHelp"></p>
             </div>
             <div class="builder-stage-footer">
               <span></span>
@@ -3696,9 +3697,9 @@
   <script src="js/tables.js"></script>
 
   <!-- Admin API must load before app.js -->
-  <script src="js/dashboard-api.js?v=220"></script>
+  <script src="js/dashboard-api.js?v=230"></script>
 
-  <script src="js/app.js?v=220"></script>
+  <script src="js/app.js?v=230"></script>
 
 </body>
 

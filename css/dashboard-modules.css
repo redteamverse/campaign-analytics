@@ -2328,3 +2328,6 @@ body.campaign-builder-open{overflow:hidden}
 .campaign-builder-stage .compose-preview-header select{font-size:12px;max-width:240px;min-height:36px}
 @media(max-width:1050px){.campaign-builder-stage .compose-layout{grid-template-columns:1fr}}
 [hidden]{display:none!important}
+
+.campaign-details-status-help{margin:7px 0 0;color:#475467;font-size:13px;line-height:1.55}
+.campaign-builder-stage-panel[data-builder-panel="details"] .dashboard-notice{margin:0 0 16px}
